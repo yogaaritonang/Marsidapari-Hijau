@@ -69,25 +69,44 @@ Kembalikan hanya JSON valid tanpa markdown:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: parsedImage.data,
-              mimeType: parsedImage.mimeType,
-            },
+    let response;
+    const modelsToTry = [
+      GEMINI_MODEL,
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+      'gemini-2.0-flash',
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+    let lastErr: unknown;
+    for (const model of modelsToTry) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  data: parsedImage.data,
+                  mimeType: parsedImage.mimeType,
+                },
+              },
+              { text: promptText },
+            ],
           },
-          { text: promptText },
-        ],
-      },
-      config: {
-        responseMimeType: 'application/json',
-        maxOutputTokens: 512,
-        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      },
-    });
+          config: {
+            responseMimeType: 'application/json',
+            maxOutputTokens: 512,
+            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+          },
+        });
+        break;
+      } catch (err) {
+        lastErr = err;
+        continue;
+      }
+    }
+    if (!response) {
+      throw lastErr;
+    }
 
     let text = response.text?.trim() || '';
     if (text.startsWith('```json')) {

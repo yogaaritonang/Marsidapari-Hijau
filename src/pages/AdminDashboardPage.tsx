@@ -9,6 +9,8 @@ import {
   MapPin,
   Plus,
   Save,
+  Settings,
+  Sparkles,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -16,7 +18,7 @@ import { Challenge, Community, EnvironmentalReport, GreenEvent, User } from '../
 import { StorageService } from '../services/storageService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 
-type AdminSection = 'overview' | 'brand' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations';
+type AdminSection = 'overview' | 'brand' | 'ai' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
 
 interface AdminDashboardPageProps {
   user: User;
@@ -43,7 +45,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
   const saveBrand = () => {
     StorageService.saveBrandSettings(brand);
-    notify('Identitas aplikasi tersimpan di perangkat ini.');
+    notify('Pengaturan aplikasi tersimpan.');
   };
 
   const addOrganization = (event: React.FormEvent<HTMLFormElement>) => {
@@ -124,12 +126,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
   const navItems: Array<{ id: AdminSection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'overview', label: 'Ringkasan', icon: ClipboardList },
-    { id: 'brand', label: 'Identitas', icon: Image },
+    { id: 'brand', label: 'Identitas & Tampilan', icon: Image },
+    { id: 'ai', label: 'Pengaturan AI', icon: Sparkles },
+    { id: 'users', label: 'Pengguna', icon: Users },
     { id: 'organizations', label: 'Organisasi', icon: Building2 },
     { id: 'challenges', label: 'Tantangan', icon: Leaf },
     { id: 'events', label: 'Kegiatan', icon: CalendarDays },
     { id: 'reports', label: 'Laporan', icon: ClipboardList },
     { id: 'locations', label: 'Titik Peta', icon: MapPin },
+    { id: 'content', label: 'Konten Aplikasi', icon: Settings },
   ];
 
   return (
@@ -220,31 +225,169 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
           )}
 
           {section === 'brand' && (
-            <section className="max-w-2xl space-y-5 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
-              <div>
-                <h2 className="font-bold">Identitas aplikasi</h2>
-                <p className="mt-1 text-xs leading-5 text-gray-500">Logo harus berupa URL gambar HTTPS atau data image. Perubahan lokal akan tampak pada header setelah halaman dimuat ulang.</p>
-              </div>
-              <label className="block space-y-1.5 text-xs font-bold">
-                Teks nama aplikasi
-                <input value={brand.name} onChange={(event) => setBrand({ ...brand, name: event.target.value })} maxLength={50} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
-              </label>
-              <label className="block space-y-1.5 text-xs font-bold">
-                URL gambar logo
-                <input value={brand.logoUrl} onChange={(event) => setBrand({ ...brand, logoUrl: event.target.value })} placeholder="https://contoh.id/logo.png" className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
-              </label>
-              <div className="flex items-center gap-3 rounded-xl bg-[#F3F6F1] p-4">
-                <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-[#2E6B34] text-white">
-                  {brand.logoUrl ? <img src={brand.logoUrl} alt="Pratinjau logo" className="h-full w-full object-contain" /> : <Leaf className="h-7 w-7" />}
+            <section className="space-y-5">
+              <div className="max-w-3xl space-y-5 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+                <div>
+                  <h2 className="font-bold">Identitas & Tampilan Aplikasi</h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Atur nama, logo, tagline, warna, kontak, dan tautan sosial. Logo bisa pakai URL gambar (png/jpg/jpeg/webp/svg) atau data:image/....</p>
                 </div>
-                <span className="font-bold">{brand.name || 'Marsiadapari Hijau'}</span>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Nama aplikasi
+                    <input value={brand.name || ''} onChange={(event) => setBrand({ ...brand, name: event.target.value })} maxLength={60} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Tagline
+                    <input value={brand.tagline || ''} onChange={(event) => setBrand({ ...brand, tagline: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Deskripsi aplikasi
+                    <textarea value={brand.description || ''} onChange={(event) => setBrand({ ...brand, description: event.target.value })} rows={2} className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Upload logo (PNG/JPG/JPEG/WebP/GIF) atau pakai URL/data URL
+                    <input type="file" accept="image/*" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const result = typeof reader.result === 'string' ? reader.result : '';
+                        setBrand({ ...brand, logoUrl: result });
+                      };
+                      reader.readAsDataURL(file);
+                    }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm font-normal" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    URL gambar logo atau data:image/...
+                    <input value={brand.logoUrl || ''} onChange={(event) => setBrand({ ...brand, logoUrl: event.target.value })} placeholder="https://contoh.id/logo.png atau data:image/png;base64,..." className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Warna utama
+                    <input type="color" value={brand.primaryColor || '#2E6B34'} onChange={(event) => setBrand({ ...brand, primaryColor: event.target.value })} className="h-11 w-full rounded-xl border border-gray-300 px-2" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Warna sekunder
+                    <input type="color" value={brand.secondaryColor || '#A8D5A2'} onChange={(event) => setBrand({ ...brand, secondaryColor: event.target.value })} className="h-11 w-full rounded-xl border border-gray-300 px-2" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Email kontak
+                    <input value={brand.contactEmail || ''} onChange={(event) => setBrand({ ...brand, contactEmail: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    No. Telepon
+                    <input value={brand.contactPhone || ''} onChange={(event) => setBrand({ ...brand, contactPhone: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Alamat
+                    <input value={brand.address || ''} onChange={(event) => setBrand({ ...brand, address: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Facebook URL
+                    <input value={brand.facebookUrl || ''} onChange={(event) => setBrand({ ...brand, facebookUrl: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Instagram URL
+                    <input value={brand.instagramUrl || ''} onChange={(event) => setBrand({ ...brand, instagramUrl: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    YouTube URL
+                    <input value={brand.youtubeUrl || ''} onChange={(event) => setBrand({ ...brand, youtubeUrl: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Website URL
+                    <input value={brand.websiteUrl || ''} onChange={(event) => setBrand({ ...brand, websiteUrl: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Teks footer
+                    <input value={brand.footerText || ''} onChange={(event) => setBrand({ ...brand, footerText: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                </div>
+                <div className="flex items-center gap-3 rounded-xl bg-[#F3F6F1] p-4">
+                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-[#2E6B34] text-white">
+                    {brand.logoUrl ? <img src={brand.logoUrl} alt="Pratinjau logo" className="h-full w-full object-contain" /> : <Leaf className="h-7 w-7" />}
+                  </div>
+                  <div>
+                    <span className="font-bold block">{brand.name || 'Marsiadapari Hijau'}</span>
+                    <span className="text-xs text-gray-600">{brand.tagline || ''}</span>
+                  </div>
+                </div>
+                <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328]">
+                  <Save className="h-4 w-4" /> Simpan semua pengaturan identitas
+                </button>
               </div>
-              <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328]">
-                <Save className="h-4 w-4" /> Simpan identitas
-              </button>
             </section>
           )}
 
+
+          {section === 'ai' && (
+            <section className="space-y-5">
+              <div className="max-w-3xl space-y-5 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+                <div>
+                  <h2 className="font-bold">Pengaturan AI</h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Atur API key Gemini, model, deskripsi aplikasi untuk konteks AI, dan instruksi sistem chatbot "Sahabat Ciptaan".</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Gemini API Key (lokal)
+                    <input type="password" value={brand.geminiApiKey || ''} onChange={(event) => setBrand({ ...brand, geminiApiKey: event.target.value })} placeholder="AIza..." className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold">
+                    Model Gemini
+                    <input value={brand.geminiModel || 'gemini-2.5-flash'} onChange={(event) => setBrand({ ...brand, geminiModel: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <div className="flex items-center gap-3 sm:pt-6">
+                    <label className="flex items-center gap-2 text-xs font-bold">
+                      <input type="checkbox" checked={brand.showChatbot !== false} onChange={(e)=>setBrand({...brand, showChatbot: e.target.checked})} />
+                      Tampilkan chatbot
+                    </label>
+                    <label className="flex items-center gap-2 text-xs font-bold">
+                      <input type="checkbox" checked={brand.allowGuestChat !== false} onChange={(e)=>setBrand({...brand, allowGuestChat: e.target.checked})} />
+                      Izinkan tamu
+                    </label>
+                  </div>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Deskripsi aplikasi untuk konteks AI
+                    <textarea value={brand.description || ''} onChange={(event) => setBrand({ ...brand, description: event.target.value })} rows={2} className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                  <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                    Instruksi sistem AI (prompt kustom untuk Sahabat Ciptaan)
+                    <textarea value={brand.aiSystemPrompt || ''} onChange={(event) => setBrand({ ...brand, aiSystemPrompt: event.target.value })} rows={6} placeholder="Tambahkan pengetahuan, aturan, atau persona khusus..." className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  </label>
+                </div>
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
+                  Catatan: Untuk produksi tetap pakai GEMINI_API_KEY di environment server.
+                </div>
+                <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328]">
+                  <Save className="h-4 w-4" /> Simpan pengaturan AI
+                </button>
+              </div>
+            </section>
+          )}
+
+          {section === 'users' && (
+            <section className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+                <div>
+                  <h2 className="font-bold">Kelola Pengguna</h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Daftar pengguna. Untuk akun terdaftar penuh (Supabase Auth), kelola melalui panel Supabase Authentication.</p>
+                </div>
+                <div className="mt-4">
+                  <article className="flex items-center justify-between rounded-xl border border-gray-100 p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-full bg-[#EAF3E6] flex items-center justify-center"><Users className="h-4 w-4 text-[#2E6B34]" /></div>
+                      <div>
+                        <p className="text-sm font-bold">{user.name}</p>
+                        <p className="text-xs text-gray-500">{user.contact} - Role: {user.role} - Komunitas: {user.communityName}</p>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+                <div className="mt-4 rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-900">
+                  Untuk mengubah role menjadi admin/pemimpin, set app_metadata.role di Supabase Auth.
+                </div>
+              </div>
+            </section>
+          )}
           {section === 'organizations' && (
             <section className="space-y-4">
               <form onSubmit={addOrganization} className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[1fr_200px_auto] sm:items-end">

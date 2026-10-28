@@ -94,6 +94,16 @@ function notifySharedDataChange(collection: SharedCollection, values: unknown[])
 const DEFAULT_BRAND: BrandSettings = {
   name: 'Marsiadapari Hijau',
   logoUrl: '',
+  tagline: '"Merawat ciptaan Tuhan, bergotong royong setiap hari."',
+  description: 'Aplikasi Ekoteologi Kristen & Gotong Royong Danau Toba untuk Jemaat dan Mahasiswa IAKN Tarutung',
+  primaryColor: '#2E6B34',
+  secondaryColor: '#A8D5A2',
+  footerText: 'Horas ma dihita saluhutna, mauliate!',
+  showChatbot: true,
+  allowGuestChat: true,
+  aiSystemPrompt: '',
+  geminiApiKey: '',
+  geminiModel: 'gemini-2.5-flash',
 };
 
 export const DEFAULT_USER: User = {

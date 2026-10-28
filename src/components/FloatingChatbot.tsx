@@ -18,6 +18,7 @@ const QUICK_PROMPTS = [
 ];
 
 export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ user, onOpenChallenge }) => {
+  const brand = StorageService.getBrandSettings();
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -41,6 +42,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ user, onOpenCh
   const handleSend = async (textToSend?: string) => {
     const query = textToSend || input;
     if (!query.trim() || loading) return;
+    if (brand.showChatbot === false) return;
 
     const userMsg: ChatMessage = {
       id: 'msg-' + Date.now(),

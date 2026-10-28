@@ -52,12 +52,20 @@ export class AIService {
     history: Array<{ role: 'user' | 'model'; parts: string }>,
     context: { userName?: string; community?: string; points?: number; completedCount?: number }
   ): Promise<{ reply: string; isFallback: boolean }> {
+    const { StorageService } = await import('./storageService');
+    const brand = StorageService.getBrandSettings();
     let response: Response;
     try {
       response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, history, context }),
+        body: JSON.stringify({ 
+          message, 
+          history, 
+          context,
+          systemPrompt: brand.aiSystemPrompt || undefined,
+          appDescription: brand.description || brand.name || undefined,
+        }),
       });
     } catch {
       throw new Error('Tidak dapat terhubung ke chatbot AI. Periksa koneksi internet lalu coba lagi.');

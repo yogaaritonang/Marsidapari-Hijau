@@ -3,6 +3,23 @@ export type UserRole = 'anggota' | 'pemimpin' | 'admin';
 export interface BrandSettings {
   name: string;
   logoUrl: string;
+  tagline?: string;
+  description?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  footerText?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  youtubeUrl?: string;
+  websiteUrl?: string;
+  address?: string;
+  showChatbot?: boolean;
+  allowGuestChat?: boolean;
+  aiSystemPrompt?: string;
+  geminiApiKey?: string;
+  geminiModel?: string;
 }
 
 export interface UserPreferences {
