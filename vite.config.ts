@@ -183,20 +183,6 @@ export default defineConfig(() => {
               },
             },
             {
-              urlPattern: /\.(?:js|css)$/i,
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'app-static-resources-cache',
-                expiration: {
-                  maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 7,
-                },
-                cacheableResponse: {
-                  statuses: [0, 200],
-                },
-              },
-            },
-            {
               urlPattern: /^\/api\/.*/i,
               handler: 'NetworkFirst',
               options: {
