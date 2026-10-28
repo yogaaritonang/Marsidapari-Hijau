@@ -163,7 +163,18 @@ export default function App() {
   }, [user.preferences.fontSize]);
 
   const handleUpdateUser = (updated: User) => {
+    const membershipChanged = updated.communityId !== user.communityId;
     setUser(updated);
+    if (membershipChanged) {
+      void AuthService.getAccessToken()
+        .then((token) => SharedDataService.connect(updated, token))
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Sesi database bersama tidak dapat diperbarui.';
+          window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+            detail: { state: 'error', message },
+          }));
+        });
+    }
   };
 
   const handleOpenVerify = (chal: Challenge) => {

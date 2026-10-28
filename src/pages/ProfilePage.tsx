@@ -13,9 +13,12 @@ import {
   LockKeyhole,
   Camera,
   LoaderCircle,
+  Pencil,
+  Save,
 } from 'lucide-react';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
+import { AuthService } from '../services/authService';
 import { POINT_BADGES } from '../data/badges';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { fetchProfilePhotoUrls, removeProfilePhoto, uploadProfilePhoto } from '../services/profilePhotoService';
@@ -39,7 +42,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [photoBusy, setPhotoBusy] = useState(false);
   const [hasProfilePhoto, setHasProfilePhoto] = useState(false);
   const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileName, setProfileName] = useState(user.name);
+  const [profileCommunityId, setProfileCommunityId] = useState(user.communityId);
+  const [profileEmail, setProfileEmail] = useState(user.contact);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMessage, setEmailMessage] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
+  const communities = StorageService.getCommunities();
   const earnedBadges = POINT_BADGES.filter((badge) => user.points >= badge.requiredPoints);
   const nextBadge = POINT_BADGES.find((badge) => user.points < badge.requiredPoints);
   const previousBadgePoints = nextBadge
@@ -106,6 +119,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     };
   }, [user.id, photoRefreshKey]);
 
+  useEffect(() => {
+    setProfileName(user.name);
+    setProfileCommunityId(user.communityId);
+    setProfileEmail(user.contact);
+  }, [user.name, user.communityId, user.contact]);
+
   const handleTogglePref = (key: keyof typeof preferences) => {
     const updatedPrefs = {
       ...preferences,
@@ -164,6 +183,65 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       setPhotoError(error instanceof Error ? error.message : 'Foto profil gagal diunggah.');
     } finally {
       setPhotoBusy(false);
+    }
+  };
+
+  const handleProfileSave = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const cleanName = profileName.trim();
+    if (cleanName.length < 2) {
+      setProfileError('Nama harus terdiri dari minimal 2 karakter.');
+      return;
+    }
+
+    const selectedCommunity = communities.find((community) => community.id === profileCommunityId);
+    if (user.role === 'anggota' && !selectedCommunity) {
+      setProfileError('Pilih komunitas yang tersedia.');
+      return;
+    }
+
+    setProfileBusy(true);
+    setProfileError(null);
+    try {
+      const updates = {
+        name: cleanName,
+        ...(user.role === 'anggota' && selectedCommunity
+          ? {
+              communityId: selectedCommunity.id,
+              communityName: selectedCommunity.name,
+            }
+          : {}),
+      };
+      await AuthService.updateProfileMetadata(updates);
+      const updatedUser = StorageService.updateUser(updates);
+      onUpdateUser(updatedUser);
+      setIsEditingProfile(false);
+      showNotice('Profil berhasil diperbarui.');
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : 'Profil gagal diperbarui. Silakan coba lagi.');
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const handleEmailChange = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const newEmail = profileEmail.trim().toLowerCase();
+    if (!newEmail || newEmail === user.contact.trim().toLowerCase()) {
+      setEmailError('Masukkan alamat email baru yang berbeda dari email saat ini.');
+      return;
+    }
+
+    setEmailBusy(true);
+    setEmailError(null);
+    setEmailMessage(null);
+    try {
+      await AuthService.requestEmailChange(newEmail);
+      setEmailMessage(`Tautan konfirmasi perubahan email dikirim ke ${newEmail}. Email akun baru aktif setelah dikonfirmasi.`);
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : 'Permintaan perubahan email gagal. Silakan coba lagi.');
+    } finally {
+      setEmailBusy(false);
     }
   };
 
@@ -232,12 +310,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       {/* User Identity Card */}
       <div className="rounded-3xl bg-white border border-[#2E6B34]/25 p-5 shadow-xs space-y-3">
         <div className="flex items-center gap-3">
-          <ProfileAvatar
-            userId={user.id}
-            name={user.name}
-            refreshKey={photoRefreshKey}
-            className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#2E6B34] to-[#1F4B23] text-xl font-bold text-white shadow-md"
-          />
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoBusy}
+            aria-label="Ubah foto profil"
+            className="rounded-2xl focus:outline-none focus:ring-4 focus:ring-[#2E6B34]/20 disabled:opacity-60"
+          >
+            <ProfileAvatar
+              userId={user.id}
+              name={user.name}
+              refreshKey={photoRefreshKey}
+              className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#2E6B34] to-[#1F4B23] text-xl font-bold text-white shadow-md"
+            />
+          </button>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold font-poppins text-[#1F2A1F]">
@@ -258,6 +344,17 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
         <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            onClick={() => {
+              setProfileError(null);
+              setIsEditingProfile((editing) => !editing);
+            }}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-[#2E6B34]/25 bg-[#F3F7EF] px-3 text-xs font-bold text-[#2E6B34] hover:bg-[#E9F1E5]"
+          >
+            <Pencil className="h-4 w-4" />
+            {isEditingProfile ? 'Tutup editor profil' : 'Edit data profil'}
+          </button>
           <button
             type="button"
             onClick={() => photoInputRef.current?.click()}
@@ -293,6 +390,98 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
             {photoError}
           </p>
+        )}
+        {isEditingProfile && (
+          <form onSubmit={(event) => void handleProfileSave(event)} className="space-y-3 border-t border-gray-100 pt-4">
+            <h4 className="text-xs font-extrabold uppercase tracking-wide text-[#7A5230]">Ubah data profil</h4>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-[#354235]">Nama tampilan</span>
+              <input
+                required
+                minLength={2}
+                maxLength={60}
+                autoComplete="name"
+                value={profileName}
+                onChange={(event) => setProfileName(event.target.value)}
+                className="min-h-11 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+              />
+            </label>
+            {user.role === 'anggota' && (
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-[#354235]">Komunitas / gereja</span>
+                <select
+                  required
+                  value={profileCommunityId}
+                  onChange={(event) => setProfileCommunityId(event.target.value)}
+                  className="min-h-11 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                >
+                  {!communities.some((community) => community.id === user.communityId) && (
+                    <option value={user.communityId}>{user.communityName}</option>
+                  )}
+                  {communities.map((community) => (
+                    <option key={community.id} value={community.id}>{community.name}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <p className="text-[11px] leading-relaxed text-gray-500">
+              Email akun saat ini: <span className="font-semibold text-gray-700">{user.contact}</span>.
+            </p>
+            {profileError && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
+                {profileError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={profileBusy}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {profileBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {profileBusy ? 'Menyimpan...' : 'Simpan perubahan profil'}
+            </button>
+          </form>
+        )}
+        {isEditingProfile && (
+          <form onSubmit={(event) => void handleEmailChange(event)} className="space-y-3 border-t border-gray-100 pt-4">
+            <h4 className="text-xs font-extrabold uppercase tracking-wide text-[#7A5230]">Ubah email akun</h4>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-[#354235]">Email baru</span>
+              <input
+                required
+                type="email"
+                autoComplete="email"
+                value={profileEmail}
+                onChange={(event) => {
+                  setProfileEmail(event.target.value);
+                  setEmailMessage(null);
+                  setEmailError(null);
+                }}
+                className="min-h-11 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+              />
+            </label>
+            <p className="text-[11px] leading-relaxed text-gray-500">
+              Supabase akan mengirim tautan konfirmasi. Perubahan baru berlaku setelah Anda mengonfirmasi email tersebut.
+            </p>
+            {emailMessage && (
+              <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800">
+                {emailMessage}
+              </p>
+            )}
+            {emailError && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
+                {emailError}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={emailBusy}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[#2E6B34]/30 bg-white px-4 text-sm font-bold text-[#2E6B34] hover:bg-[#F3F7EF] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {emailBusy && <LoaderCircle className="h-4 w-4 animate-spin" />}
+              {emailBusy ? 'Mengirim konfirmasi...' : 'Kirim konfirmasi email baru'}
+            </button>
+          </form>
         )}
       </div>
 

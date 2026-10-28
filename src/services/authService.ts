@@ -77,6 +77,35 @@ export class AuthService {
     return this.saveSession(response);
   }
 
+  static async updateProfileMetadata(metadata: Record<string, unknown>): Promise<void> {
+    const authUser = await this.getCurrentUser();
+    const accessToken = await this.getAccessToken();
+    if (!authUser || !accessToken) {
+      throw new Error('Sesi masuk tidak ditemukan. Silakan masuk kembali sebelum mengubah profil.');
+    }
+
+    await this.request<AuthUser>(
+      '/user',
+      { data: { ...(authUser.user_metadata ?? {}), ...metadata } },
+      accessToken,
+      'PUT',
+    );
+  }
+
+  static async requestEmailChange(email: string): Promise<void> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('Sesi masuk tidak ditemukan. Silakan masuk kembali sebelum mengubah email.');
+    }
+
+    await this.request<AuthUser>(
+      '/user',
+      { email: email.trim().toLowerCase() },
+      accessToken,
+      'PUT',
+    );
+  }
+
   static async completeEmailConfirmation(): Promise<AuthUser | null> {
     const hash = window.location.hash;
     if (!hash) return null;
@@ -277,6 +306,7 @@ export class AuthService {
     path: string,
     body?: Record<string, unknown>,
     accessToken?: string,
+    method?: 'GET' | 'POST' | 'PUT',
   ): Promise<T> {
     if (!this.isConfigured()) {
       throw new Error(
@@ -285,7 +315,7 @@ export class AuthService {
     }
 
     const response = await fetch(`${supabaseUrl}/auth/v1${path}`, {
-      method: body ? 'POST' : 'GET',
+      method: method ?? (body ? 'POST' : 'GET'),
       headers: {
         apikey: supabaseAnonKey!,
         Authorization: `Bearer ${accessToken || supabaseAnonKey}`,
@@ -304,7 +334,11 @@ export class AuthService {
         payload?.error_description ||
         payload?.error ||
         `Permintaan autentikasi gagal (HTTP ${response.status}).`;
-      throw new Error(`${message} (HTTP ${response.status})`);
+      const emailRateLimitHint = response.status === 429 &&
+        /email|rate.?limit|too many requests/i.test(message)
+        ? ' Supabase membatasi pengiriman email. Tunggu sebelum mencoba lagi; untuk produksi, atur SMTP khusus karena pengirim bawaan memiliki kuota sangat rendah.'
+        : '';
+      throw new Error(`${message} (HTTP ${response.status}).${emailRateLimitHint}`);
     }
 
     return response.json() as Promise<T>;

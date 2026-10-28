@@ -111,7 +111,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     try {
       await AuthService.sendLoginCode(cleanEmail);
       setStage('code');
-      setMessage(`Kode verifikasi 6 digit telah dikirim ke ${cleanEmail}.`);
+      setMessage(`Email masuk telah dikirim ke ${cleanEmail}. Masukkan kode 6 digit atau buka tautan masuk di email.`);
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : 'Kode verifikasi gagal dikirim.');
     } finally {
@@ -261,7 +261,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-gray-600">
                     {stage === 'code'
-                      ? `Masukkan kode yang kami kirim ke ${cleanEmail}.`
+                      ? `Masukkan kode 6 digit dari email ${cleanEmail}, atau buka tautan masuk yang kami kirim.`
                       : portal === 'admin'
                       ? 'Akses khusus administrator aplikasi.'
                       : portal === 'leader'
@@ -311,7 +311,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       </p>
                     )}
                     <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-[#354235]">Kode verifikasi</span>
+                      <span className="mb-2 block text-sm font-semibold text-[#354235]">Kode verifikasi (jika email berisi kode)</span>
                       <input
                         autoFocus
                         required
@@ -345,7 +345,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                           setError(null);
                           setIsLoading(true);
                           AuthService.sendLoginCode(cleanEmail)
-                            .then(() => setMessage(`Kode baru telah dikirim ke ${cleanEmail}.`))
+                            .then(() => setMessage(`Email masuk baru telah dikirim ke ${cleanEmail}. Masukkan kodenya atau buka tautan masuk di email.`))
                             .catch((requestError: unknown) => setError(
                               requestError instanceof Error ? requestError.message : 'Kode verifikasi gagal dikirim.',
                             ))
@@ -353,7 +353,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                         }}
                         className="min-h-11 text-sm font-semibold text-[#2E6B34] hover:underline disabled:opacity-50"
                       >
-                        Kirim ulang kode
+                        Kirim ulang email
                       </button>
                     </div>
                   </form>

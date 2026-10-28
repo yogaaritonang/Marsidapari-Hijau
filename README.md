@@ -31,7 +31,7 @@ Profil anggota menampilkan lencana yang terbuka otomatis berdasarkan Poin Hijau:
 
 Saat lencana baru terbuka, profil menampilkan animasi confetti dan ucapan pencapaian satu kali. Galeri komunitas menyimpan foto secara publik di Supabase Storage agar dapat dilihat lintas perangkat; unggahan hanya dapat dilakukan oleh anggota yang masuk dan pemilik foto dapat menghapus unggahannya sendiri. Foto dikompres di browser sebelum diunggah.
 
-Foto profil juga disimpan di bucket publik Supabase agar dapat dilihat lintas perangkat. Anggota masuk dapat mengubah atau menghapus foto miliknya sendiri dari halaman Profil; foto publik terbaru ditampilkan pada galeri komunitas dan foto peserta yang dikenali tampil di papan capaian. Halaman Profil memberi tahu anggota bahwa foto yang diunggah dapat dilihat publik.
+Foto profil juga disimpan di bucket publik Supabase agar dapat dilihat lintas perangkat. Anggota masuk dapat mengubah atau menghapus foto miliknya sendiri dari halaman Profil; foto publik terbaru ditampilkan pada galeri komunitas dan foto peserta yang dikenali tampil di papan capaian. Dari halaman yang sama, anggota dapat mengubah nama tampilan dan komunitas, serta meminta perubahan email dengan konfirmasi email. Halaman Profil memberi tahu anggota bahwa foto yang diunggah dapat dilihat publik.
 
 ---
 
