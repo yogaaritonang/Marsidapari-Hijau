@@ -1,0 +1,83 @@
+{
+  "id": "/",
+  "name": "Marsiadapari Hijau - Ekoteologi Danau Toba",
+  "short_name": "Marsiadapari",
+  "description": "Aplikasi ekoteologi Kristen jemaat dan mahasiswa IAKN Tarutung di kawasan Danau Toba. Merawat ciptaan Tuhan, bergotong royong setiap hari.",
+  "theme_color": "#2E6B34",
+  "background_color": "#FAF6EC",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "start_url": "/",
+  "scope": "/",
+  "lang": "id",
+  "dir": "ltr",
+  "categories": ["lifestyle", "education", "social"],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=id.ac.iakntarutung.marsiadapari",
+      "id": "id.ac.iakntarutung.marsiadapari"
+    },
+    {
+      "platform": "webapp",
+      "url": "https://marsiadapari-hijau.vercel.app/manifest.webmanifest"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Renungan Harian",
+      "short_name": "Renungan",
+      "description": "Buka renungan ekoteologi Kristen harian",
+      "url": "/?tab=devotions",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Tantangan Aksi Hijau",
+      "short_name": "Tantangan",
+      "description": "Ambil dan selesaikan tantangan gotong royong hijau",
+      "url": "/?tab=challenges",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Pemindai Sampah AI",
+      "short_name": "Pindai",
+      "description": "Deteksi jenis sampah dan bank sampah terdekat",
+      "url": "/?tab=waste-scanner",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Taman Kita",
+      "short_name": "Taman",
+      "description": "Lihat pertumbuhan taman dan hutan komunitas",
+      "url": "/?tab=garden",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

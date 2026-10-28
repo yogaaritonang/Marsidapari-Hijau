@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-forest: #2E6B34;
+    --color-sprout: #A8D5A2;
+    --color-cream: #FAF6EC;
+    --color-earth: #7A5230;
+    --color-lake: #3B8EA5;
+    --color-dark: #1F2A1F;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: var(--color-cream);
+    color: var(--color-dark);
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+/* Batak Gorga subtle decorative border & motifs */
+.gorga-border {
+  background-image: radial-gradient(circle at 10px 10px, rgba(46, 107, 52, 0.15) 2px, transparent 0);
+  background-size: 20px 20px;
+}
+
+.gorga-divider {
+  height: 6px;
+  background: repeating-linear-gradient(
+    45deg,
+    #2E6B34,
+    #2E6B34 8px,
+    #FAF6EC 8px,
+    #FAF6EC 12px,
+    #7A5230 12px,
+    #7A5230 18px,
+    #FAF6EC 18px,
+    #FAF6EC 22px
+  );
+  border-radius: 9999px;
+  opacity: 0.85;
+}
+
+/* Touch targets >= 44px */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Custom smooth scroll */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #FAF6EC;
+}
+::-webkit-scrollbar-thumb {
+  background: #A8D5A2;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #2E6B34;
+}
+
+/* Mobile viewport container */
+.app-container {
+  width: 100%;
+  max-width: 1280px;
+  margin-left: auto;
+  margin-right: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  position: relative;
+  background-color: #FAF6EC;
+  box-shadow: 0 0 40px rgba(31, 42, 31, 0.06);
+}
+
+.app-main-content {
+  width: 100%;
+  max-width: 1120px;
+  margin-inline: auto;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    box-shadow: 0 0 60px rgba(31, 42, 31, 0.08);
+  }
+}
+
+/* Leaflet map styles container */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 1rem;
+  z-index: 10;
+}

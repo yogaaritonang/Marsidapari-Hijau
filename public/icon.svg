@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2E6B34"/>
+      <stop offset="100%" stop-color="#1B4320"/>
+    </linearGradient>
+    <linearGradient id="leafGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#A8D5A2"/>
+      <stop offset="100%" stop-color="#4CAF50"/>
+    </linearGradient>
+    <linearGradient id="lakeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#3B8EA5"/>
+      <stop offset="100%" stop-color="#64B5F6"/>
+    </linearGradient>
+    <!-- Batak Gorga motif pattern element -->
+    <pattern id="gorgaPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 0 20 Q 10 0 20 20 T 40 20" fill="none" stroke="#FAF6EC" stroke-width="1.5" stroke-opacity="0.12"/>
+      <circle cx="20" cy="20" r="3" fill="#A8D5A2" fill-opacity="0.15"/>
+    </pattern>
+  </defs>
+
+  <!-- Background rounded squircle with Gorga motif -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
+  <rect width="512" height="512" rx="110" fill="url(#gorgaPattern)"/>
+
+  <!-- Inner circle halo -->
+  <circle cx="256" cy="245" r="185" fill="none" stroke="#FAF6EC" stroke-width="3" stroke-opacity="0.2" stroke-dasharray="8 6"/>
+
+  <!-- Lake Toba water waves base -->
+  <path d="M 120 370 Q 190 350 256 370 T 392 370 C 370 415 320 435 256 435 C 192 435 142 415 120 370 Z" fill="url(#lakeGrad)" opacity="0.95"/>
+  <path d="M 140 385 Q 200 370 256 385 T 372 385" fill="none" stroke="#FAF6EC" stroke-width="3" opacity="0.6"/>
+
+  <!-- Central Cross subtle tree trunk (Christian Ecotheology) -->
+  <path d="M 246 150 L 266 150 L 266 380 L 246 380 Z" fill="#7A5230" rx="4"/>
+  <path d="M 205 210 L 307 210 L 307 228 L 205 228 Z" fill="#7A5230" rx="4"/>
+
+  <!-- Sprouting Living Leaves (Gotong Royong & Caring for Creation) -->
+  <!-- Left Leaf -->
+  <path d="M 246 220 C 170 210 145 130 230 110 C 245 150 246 195 246 220 Z" fill="url(#leafGrad)"/>
+  <!-- Right Leaf -->
+  <path d="M 266 220 C 342 210 367 130 282 110 C 267 150 266 195 266 220 Z" fill="#81C784"/>
+
+  <!-- Little Sprout Bud at Cross Top -->
+  <path d="M 256 125 C 240 95 256 70 256 70 C 256 70 272 95 256 125 Z" fill="#C8E6C9"/>
+
+  <!-- Small sun / divine light dot above -->
+  <circle cx="256" cy="52" r="8" fill="#FFF9C4"/>
+  <circle cx="256" cy="52" r="14" fill="none" stroke="#FFF9C4" stroke-width="2" opacity="0.6"/>
+</svg>

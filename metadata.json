@@ -1,0 +1,6 @@
+{
+  "name": "Marsiadapari Hijau",
+  "description": "Aplikasi ekoteologi Kristen untuk jemaat dan mahasiswa IAKN Tarutung, Tapanuli Utara dengan konteks Danau Toba. Merawat ciptaan Tuhan, bergotong royong setiap hari.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

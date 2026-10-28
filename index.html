@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <script>
+      (function () {
+        // Intercept Vite HMR WebSocket in AI Studio preview where HMR is disabled
+        var OriginalWebSocket = window.WebSocket;
+        if (OriginalWebSocket) {
+          window.WebSocket = function (url, protocols) {
+            if (
+              protocols === 'vite-hmr' ||
+              (typeof url === 'string' && (url.indexOf('token=') !== -1 || url.indexOf('vite-hmr') !== -1))
+            ) {
+              var target = new EventTarget();
+              var mockWs = {
+                readyState: 1, // OPEN
+                binaryType: 'blob',
+                bufferedAmount: 0,
+                extensions: '',
+                protocol: 'vite-hmr',
+                url: url,
+                send: function () {},
+                close: function () {},
+                addEventListener: target.addEventListener.bind(target),
+                removeEventListener: target.removeEventListener.bind(target),
+                dispatchEvent: target.dispatchEvent.bind(target),
+                onopen: null,
+                onclose: null,
+                onerror: null,
+                onmessage: null,
+              };
+              setTimeout(function () {
+                var openEvt = new Event('open');
+                target.dispatchEvent(openEvt);
+                if (typeof mockWs.onopen === 'function') {
+                  mockWs.onopen(openEvt);
+                }
+              }, 0);
+              return mockWs;
+            }
+            return new OriginalWebSocket(url, protocols);
+          };
+          window.WebSocket.prototype = OriginalWebSocket.prototype;
+          window.WebSocket.CONNECTING = 0;
+          window.WebSocket.OPEN = 1;
+          window.WebSocket.CLOSING = 2;
+          window.WebSocket.CLOSED = 3;
+        }
+
+        // Suppress any remaining WebSocket error logs per environment constraints
+        var origError = console.error;
+        console.error = function () {
+          for (var i = 0; i < arguments.length; i++) {
+            var arg = arguments[i];
+            if (arg) {
+              var str = typeof arg === 'string' ? arg : (arg.message || arg.stack || String(arg));
+              if (
+                str.indexOf('WebSocket') !== -1 ||
+                str.indexOf('ws:') !== -1 ||
+                str.indexOf('wss:') !== -1 ||
+                str.indexOf('closed without opened') !== -1
+              ) {
+                return;
+              }
+            }
+          }
+          return origError.apply(console, arguments);
+        };
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Marsiadapari Hijau - Ekoteologi Kristen &amp; Gotong Royong Danau Toba</title>
+    <meta name="description" content="Aplikasi ekoteologi Kristen untuk jemaat dan mahasiswa IAKN Tarutung, Tapanuli Utara dengan konteks Danau Toba. Merawat ciptaan Tuhan, bergotong royong setiap hari." />
+    <meta property="og:title" content="Marsiadapari Hijau - Ekoteologi Kristen &amp; Gotong Royong Danau Toba" />
+    <meta property="og:description" content="Merawat ciptaan Tuhan, bergotong royong setiap hari di IAKN Tarutung dan Danau Toba." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/pwa-512x512.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#2E6B34" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Marsiadapari" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    
+    <!-- Google Fonts: Poppins (Heading) & Inter (Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700;800&display=swap" rel="stylesheet" />
+    
+    <!-- Leaflet CSS for Maps without paid keys -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    
+    <script>
+      // Gracefully handle Vite HMR WebSocket errors in AI Studio iframe preview
+      window.addEventListener('error', function (e) {
+        if (e && e.message && (e.message.indexOf('WebSocket') !== -1 || e.message.indexOf('vite') !== -1)) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+      window.addEventListener('unhandledrejection', function (e) {
+        if (e && e.reason && String(e.reason).indexOf('WebSocket') !== -1) {
+          e.stopImmediatePropagation();
+          e.preventDefault();
+        }
+      }, true);
+    </script>
+  </head>
+  <body class="bg-[#FAF6EC] text-[#1F2A1F] antialiased selection:bg-[#A8D5A2] selection:text-[#1F2A1F]">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
