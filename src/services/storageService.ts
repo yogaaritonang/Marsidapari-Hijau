@@ -354,6 +354,7 @@ export class StorageService {
     const garden = this.getGardenState();
     garden.waterCount += 1;
     garden.lastWatered = new Date().toISOString();
+    this.saveGardenState(garden);
     this.addGardenExp(10);
     const updated = this.getGardenState();
     return {
@@ -412,8 +413,12 @@ export class StorageService {
   static addMapLocation(loc: MapMarkerLocation): void {
     const list = this.getMapLocations();
     list.push(loc);
-    this.setItem(STORAGE_KEYS.LOCATIONS, list);
-    notifySharedDataChange('locations', list);
+    this.saveMapLocations(list);
+  }
+
+  static saveMapLocations(locations: MapMarkerLocation[]): void {
+    this.setItem(STORAGE_KEYS.LOCATIONS, locations);
+    notifySharedDataChange('locations', locations);
   }
 
   static applySharedSnapshot(collection: SharedCollection, data: unknown): void {

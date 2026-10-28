@@ -9,6 +9,8 @@ import {
   Plus,
   X,
   RotateCw,
+  LocateFixed,
+  LoaderCircle,
 } from 'lucide-react';
 import { EnvironmentalReport, User } from '../types';
 import { StorageService } from '../services/storageService';
@@ -21,6 +23,8 @@ interface ReportsPageProps {
   onRequireAuth: () => void;
 }
 
+const DEFAULT_REPORT_LOCATION = 'Bantaran Sungai Sigeaon, Tarutung';
+
 export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequireAuth }) => {
   const [reports, setReports] = useState<EnvironmentalReport[]>(StorageService.getReports());
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,7 +34,10 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
   const [category, setCategory] = useState<
     'Sampah Menumpuk' | 'Pencemaran Danau Toba / Sungai' | 'Penebangan Liar' | 'Kerusakan Lahan'
   >('Sampah Menumpuk');
-  const [locationName, setLocationName] = useState('Bantaran Sungai Sigeaon, Tarutung');
+  const [locationName, setLocationName] = useState(DEFAULT_REPORT_LOCATION);
+  const [gpsCoordinates, setGpsCoordinates] = useState<[number, number] | null>(null);
+  const [gettingGps, setGettingGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
   const [rawNotes, setRawNotes] = useState('');
   const [formalDescription, setFormalDescription] = useState('');
   const [recommendedAction, setRecommendedAction] = useState('');
@@ -38,6 +45,36 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
   const [photo, setPhoto] = useState<string | null>(null);
   const [polishingWithAi, setPolishingWithAi] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError('Browser ini tidak mendukung akses lokasi GPS.');
+      return;
+    }
+
+    setGettingGps(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const latitude = coords.latitude;
+        const longitude = coords.longitude;
+        setGpsCoordinates([latitude, longitude]);
+        setLocationName(`Lokasi GPS: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`);
+        setGettingGps(false);
+      },
+      (error) => {
+        setGpsError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Izin lokasi ditolak. Izinkan akses lokasi di pengaturan browser, lalu coba lagi.'
+            : error.code === error.TIMEOUT
+            ? 'Lokasi belum berhasil didapat. Coba lagi di area dengan sinyal GPS lebih baik.'
+            : 'Lokasi GPS tidak tersedia. Periksa izin lokasi dan coba lagi.',
+        );
+        setGettingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+    );
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -80,10 +117,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
       title: title.trim(),
       category,
       locationName: locationName.trim(),
-      coordinates: [
-        2.0235 + (Math.random() - 0.5) * 0.04,
-        98.9668 + (Math.random() - 0.5) * 0.04,
-      ],
+      ...(gpsCoordinates ? { coordinates: gpsCoordinates } : {}),
       rawNotes: rawNotes.trim(),
       formalDescription:
         formalDescription.trim() ||
@@ -107,6 +141,9 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
     setFormalDescription('');
     setRecommendedAction('');
     setPhoto(null);
+    setLocationName(DEFAULT_REPORT_LOCATION);
+    setGpsCoordinates(null);
+    setGpsError(null);
   };
 
   const getUrgencyBadge = (urg: string) => {
@@ -265,16 +302,38 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
               </div>
 
               <div>
-                <label className="block font-bold text-gray-700 mb-1">
-                  Lokasi / Patokan Tempat *
-                </label>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block font-bold text-gray-700">
+                    Lokasi / Patokan Tempat *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleUseCurrentLocation}
+                    disabled={gettingGps}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#2E6B34]/25 bg-[#F3F7EF] px-2.5 text-[11px] font-bold text-[#2E6B34] hover:bg-[#E9F1E5] disabled:opacity-60"
+                  >
+                    {gettingGps
+                      ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+                      : <LocateFixed className="h-3.5 w-3.5" />}
+                    {gettingGps ? 'Mencari GPS...' : gpsCoordinates ? 'Perbarui GPS' : 'Gunakan lokasi GPS'}
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
+                  onChange={(e) => {
+                    setLocationName(e.target.value);
+                    setGpsCoordinates(null);
+                  }}
                   placeholder="misal: Jembatan Pasar Tarutung / Pantai Muara"
                   className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
                 />
+                {gpsCoordinates && (
+                  <p className="mt-1 text-[10px] text-emerald-700">
+                    Koordinat GPS terlampir: {gpsCoordinates[0].toFixed(6)}, {gpsCoordinates[1].toFixed(6)}
+                  </p>
+                )}
+                {gpsError && <p role="alert" className="mt-1 text-[10px] text-red-700">{gpsError}</p>}
               </div>
 
               {/* Photo Upload */}

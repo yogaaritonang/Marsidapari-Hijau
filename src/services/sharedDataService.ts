@@ -1,4 +1,4 @@
-import { User } from '../types';
+import { MapMarkerLocation, User } from '../types';
 import { StorageService } from './storageService';
 
 type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports';
@@ -7,7 +7,7 @@ type SyncState = 'connecting' | 'synced' | 'error' | 'offline';
 interface SharedRecord {
   collection: SharedCollection;
   record_id: string;
-  owner_id: string | null;
+  owner_id?: string | null;
   organization_id: string | null;
   payload: Record<string, unknown>;
 }
@@ -47,6 +47,26 @@ function makeKey(collection: SharedCollection, id: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isMapLocation(value: unknown): value is MapMarkerLocation {
+  if (!isRecord(value) || !Array.isArray(value.coordinates) || value.coordinates.length !== 2) return false;
+  const [latitude, longitude] = value.coordinates;
+  return (
+    typeof value.id === 'string' &&
+    typeof value.title === 'string' &&
+    typeof value.address === 'string' &&
+    typeof value.description === 'string' &&
+    ['bank_sampah', 'tanam_pohon', 'bersih_danau', 'mata_air'].includes(String(value.category)) &&
+    typeof latitude === 'number' &&
+    Number.isFinite(latitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    typeof longitude === 'number' &&
+    Number.isFinite(longitude) &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
 }
 
 function rowId(value: unknown): string | null {
@@ -97,13 +117,20 @@ function snapshotValue(collection: SharedCollection, value: unknown): string {
   return JSON.stringify(value);
 }
 
+function recordPayload(collection: SharedCollection, value: unknown): Record<string, unknown> {
+  if (!isRecord(value)) return {};
+  if (collection !== 'locations') return value;
+  const { submittedBy: _submittedBy, ...payload } = value;
+  return payload;
+}
+
 function canWrite(collection: SharedCollection): boolean {
   if (!activeUser) return false;
   if (activeUser.role === 'admin') return true;
   if (activeUser.role === 'pemimpin') {
-    return ['events', 'reports'].includes(collection);
+    return ['events', 'locations', 'reports'].includes(collection);
   }
-  return collection === 'reports';
+  return collection === 'locations' || collection === 'reports';
 }
 
 function recordOrganization(collection: SharedCollection): string | null {
@@ -173,17 +200,30 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
     const key = makeKey(collection, id);
     const serialized = snapshotValue(collection, value);
     if (baseline.get(key) === serialized) continue;
+    if (
+      collection === 'locations' &&
+      activeUser?.role === 'anggota' &&
+      (baseline.has(key) ||
+        !isRecord(value) ||
+        value.category !== 'bank_sampah' ||
+        value.approvalStatus !== 'pending' ||
+        value.submittedBy !== activeUser.id)
+    ) continue;
 
     changes.push({
       collection,
       record_id: id,
-      owner_id: collection === 'reports' && activeUser?.role === 'anggota' ? activeUser.id : null,
+      owner_id: collection === 'reports' && activeUser?.role === 'anggota'
+        ? activeUser.id
+        : collection === 'locations' && isRecord(value) && typeof value.submittedBy === 'string'
+        ? value.submittedBy
+        : null,
       organization_id: recordOrganization(collection),
-      payload: isRecord(value) ? value : {},
+      payload: recordPayload(collection, value),
     });
   }
 
-  for (const [key] of baseline) {
+  for (const [key] of (activeUser?.role === 'admin' ? baseline : [])) {
     if (!key.startsWith(`${collection}:`)) continue;
     const id = key.slice(collection.length + 1);
     if (!current.has(id) && baseline.get(key) !== JSON.stringify({ id, _deleted: true })) {
@@ -205,7 +245,10 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
   });
   for (const change of changes) {
     const key = makeKey(collection, change.record_id);
-    baseline.set(key, JSON.stringify(change.payload));
+    baseline.set(
+      key,
+      snapshotValue(collection, current.get(change.record_id) ?? change.payload),
+    );
   }
 }
 
@@ -228,6 +271,52 @@ async function handleLocalChange(event: Event) {
 export class SharedDataService {
   static isConfigured(): boolean {
     return Boolean(supabaseUrl && supabaseAnonKey);
+  }
+
+  static async refreshMapLocations(): Promise<MapMarkerLocation[]> {
+    if (!supabaseUrl || !supabaseAnonKey) return StorageService.getMapLocations();
+
+    const query = new URLSearchParams({
+      select: accessToken ? 'payload,owner_id' : 'payload',
+      collection: 'eq.locations',
+    });
+    const response = accessToken
+      ? await request<SharedRecord[]>(`mh_records?${query}`)
+      : await fetch(`${supabaseUrl}/rest/v1/mh_records?${query}`, {
+          headers: {
+            apikey: supabaseAnonKey,
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+        }).then(async (result) => {
+          if (!result.ok) {
+            const body = await result.text();
+            throw new Error(`Titik peta gagal dimuat (HTTP ${result.status}): ${body || result.statusText}`);
+          }
+          return await result.json() as SharedRecord[];
+        });
+
+    const locations = response
+      .filter((record) => record.payload?._deleted !== true && isMapLocation(record.payload))
+      .map((record) => {
+        const location = record.payload as unknown as MapMarkerLocation;
+        if (location.approvalStatus === 'pending' && record.owner_id) {
+          return { ...location, submittedBy: record.owner_id };
+        }
+        return location;
+      });
+    if (activeUser) {
+      const localPending = StorageService.getMapLocations().filter((location) =>
+        location.approvalStatus === 'pending' && location.submittedBy === activeUser?.id,
+      );
+      const byId = new Map(locations.map((location) => [location.id, location]));
+      for (const location of localPending) {
+        if (!byId.has(location.id)) byId.set(location.id, location);
+      }
+      locations.splice(0, locations.length, ...byId.values());
+    }
+
+    StorageService.applySharedSnapshot('locations', locations);
+    return locations;
   }
 
   static async connect(user: User, token: string | null): Promise<void> {
@@ -256,8 +345,13 @@ export class SharedDataService {
           baseline.set(makeKey(record.collection, record.record_id), JSON.stringify(record.payload));
           continue;
         }
-        grouped.get(record.collection)!.set(record.record_id, record.payload);
-        baseline.set(makeKey(record.collection, record.record_id), JSON.stringify(record.payload));
+        const payload = record.collection === 'locations' &&
+          record.payload.approvalStatus === 'pending' &&
+          record.owner_id
+          ? { ...record.payload, submittedBy: record.owner_id }
+          : record.payload;
+        grouped.get(record.collection)!.set(record.record_id, payload);
+        baseline.set(makeKey(record.collection, record.record_id), JSON.stringify(payload));
       }
 
       for (const collection of recordCollections) {

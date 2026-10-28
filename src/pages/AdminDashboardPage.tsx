@@ -6,6 +6,7 @@ import {
   Image,
   Leaf,
   LogOut,
+  MapPin,
   Plus,
   Save,
   Trash2,
@@ -13,8 +14,9 @@ import {
 } from 'lucide-react';
 import { Challenge, Community, EnvironmentalReport, GreenEvent, User } from '../types';
 import { StorageService } from '../services/storageService';
+import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 
-type AdminSection = 'overview' | 'brand' | 'organizations' | 'challenges' | 'events' | 'reports';
+type AdminSection = 'overview' | 'brand' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations';
 
 interface AdminDashboardPageProps {
   user: User;
@@ -127,6 +129,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     { id: 'challenges', label: 'Tantangan', icon: Leaf },
     { id: 'events', label: 'Kegiatan', icon: CalendarDays },
     { id: 'reports', label: 'Laporan', icon: ClipboardList },
+    { id: 'locations', label: 'Titik Peta', icon: MapPin },
   ];
 
   return (
@@ -168,7 +171,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
             </button>
           ))}
           <div className="hidden rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900 lg:block">
-            Perubahan konten saat ini tersimpan lokal di perangkat admin. Database bersama belum diaktifkan.
+            Pastikan status sinkronisasi di bagian atas halaman menunjukkan bahwa database bersama sudah tersambung.
           </div>
         </nav>
 
@@ -199,7 +202,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 ))}
               </div>
               <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-950">
-                Panel ini sudah terpisah dari tampilan pengguna biasa. Untuk membuat perubahan yang terlihat oleh semua perangkat dan akun, penyimpanan bersama Supabase masih perlu dihubungkan.
+                Panel ini terpisah dari tampilan pengguna biasa. Perubahan bersama akan terlihat setelah status sinkronisasi menunjukkan database terhubung.
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <button onClick={() => setSection('organizations')} className="rounded-2xl border border-gray-200 bg-white p-4 text-left hover:border-[#2E6B34]">
@@ -322,6 +325,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               {reports.length === 0 && <p className="rounded-2xl bg-white p-5 text-sm text-gray-500">Belum ada laporan.</p>}
             </section>
           )}
+
+          {section === 'locations' && <MapLocationReviewPanel />}
         </main>
       </div>
     </div>

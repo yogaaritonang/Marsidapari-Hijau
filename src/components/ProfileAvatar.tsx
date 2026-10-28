@@ -16,6 +16,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
   refreshKey = 0,
 }) => {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [photoVersion, setPhotoVersion] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -30,7 +31,16 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
     return () => {
       active = false;
     };
-  }, [refreshKey, userId]);
+  }, [photoVersion, refreshKey, userId]);
+
+  useEffect(() => {
+    const handleProfilePhotoUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<{ userId: string }>).detail;
+      if (detail?.userId === userId) setPhotoVersion((version) => version + 1);
+    };
+    window.addEventListener('mh-profile-photo-updated', handleProfilePhotoUpdate);
+    return () => window.removeEventListener('mh-profile-photo-updated', handleProfilePhotoUpdate);
+  }, [userId]);
 
   return (
     <span className={`${className} relative inline-flex shrink-0 items-center justify-center overflow-hidden`}>

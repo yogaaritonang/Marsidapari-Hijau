@@ -1,4 +1,5 @@
 import type { Request, Response } from 'express';
+import { ThinkingLevel } from '@google/genai';
 import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
 
 export interface VerifyRequestBody {
@@ -83,7 +84,8 @@ Kembalikan hanya JSON valid tanpa markdown:
       },
       config: {
         responseMimeType: 'application/json',
-        temperature: 0.1,
+        maxOutputTokens: 512,
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
       },
     });
 
@@ -113,8 +115,27 @@ Kembalikan hanya JSON valid tanpa markdown:
     return res.status(200).json(parsed);
   } catch (error) {
     console.error('Error in /api/verify:', error);
-    return res.status(502).json({ error: 'Verifikasi AI gagal memeriksa gambar. Silakan coba lagi.' });
+    const status = getGeminiErrorStatus(error);
+    const message = status === 429
+      ? 'Kuota AI sedang penuh. Tunggu sebentar sebelum mencoba verifikasi lagi.'
+      : status === 401 || status === 403
+      ? 'Kunci AI tidak valid atau tidak memiliki akses. Admin perlu memeriksa konfigurasi Gemini.'
+      : status === 400
+      ? 'Foto atau konfigurasi model tidak dapat diproses. Coba unggah gambar JPG, PNG, atau WebP yang lebih kecil.'
+      : 'Verifikasi AI gagal memeriksa gambar. Silakan coba lagi sebentar.';
+    return res.status(status >= 400 && status < 600 ? status : 502).json({ error: message });
   }
+}
+
+function getGeminiErrorStatus(error: unknown): number {
+  if (!error || typeof error !== 'object') return 502;
+  const candidate = error as { status?: unknown; code?: unknown };
+  const status = typeof candidate.status === 'number'
+    ? candidate.status
+    : typeof candidate.code === 'number'
+    ? candidate.code
+    : 502;
+  return status >= 400 && status < 600 ? status : 502;
 }
 
 function parseImage(image: string): { data: string; mimeType: string } | null {

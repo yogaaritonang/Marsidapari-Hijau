@@ -52,35 +52,23 @@ export class AIService {
     history: Array<{ role: 'user' | 'model'; parts: string }>,
     context: { userName?: string; community?: string; points?: number; completedCount?: number }
   ): Promise<{ reply: string; isFallback: boolean }> {
+    let response: Response;
     try {
-      const response = await fetch('/api/chat', {
+      response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, history, context }),
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        return { reply: data.reply, isFallback: false };
-      }
     } catch {
-      // Fallback
+      throw new Error('Tidak dapat terhubung ke chatbot AI. Periksa koneksi internet lalu coba lagi.');
     }
 
-    const name = context.userName || 'Sahabat';
-    const msg = message.toLowerCase();
-
-    let fallbackReply = `Horas, ${name}! Bersyukur atas kerinduanmu merawat ciptaan Tuhan. Mazmur 24:1 mengingatkan kita bahwa bumi dan segala isinya adalah milik Tuhan. Gotong royong (Marsiadapari) kita di Tapanuli Utara dan Danau Toba membawa berkat bagi generasi berikutnya.`;
-
-    if (msg.includes('danau toba') || msg.includes('toba')) {
-      fallbackReply = `Horas ${name}! Danau Toba adalah mahakarya Sang Pencipta bagi tanah Batak. Memungut sampah di tepiannya dan menanam pohon di perbukitan adalah bentuk ibadah ekologis kita sehari-hari. [REKOMENDASI: Bersih Sungai/Danau]`;
-    } else if (msg.includes('tumbler') || msg.includes('plastik')) {
-      fallbackReply = `Pilihan bijak, ${name}! Menggunakan tumbler mengurangi ratusan botol plastik sekali pakai yang berisiko mencemari tanah dan air Silindung. Mari ajak teman sekelasmu juga! [REKOMENDASI: Bawa Tumbler]`;
-    } else if (msg.includes('pohon') || msg.includes('tanam')) {
-      fallbackReply = `Setiap bibit yang kita tanam adalah doa pengharapan bagi bumi (Roma 8:19-22). Pohon mengikat air pegunungan dan memberi naungan bagi sesama makhluk ciptaan. [REKOMENDASI: Tanam Pohon]`;
+    const payload = await response.json().catch(() => null) as { reply?: string; error?: string } | null;
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Chatbot AI gagal menjawab. Silakan coba lagi.');
     }
-
-    return { reply: fallbackReply, isFallback: true };
+    if (!payload?.reply) throw new Error('Chatbot AI mengirim jawaban kosong. Silakan coba lagi.');
+    return { reply: payload.reply, isFallback: false };
   }
 
   static async scanWaste(image: string): Promise<{ data: WasteScanResult; isFallback: boolean }> {

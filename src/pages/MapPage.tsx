@@ -2,19 +2,24 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import {
   MapPin,
-  Trash2,
-  Trees,
-  Waves,
-  Droplets,
   Plus,
   X,
   Phone,
   Navigation,
+  LocateFixed,
+  LoaderCircle,
 } from 'lucide-react';
-import { MapMarkerLocation } from '../types';
+import { MapMarkerLocation, User } from '../types';
 import { StorageService } from '../services/storageService';
+import { SharedDataService } from '../services/sharedDataService';
 
-export const MapPage: React.FC = () => {
+interface MapPageProps {
+  user: User;
+  isGuest: boolean;
+  onRequireAuth: () => void;
+}
+
+export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }) => {
   const [locations, setLocations] = useState<MapMarkerLocation[]>(StorageService.getMapLocations());
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedLocation, setSelectedLocation] = useState<MapMarkerLocation | null>(null);
@@ -26,15 +31,49 @@ export const MapPage: React.FC = () => {
   const [newAddress, setNewAddress] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [newContact, setNewContact] = useState('');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [gettingGps, setGettingGps] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
 
-  const filtered = locations.filter((loc) => {
+  const visibleLocations = locations.filter((location) => {
+    if (!location.approvalStatus || location.approvalStatus === 'approved') return true;
+    if (location.approvalStatus !== 'pending' || isGuest) return false;
+    return user.role === 'admin' || user.role === 'pemimpin' || location.submittedBy === user.id;
+  });
+  const filtered = visibleLocations.filter((loc) => {
     if (selectedCategory === 'all') return true;
     return loc.category === selectedCategory;
   });
+
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      try {
+        const latest = await SharedDataService.refreshMapLocations();
+        if (active) setLocations(latest);
+      } catch (error) {
+        console.error('Titik peta bersama gagal dimuat.', error);
+      }
+    };
+    const handleLocalLocations = (event: Event) => {
+      const detail = (event as CustomEvent<{ collection: string; values: MapMarkerLocation[] }>).detail;
+      if (detail?.collection === 'locations' && Array.isArray(detail.values)) setLocations(detail.values);
+    };
+
+    void refresh();
+    const intervalId = window.setInterval(() => void refresh(), 30_000);
+    window.addEventListener('mh-shared-data-change', handleLocalLocations);
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('mh-shared-data-change', handleLocalLocations);
+    };
+  }, [user.id, isGuest]);
 
   // Initialize Leaflet Map
   useEffect(() => {
@@ -105,19 +144,31 @@ export const MapPage: React.FC = () => {
   }, [filtered]);
 
   const handleAddNewLocation = () => {
-    if (!newTitle.trim() || !newAddress.trim()) return;
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    if (
+      !newTitle.trim() ||
+      !newAddress.trim() ||
+      !latitude.trim() ||
+      !longitude.trim() ||
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      lat < -90 ||
+      lat > 90 ||
+      lng < -180 ||
+      lng > 180
+    ) return;
 
     const newLoc: MapMarkerLocation = {
-      id: 'loc-' + Date.now(),
+      id: `loc-${crypto.randomUUID()}`,
       title: newTitle.trim(),
       category: newCategory,
       description: newDesc.trim() || 'Lokasi usulan jemaat untuk kegiatan gotong royong hijau.',
-      coordinates: [
-        2.0235 + (Math.random() - 0.5) * 0.05,
-        98.9668 + (Math.random() - 0.5) * 0.05,
-      ],
+      coordinates: [lat, lng],
       address: newAddress.trim(),
       contactPerson: newContact.trim() || undefined,
+      approvalStatus: user.role === 'admin' ? 'approved' : 'pending',
+      submittedBy: user.id,
     };
 
     StorageService.addMapLocation(newLoc);
@@ -131,10 +182,40 @@ export const MapPage: React.FC = () => {
     setNewAddress('');
     setNewDesc('');
     setNewContact('');
+    setLatitude('');
+    setLongitude('');
+    setGpsError(null);
 
     if (mapInstanceRef.current) {
       mapInstanceRef.current.setView(newLoc.coordinates, 14, { animate: true });
     }
+  };
+
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setGpsError('Browser ini tidak mendukung akses GPS.');
+      return;
+    }
+    setGettingGps(true);
+    setGpsError(null);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLatitude(coords.latitude.toFixed(6));
+        setLongitude(coords.longitude.toFixed(6));
+        setGettingGps(false);
+      },
+      (error) => {
+        setGpsError(
+          error.code === error.PERMISSION_DENIED
+            ? 'Izin lokasi ditolak. Aktifkan izin lokasi pada browser lalu coba lagi.'
+            : error.code === error.TIMEOUT
+            ? 'GPS belum mendapat lokasi. Coba lagi di area terbuka.'
+            : 'Lokasi tidak tersedia. Periksa izin GPS dan coba lagi.',
+        );
+        setGettingGps(false);
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 30_000 },
+    );
   };
 
   return (
@@ -151,11 +232,17 @@ export const MapPage: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            if (isGuest) {
+              onRequireAuth();
+              return;
+            }
+            setShowAddModal(true);
+          }}
           className="touch-target inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] transition active:scale-95 shadow-xs"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>Tambah Lokasi</span>
+          <span>{user.role === 'admin' ? 'Tambah Lokasi' : 'Usulkan Bank Sampah'}</span>
         </button>
       </div>
 
@@ -193,8 +280,13 @@ export const MapPage: React.FC = () => {
           <div className="flex items-start justify-between">
             <div>
               <span className="text-[10px] font-bold text-[#7A5230] uppercase tracking-wider block">
-                {selectedLocation.category.replace('_', ' ')}
+                {selectedLocation.category.replaceAll('_', ' ')}
               </span>
+              {selectedLocation.approvalStatus === 'pending' && (
+                <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                  Menunggu persetujuan
+                </span>
+              )}
               <h3 className="text-sm font-bold text-[#1F2A1F]">
                 {selectedLocation.title}
               </h3>
@@ -260,6 +352,9 @@ export const MapPage: React.FC = () => {
                   <p className="text-[10px] text-gray-500 mt-0.5 truncate max-w-[200px]">
                     {loc.address}
                   </p>
+                  {loc.approvalStatus === 'pending' && (
+                    <span className="mt-1 inline-block text-[9px] font-bold text-amber-700">Menunggu persetujuan</span>
+                  )}
                 </div>
               </div>
 
@@ -275,10 +370,10 @@ export const MapPage: React.FC = () => {
       {/* Modal: Tambah Lokasi Usulan */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/25 p-5 shadow-2xl space-y-4">
+          <div className="w-full max-w-sm max-h-[92vh] overflow-y-auto rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/25 p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-2 border-b">
               <h3 className="text-sm font-bold font-poppins text-[#2E6B34]">
-                Tambah Usulan Titik Hijau
+                {user.role === 'admin' ? 'Tambah Titik Lokasi' : 'Usulkan Titik Bank Sampah'}
               </h3>
               <button
                 onClick={() => setShowAddModal(false)}
@@ -287,6 +382,12 @@ export const MapPage: React.FC = () => {
                 <X className="w-5 h-5" />
               </button>
             </div>
+
+            {user.role !== 'admin' && (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900">
+                Usulan akan diperiksa admin atau pemimpin sebelum ditampilkan kepada semua pengguna.
+              </p>
+            )}
 
             <div className="space-y-2.5 text-xs">
               <div>
@@ -309,12 +410,17 @@ export const MapPage: React.FC = () => {
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value as any)}
+                  disabled={user.role !== 'admin'}
                   className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
                 >
                   <option value="bank_sampah">♻️ Bank Sampah</option>
-                  <option value="tanam_pohon">🌱 Lokasi Tanam Pohon</option>
-                  <option value="bersih_danau">🌊 Titik Bersih Danau / Sungai</option>
-                  <option value="mata_air">💧 Mata Air Bersih</option>
+                  {user.role === 'admin' && (
+                    <>
+                      <option value="tanam_pohon">🌱 Lokasi Tanam Pohon</option>
+                      <option value="bersih_danau">🌊 Titik Bersih Danau / Sungai</option>
+                      <option value="mata_air">💧 Mata Air Bersih</option>
+                    </>
+                  )}
                 </select>
               </div>
 
@@ -329,6 +435,46 @@ export const MapPage: React.FC = () => {
                   placeholder="misal: Jl. Sisingamangaraja, Silindung"
                   className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
                 />
+              </div>
+
+              <div>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label className="block font-bold text-gray-700">Koordinat titik *</label>
+                  <button
+                    type="button"
+                    onClick={useCurrentLocation}
+                    disabled={gettingGps}
+                    className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#2E6B34]/25 bg-[#F3F7EF] px-2.5 text-[11px] font-bold text-[#2E6B34] hover:bg-[#E9F1E5] disabled:opacity-60"
+                  >
+                    {gettingGps ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />}
+                    {gettingGps ? 'Mencari GPS...' : 'Gunakan GPS'}
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    aria-label="Lintang"
+                    type="number"
+                    min="-90"
+                    max="90"
+                    step="any"
+                    value={latitude}
+                    onChange={(event) => setLatitude(event.target.value)}
+                    placeholder="Lintang"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
+                  />
+                  <input
+                    aria-label="Bujur"
+                    type="number"
+                    min="-180"
+                    max="180"
+                    step="any"
+                    value={longitude}
+                    onChange={(event) => setLongitude(event.target.value)}
+                    placeholder="Bujur"
+                    className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
+                  />
+                </div>
+                {gpsError && <p role="alert" className="mt-1 text-[10px] text-red-700">{gpsError}</p>}
               </div>
 
               <div>
@@ -355,6 +501,7 @@ export const MapPage: React.FC = () => {
                   placeholder="misal: Pak Majelis (0812-xxxx)"
                   className="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-[#1F2A1F] focus:border-[#2E6B34] focus:outline-hidden"
                 />
+                <p className="mt-1 text-[10px] text-gray-500">Kontak akan terlihat oleh semua pengguna setelah titik disetujui.</p>
               </div>
             </div>
 
@@ -368,11 +515,22 @@ export const MapPage: React.FC = () => {
               </button>
               <button
                 type="button"
-                disabled={!newTitle.trim() || !newAddress.trim()}
+                disabled={
+                  !newTitle.trim() ||
+                  !newAddress.trim() ||
+                  !latitude.trim() ||
+                  !longitude.trim() ||
+                  !Number.isFinite(Number(latitude)) ||
+                  !Number.isFinite(Number(longitude)) ||
+                  Number(latitude) < -90 ||
+                  Number(latitude) > 90 ||
+                  Number(longitude) < -180 ||
+                  Number(longitude) > 180
+                }
                 onClick={handleAddNewLocation}
                 className="flex-1 py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-50 transition active:scale-95 shadow-md"
               >
-                Simpan Titik di Peta
+                {user.role === 'admin' ? 'Simpan & tampilkan' : 'Kirim usulan'}
               </button>
             </div>
           </div>

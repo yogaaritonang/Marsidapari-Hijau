@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { User, ChallengeSubmission, GreenEvent } from '../types';
 import { StorageService } from '../services/storageService';
+import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 
 interface LeaderDashboardProps {
   user: User;
@@ -185,6 +186,10 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
             ))}
           </div>
         )}
+      </div>
+
+      <div className="print:hidden">
+        <MapLocationReviewPanel />
       </div>
 
       {/* Quick Action: Buat Event Baru */}

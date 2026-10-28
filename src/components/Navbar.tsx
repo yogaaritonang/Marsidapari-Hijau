@@ -4,6 +4,7 @@ import { User } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { BatakGorgaBorder } from './BatakPattern';
 import { StorageService } from '../services/storageService';
+import { ProfileAvatar } from './ProfileAvatar';
 
 interface NavbarProps {
   user: User;
@@ -82,7 +83,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#2E6B34]/20 bg-white text-[#2E6B34] shadow-xs transition hover:bg-[#FAF6EC] active:scale-95"
                 title="Profil & Pengaturan"
               >
-                {user.role === 'pemimpin' ? (
+                {user.id !== 'guest-preview' ? (
+                  <ProfileAvatar
+                    userId={user.id}
+                    name={user.name}
+                    className="h-full w-full rounded-full bg-white text-xs font-bold text-[#2E6B34]"
+                  />
+                ) : user.role === 'pemimpin' ? (
                   <ShieldCheck className="h-5 w-5 text-[#2E6B34]" />
                 ) : (
                   <UserIcon className="h-5 w-5 text-[#2E6B34]" />

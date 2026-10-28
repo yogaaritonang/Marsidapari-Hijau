@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Sparkles, Bot, ArrowRight } from 'lucide-react';
 import { User, ChatMessage } from '../types';
 import { AIService } from '../services/aiService';
+import { StorageService } from '../services/storageService';
 
 interface FloatingChatbotProps {
   user: User;
@@ -63,7 +64,9 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ user, onOpenCh
         userName: user.name,
         community: user.communityName,
         points: user.points,
-        completedCount: 6,
+        completedCount: StorageService.getSubmissions().filter(
+          (submission) => submission.userId === user.id && submission.verdict === 'valid',
+        ).length,
       });
 
       // Check if text has action recommendation
@@ -85,8 +88,14 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ user, onOpenCh
       };
 
       setMessages((prev) => [...prev, botMsg]);
-    } catch {
-      // Handled in service
+    } catch (error) {
+      const errorMsg: ChatMessage = {
+        id: 'msg-' + (Date.now() + 1),
+        sender: 'model',
+        text: error instanceof Error ? error.message : 'Chatbot tidak dapat menjawab saat ini. Silakan coba lagi.',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }

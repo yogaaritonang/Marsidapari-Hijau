@@ -270,7 +270,13 @@ export default function App() {
           />
         );
       case 'map':
-        return <MapPage />;
+        return (
+          <MapPage
+            user={user}
+            isGuest={!isOnboarded}
+            onRequireAuth={() => openAuthentication('register')}
+          />
+        );
       case 'reports':
         return (
           <ReportsPage

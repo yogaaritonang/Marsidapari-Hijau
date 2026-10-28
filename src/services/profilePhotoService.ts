@@ -172,6 +172,7 @@ export async function uploadProfilePhoto(file: File, userId: string): Promise<st
     }
   }
 
+  window.dispatchEvent(new CustomEvent('mh-profile-photo-updated', { detail: { userId } }));
   return getPublicObjectUrl(objectPath);
 }
 
@@ -205,4 +206,5 @@ export async function removeProfilePhoto(userId: string): Promise<void> {
     const details = await response.text();
     throw new Error(details || `Data foto profil gagal dihapus (HTTP ${response.status}).`);
   }
+  window.dispatchEvent(new CustomEvent('mh-profile-photo-updated', { detail: { userId } }));
 }

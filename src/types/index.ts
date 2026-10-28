@@ -115,7 +115,7 @@ export interface EnvironmentalReport {
   title: string;
   category: 'Sampah Menumpuk' | 'Pencemaran Danau Toba / Sungai' | 'Penebangan Liar' | 'Kerusakan Lahan';
   locationName: string;
-  coordinates: [number, number];
+  coordinates?: [number, number];
   rawNotes: string;
   formalDescription: string;
   recommendedAction: string;
@@ -148,6 +148,8 @@ export interface MapMarkerLocation {
   coordinates: [number, number]; // [lat, lng]
   address: string;
   contactPerson?: string;
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+  submittedBy?: string;
 }
 
 export interface ChatMessage {
