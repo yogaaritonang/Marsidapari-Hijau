@@ -456,11 +456,11 @@ export default function App() {
         <BottomNav
           currentTab={bottomNavTab}
           onChangeTab={(tab) => {
+            setCurrentTab(tab);
             if (tab === 'profile' && !isOnboarded) {
               openAuthentication('login');
               return;
             }
-            setCurrentTab(tab);
           }}
         />
 
