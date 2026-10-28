@@ -25,6 +25,7 @@ import { LiturgyPage } from './pages/LiturgyPage';
 import { LeaderDashboardPage } from './pages/LeaderDashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { ThreadsPage } from './pages/ThreadsPage';
 
 type AppPortal = 'user' | 'leader' | 'admin';
 type SharedSyncState = 'connecting' | 'synced' | 'error' | 'offline';

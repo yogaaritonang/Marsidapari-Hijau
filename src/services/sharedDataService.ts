@@ -1,7 +1,7 @@
 import { MapMarkerLocation, User } from '../types';
 import { StorageService } from './storageService';
 
-type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports';
+type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports' | 'threads';
 type SyncState = 'connecting' | 'synced' | 'error' | 'offline';
 
 interface SharedRecord {
@@ -30,6 +30,7 @@ const recordCollections: SharedCollection[] = [
   'events',
   'locations',
   'reports',
+  'threads',
 ];
 
 let activeUser: User | null = null;
@@ -90,6 +91,8 @@ function storedRecords(collection: SharedCollection): unknown[] {
       return StorageService.getMapLocations();
     case 'reports':
       return StorageService.getReports();
+    case 'threads':
+      return [];
   }
 }
 

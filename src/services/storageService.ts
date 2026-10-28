@@ -83,7 +83,7 @@ function notifyBadgeUnlocks(userId: string, badgeIds: string[]): void {
   }));
 }
 
-type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports';
+type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports' | 'threads';
 
 function notifySharedDataChange(collection: SharedCollection, values: unknown[]): void {
   window.dispatchEvent(new CustomEvent('mh-shared-data-change', {
