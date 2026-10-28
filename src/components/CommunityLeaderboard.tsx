@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Trophy,
   Medal,
@@ -23,6 +23,7 @@ import {
 import { User, Community } from '../types';
 import { StorageService } from '../services/storageService';
 import { BatakGorgaBorder } from './BatakPattern';
+import { fetchProfilePhotoUrls } from '../services/profilePhotoService';
 
 export interface LeaderboardMember {
   id: string;
@@ -60,6 +61,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
   const [selectedMember, setSelectedMember] = useState<LeaderboardMember | null>(null);
   const [cheersState, setCheersState] = useState<{ [id: string]: number }>({});
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [profilePhotoUrls, setProfilePhotoUrls] = useState<Record<string, string>>({});
 
 
   const members = useMemo(() => {
@@ -126,6 +128,20 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
       });
   }, [user, period]);
 
+  useEffect(() => {
+    let active = true;
+    void fetchProfilePhotoUrls(members.map((member) => member.id))
+      .then((photos) => {
+        if (active) setProfilePhotoUrls(photos);
+      })
+      .catch((error: unknown) => {
+        if (active) console.error('Foto profil anggota tidak dapat dimuat.', error);
+      });
+    return () => {
+      active = false;
+    };
+  }, [members]);
+
   // Filtered list
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
@@ -159,6 +175,19 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
     if (period === 'monthly') return member.monthlyPoints;
     if (period === 'weekly') return member.weeklyPoints;
     return member.points;
+  };
+
+  const getAvatarUrl = (member: LeaderboardMember) =>
+    member.isAnonymous && member.id !== user.id ? null : profilePhotoUrls[member.id] || null;
+
+  const getInitials = (name: string) =>
+    name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase();
+
+  const renderAvatarContent = (member: LeaderboardMember) => {
+    const avatarUrl = getAvatarUrl(member);
+    return avatarUrl
+      ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+      : getInitials(member.isAnonymous && member.id !== user.id ? 'Sahabat Ciptaan' : member.name);
   };
 
   const handleCheer = (member: LeaderboardMember, e: React.MouseEvent) => {
@@ -393,11 +422,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
               >
                 <div className="relative mb-1">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-slate-400 to-slate-200 border-2 border-slate-300 shadow-md flex items-center justify-center font-bold text-slate-800 text-xs">
-                    {top2.name
-                      .split(' ')
-                      .map((w) => w[0])
-                      .slice(0, 2)
-                      .join('')}
+                    {renderAvatarContent(top2)}
                   </div>
                   <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-slate-300 border border-white text-slate-900 text-[10px] font-black flex items-center justify-center shadow-xs">
                     2
@@ -434,11 +459,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
                 <div className="relative mb-1">
                   <Crown className="w-5 h-5 text-amber-500 mx-auto -mb-1 animate-bounce" />
                   <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 border-3 border-amber-300 shadow-lg flex items-center justify-center font-black text-amber-950 text-sm">
-                    {top1.name
-                      .split(' ')
-                      .map((w) => w[0])
-                      .slice(0, 2)
-                      .join('')}
+                    {renderAvatarContent(top1)}
                   </div>
                   <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-amber-400 border-2 border-white text-amber-950 text-xs font-black flex items-center justify-center shadow-xs">
                     1
@@ -472,11 +493,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
               >
                 <div className="relative mb-1">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-700 to-amber-600 border-2 border-amber-500 shadow-md flex items-center justify-center font-bold text-white text-xs">
-                    {top3.name
-                      .split(' ')
-                      .map((w) => w[0])
-                      .slice(0, 2)
-                      .join('')}
+                    {renderAvatarContent(top3)}
                   </div>
                   <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-amber-700 border border-white text-white text-[10px] font-black flex items-center justify-center shadow-xs">
                     3
@@ -570,11 +587,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
                   <div
                     className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${member.avatarColor} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs`}
                   >
-                    {member.name
-                      .split(' ')
-                      .map((n) => n[0])
-                      .slice(0, 2)
-                      .join('')}
+                    {renderAvatarContent(member)}
                   </div>
 
                   {/* Info */}
@@ -660,11 +673,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
                 <div
                   className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${selectedMember.avatarColor} text-white flex items-center justify-center font-bold text-sm shadow-md`}
                 >
-                  {selectedMember.name
-                    .split(' ')
-                    .map((n) => n[0])
-                    .slice(0, 2)
-                    .join('')}
+                  {renderAvatarContent(selectedMember)}
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900 font-poppins">

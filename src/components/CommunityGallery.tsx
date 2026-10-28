@@ -3,6 +3,7 @@ import { AlertCircle, Camera, Check, ChevronLeft, ChevronRight, LoaderCircle, Re
 import { User } from '../types';
 import { AuthService } from '../services/authService';
 import { compressImage } from '../services/imageCompression';
+import { fetchRecentPublicProfilePhotos } from '../services/profilePhotoService';
 
 interface GalleryPhoto {
   path: string;
@@ -61,6 +62,8 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [profilePhotos, setProfilePhotos] = useState<Array<{ userId: string; url: string }>>([]);
+  const [profileGalleryError, setProfileGalleryError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const communityId = user.communityId || 'umum';
 
@@ -107,6 +110,24 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
   useEffect(() => {
     void loadPhotos();
   }, [loadPhotos]);
+
+  useEffect(() => {
+    let active = true;
+    void fetchRecentPublicProfilePhotos()
+      .then((photos) => {
+        if (active) setProfilePhotos(photos);
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setProfileGalleryError(
+            error instanceof Error ? error.message : 'Galeri foto profil gagal dimuat.',
+          );
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -226,6 +247,37 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
 
   return (
     <section className="space-y-4" aria-labelledby="community-gallery-title">
+      <div className="space-y-3 rounded-3xl border border-[#2E6B34]/20 bg-white p-4 shadow-xs">
+        <div>
+          <h4 className="text-sm font-bold font-poppins text-[#1F2A1F]">Foto Profil Anggota</h4>
+          <p className="mt-1 text-[11px] text-gray-500">
+            Foto profil publik yang dibagikan anggota Marsiadapari Hijau.
+          </p>
+        </div>
+        {profileGalleryError ? (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
+            {profileGalleryError}
+          </p>
+        ) : profilePhotos.length > 0 ? (
+          <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
+            {profilePhotos.map((photo) => (
+              <img
+                key={photo.userId}
+                src={photo.url}
+                alt="Foto profil publik anggota"
+                title="Foto profil anggota"
+                loading="lazy"
+                className="aspect-square w-full rounded-full border border-[#2E6B34]/15 bg-[#FAF6EC] object-cover"
+              />
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-500">
+            Belum ada foto profil yang dibagikan.
+          </p>
+        )}
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 id="community-gallery-title" className="text-sm font-bold font-poppins text-[#1F2A1F]">

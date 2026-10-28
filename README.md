@@ -18,9 +18,10 @@ Fitur utama meliputi:
 6. **Taman Virtual & Hutan Komunitas IAKN Tarutung** yang bertumbuh seiring aksi nyata pengguna.
 7. **Kalkulator Jejak Hijau & Dashboard Dampak** grafik Recharts, lencana, dan kartu capaian untuk dibagikan.
 8. **Galeri Komunitas** untuk berbagi foto aksi lingkungan secara lintas perangkat melalui Supabase Storage.
-9. **Doa & Liturgi Ciptaan AI** pembuat doa syukur panen dan susunan ibadah Minggu Ciptaan bagi pemimpin gereja.
-10. **Peta Aksi Hijau & Lapor Masalah Lingkungan** Leaflet + OpenStreetMap tanpa API key berbayar.
-11. **PWA Standalone & Dukungan Offline** cache data renungan dan aksi di penyimpanan lokal terenkripsi.
+9. **Foto Profil Publik** unggah dan tampilkan foto profil anggota di profil pribadi, galeri komunitas, serta papan capaian.
+10. **Doa & Liturgi Ciptaan AI** pembuat doa syukur panen dan susunan ibadah Minggu Ciptaan bagi pemimpin gereja.
+11. **Peta Aksi Hijau & Lapor Masalah Lingkungan** Leaflet + OpenStreetMap tanpa API key berbayar.
+12. **PWA Standalone & Dukungan Offline** cache data renungan dan aksi di penyimpanan lokal terenkripsi.
 
 ### Akses pengunjung
 Halaman pengguna dapat dijelajahi tanpa akun. Tombol **Masuk** dan **Daftar** tersedia di kanan atas; chatbot tetap bisa digunakan sebagai pengunjung. Untuk aktivitas yang mengirim, mengubah, atau mengonfirmasi data—seperti verifikasi aksi, pemindai sampah AI, pendaftaran event, laporan, penyiraman taman, dan konfirmasi bukti—pengunjung diminta masuk atau mendaftar. Papan capaian dan grafik dampak menggunakan data aksi terverifikasi yang tersedia; keduanya menampilkan keadaan kosong bila belum ada data, bukan peserta atau angka contoh.
@@ -29,6 +30,8 @@ Halaman pengguna dapat dijelajahi tanpa akun. Tombol **Masuk** dan **Daftar** te
 Profil anggota menampilkan lencana yang terbuka otomatis berdasarkan Poin Hijau: **Sahabat Pohon** (50), **Penjaga Danau** (100), **Marsiadapari Sejati** (250), dan **Pelindung Ciptaan** (500). Progres dihitung dari poin anggota yang tersimpan dan diperbarui otomatis saat poin berubah; lencana yang belum tercapai tetap terlihat sebagai target berikutnya.
 
 Saat lencana baru terbuka, profil menampilkan animasi confetti dan ucapan pencapaian satu kali. Galeri komunitas menyimpan foto secara publik di Supabase Storage agar dapat dilihat lintas perangkat; unggahan hanya dapat dilakukan oleh anggota yang masuk dan pemilik foto dapat menghapus unggahannya sendiri. Foto dikompres di browser sebelum diunggah.
+
+Foto profil juga disimpan di bucket publik Supabase agar dapat dilihat lintas perangkat. Anggota masuk dapat mengubah atau menghapus foto miliknya sendiri dari halaman Profil; foto publik terbaru ditampilkan pada galeri komunitas dan foto peserta yang dikenali tampil di papan capaian. Halaman Profil memberi tahu anggota bahwa foto yang diunggah dapat dilihat publik.
 
 ---
 
@@ -63,21 +66,24 @@ PORT=3000
 #### Menyiapkan akun dan email verifikasi
 1. Buat proyek di [Supabase](https://supabase.com/) dan salin **Project URL** serta **publishable/anon key** ke variabel di atas. Jangan pernah memasukkan `service_role` key ke aplikasi.
 2. Di **Authentication → URL Configuration**, tambahkan URL aplikasi lokal (`http://localhost:3000`) dan URL produksi ke daftar redirect yang diizinkan.
-3. Aktifkan konfirmasi email di **Authentication → Providers → Email**. Pendaftaran mengirim tautan konfirmasi; setelah akun aktif, setiap proses masuk mengirim kode OTP ke email yang dimasukkan.
-4. Agar kode masuk tampil sebagai angka, sesuaikan template **Magic Link** di **Authentication → Email Templates** untuk menyertakan `{{ .Token }}`. Pastikan SMTP/email provider proyek aktif dan memiliki batas pengiriman yang memadai.
-5. Untuk produksi, isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` pada environment variables platform deploy lalu lakukan build ulang.
-6. Tambahkan `SUPABASE_SERVICE_ROLE_KEY`, `LEADER_SIGNUP_TOKEN`, dan URL callback pemimpin pada `LEADER_AUTH_REDIRECT_URL` sebagai environment server. Jangan pernah memakai prefix `VITE_` untuk service role key atau token undangan.
-7. Portal pengguna biasa ada di `/`. Portal pemimpin terpisah di `/pemimpin?undangan=<LEADER_SIGNUP_TOKEN>`; berikan tautan ini hanya kepada pemimpin dan rotasi token setelah distribusi bila tautan perlu dicabut.
-8. Tidak ada pendaftaran admin publik. Buat akun admin melalui Supabase Auth, lalu atur `app_metadata` akun tersebut menjadi `{"role":"admin"}` melalui panel admin Supabase. Admin masuk melalui `/admin`.
+3. Aktifkan konfirmasi email di **Authentication → Providers → Email**. Pendaftaran mengirim tautan konfirmasi. Proses masuk meminta email berisi kode OTP atau tautan masuk, bergantung pada template Magic Link yang dipilih.
+4. Supaya proses masuk mengirim kode angka, buka **Authentication → Email Templates → Magic Link** dan ubah isi template agar menggunakan `{{ .Token }}` (contoh: `<p>Kode masuk Anda: {{ .Token }}</p>`), bukan `{{ .ConfirmationURL }}`. Template konfirmasi pendaftaran tetap menggunakan tautan konfirmasi.
+5. Untuk pengujian, hindari meminta email berulang kali. Pengirim email bawaan Supabase dibatasi sekitar **2 email per jam untuk seluruh proyek** dan permintaan ke alamat yang sama juga memiliki jeda. Jika muncul `email rate limit exceeded`, tunggu kuota tersedia; jangan menaikkan batas pengiriman tanpa memahami risikonya.
+6. Untuk penggunaan nyata/produksi, siapkan penyedia SMTP khusus pada pengaturan SMTP Auth Supabase, verifikasi domain/alamat pengirim, lalu periksa batas provider tersebut. Ini meningkatkan kapasitas pengiriman dibanding layanan bawaan Supabase.
+7. Untuk produksi, isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` pada environment variables platform deploy lalu lakukan build ulang.
+8. Tambahkan `SUPABASE_SERVICE_ROLE_KEY`, `LEADER_SIGNUP_TOKEN`, dan URL callback pemimpin pada `LEADER_AUTH_REDIRECT_URL` sebagai environment server. Jangan pernah memakai prefix `VITE_` untuk service role key atau token undangan.
+9. Portal pengguna biasa ada di `/`. Portal pemimpin terpisah di `/pemimpin?undangan=<LEADER_SIGNUP_TOKEN>`; berikan tautan ini hanya kepada pemimpin dan rotasi token setelah distribusi bila tautan perlu dicabut.
+10. Tidak ada pendaftaran admin publik. Buat akun admin melalui Supabase Auth, lalu atur `app_metadata` akun tersebut menjadi `{"role":"admin"}` melalui panel admin Supabase. Admin masuk melalui `/admin`.
 
 ### Mengaktifkan database bersama
 1. Salin `.env.example` menjadi `.env.local`, lalu isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` dengan URL dan **Publishable key** proyek Supabase. Publishable/anon key boleh digunakan browser. Jangan pernah memakai secret/service-role key di `VITE_` variable.
 2. Di dashboard Supabase, buka **SQL Editor → New query**. Buka `supabase/migrations/20261027000000_shared_database.sql`, salin seluruh isi file itu ke query, lalu tekan **Run**. Migration membuat tabel organisasi dan data bersama serta mengaktifkan Row Level Security (RLS).
 3. Untuk mengaktifkan Galeri Komunitas, jalankan juga seluruh isi `supabase/migrations/20261028000000_community_gallery.sql` melalui **SQL Editor → New query → Run**. Migration ini membuat bucket foto publik dengan batas ukuran 5 MB dan aturan agar hanya anggota masuk yang dapat mengunggah atau menghapus foto miliknya sendiri.
-4. Pastikan **Authentication → URL Configuration** mengizinkan URL lokal `http://localhost:3000` dan URL produksi. Untuk membuat akun pemimpin, server juga memerlukan `SUPABASE_SERVICE_ROLE_KEY` dan `LEADER_SIGNUP_TOKEN`; keduanya hanya di environment server.
-5. Jalankan ulang `npm run dev`, kemudian masuk sebagai admin atau pemimpin dan ubah/simpan data. Notifikasi di aplikasi memberi tahu status koneksi/sinkronisasi. Laporan baru anggota tersimpan bersama; organisasi, kegiatan, identitas merek, tantangan, renungan, lokasi, dan data laporan yang dikelola memiliki aturan akses sesuai peran.
-6. Untuk admin pertama, buat akun melalui **Authentication → Users**, kemudian edit **App Metadata** akun tersebut agar berisi `{"role":"admin"}`. Jangan menaruh peran di User Metadata karena pengguna dapat mengubahnya sendiri.
-7. Untuk Vercel, masukkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` di **Project → Settings → Environment Variables**, lalu redeploy. Tambahkan service-role key dan token undangan hanya sebagai variabel server, tanpa prefix `VITE_`.
+4. Untuk mengaktifkan foto profil publik, jalankan seluruh isi `supabase/migrations/20261028000001_profile_photos.sql`. Ini membuat bucket publik dan tabel metadata foto yang dapat dibaca umum; kebijakan RLS membatasi unggah, perubahan, dan penghapusan ke pemilik akun.
+5. Pastikan **Authentication → URL Configuration** mengizinkan URL lokal `http://localhost:3000` dan URL produksi. Untuk membuat akun pemimpin, server juga memerlukan `SUPABASE_SERVICE_ROLE_KEY` dan `LEADER_SIGNUP_TOKEN`; keduanya hanya di environment server.
+6. Jalankan ulang `npm run dev`, kemudian masuk sebagai admin atau pemimpin dan ubah/simpan data. Notifikasi di aplikasi memberi tahu status koneksi/sinkronisasi. Laporan baru anggota tersimpan bersama; organisasi, kegiatan, identitas merek, tantangan, renungan, lokasi, dan data laporan yang dikelola memiliki aturan akses sesuai peran.
+7. Untuk admin pertama, buat akun melalui **Authentication → Users**, kemudian edit **App Metadata** akun tersebut agar berisi `{"role":"admin"}`. Jangan menaruh peran di User Metadata karena pengguna dapat mengubahnya sendiri.
+8. Untuk Vercel, masukkan `VITE_SUPABASE_URL` dan `VITE_SUPABASE_ANON_KEY` di **Project → Settings → Environment Variables**, lalu redeploy. Tambahkan service-role key dan token undangan hanya sebagai variabel server, tanpa prefix `VITE_`.
 
 Data profil, poin, kebun, dan bukti tantangan masih tersimpan lokal. Data bukti/verifikasi dan poin sengaja belum disinkronkan karena pencatatan tepercaya harus dilakukan oleh endpoint server agar pengguna tidak dapat mengubah hasil/poin melalui browser. Tanpa `GEMINI_API_KEY`, verifikasi foto tidak akan memberikan hasil palsu atau poin; fitur AI lain dapat menggunakan mode simulasi.
 
@@ -97,12 +103,12 @@ Semua file `.env*` lokal dikecualikan dari Git dan Vercel. API di folder `api/` 
 
 ### Persiapan GitHub
 1. Buat repository baru di GitHub. Jika ada pilihan, buat repository kosong tanpa README, `.gitignore`, atau license agar push awal tidak konflik.
-2. Dari terminal VS Code di folder proyek, jalankan:
+2. Dari terminal VS Code di folder proyek, periksa perubahan dan stage hanya file proyek yang memang ingin dipublikasikan:
    ```powershell
-   git init
-   git add .
    git status --short
+   git add README.md src supabase api public package.json package-lock.json
    ```
+   Jangan gunakan `git add .` sebelum meninjau daftar perubahan. Perintah `npx skills add` dapat membuat banyak konfigurasi agen lokal di folder proyek; jangan masukkan file-file itu ke Git kecuali memang ingin membagikannya.
 3. Sebelum commit, pastikan `.env.local` **tidak** muncul di `git status`. Jika muncul, jangan lanjutkan; pastikan aturan `.gitignore` aktif.
 4. Commit dan hubungkan repository (ganti URL contoh dengan URL repository Anda):
    ```powershell
@@ -159,5 +165,3 @@ Saat diminta, ikuti panduan terminal dan tambahkan Environment Variable:
 - Papan capaian menyediakan opsi tampil sebagai **Anonim** untuk menjaga kerendahan hati dalam berbuat baik.
 
 *Horas ma dihita saluhutna, mauliate!*
-#   M a r s i d a p a r i - H i j a u  
- 

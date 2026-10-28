@@ -1,23 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import {
-  User as UserIcon,
-  ShieldCheck,
   Type,
   Wifi,
   Bell,
   EyeOff,
   Download,
   Trash2,
-  LogOut,
   Info,
   CheckCircle2,
   X,
   ExternalLink,
   LockKeyhole,
+  Camera,
+  LoaderCircle,
 } from 'lucide-react';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
 import { POINT_BADGES } from '../data/badges';
+import { ProfileAvatar } from '../components/ProfileAvatar';
+import { fetchProfilePhotoUrls, removeProfilePhoto, uploadProfilePhoto } from '../services/profilePhotoService';
 
 interface ProfilePageProps {
   user: User;
@@ -34,6 +35,11 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [showPrivacyPolicy, setShowPrivacyPolicy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<typeof POINT_BADGES>([]);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [hasProfilePhoto, setHasProfilePhoto] = useState(false);
+  const [photoRefreshKey, setPhotoRefreshKey] = useState(0);
+  const photoInputRef = React.useRef<HTMLInputElement>(null);
   const earnedBadges = POINT_BADGES.filter((badge) => user.points >= badge.requiredPoints);
   const nextBadge = POINT_BADGES.find((badge) => user.points < badge.requiredPoints);
   const previousBadgePoints = nextBadge
@@ -86,6 +92,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   }, [user.id, user.points]);
 
+  useEffect(() => {
+    let active = true;
+    void fetchProfilePhotoUrls([user.id])
+      .then((photos) => {
+        if (active) setHasProfilePhoto(Boolean(photos[user.id]));
+      })
+      .catch((error: unknown) => {
+        if (active) setPhotoError(error instanceof Error ? error.message : 'Foto profil gagal dimuat.');
+      });
+    return () => {
+      active = false;
+    };
+  }, [user.id, photoRefreshKey]);
+
   const handleTogglePref = (key: keyof typeof preferences) => {
     const updatedPrefs = {
       ...preferences,
@@ -125,6 +145,40 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
     if (confirm('Apakah Anda yakin ingin menghapus data lokal dan keluar?')) {
       StorageService.resetAllData();
       onLogout();
+    }
+  };
+
+  const handleProfilePhotoChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      await uploadProfilePhoto(file, user.id);
+      setHasProfilePhoto(true);
+      setPhotoRefreshKey((key) => key + 1);
+      showNotice('Foto profil berhasil diperbarui dan dapat dilihat pengguna lain.');
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : 'Foto profil gagal diunggah.');
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const handleRemoveProfilePhoto = async () => {
+    setPhotoBusy(true);
+    setPhotoError(null);
+    try {
+      await removeProfilePhoto(user.id);
+      setHasProfilePhoto(false);
+      setPhotoRefreshKey((key) => key + 1);
+      showNotice('Foto profil berhasil dihapus.');
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : 'Foto profil gagal dihapus.');
+    } finally {
+      setPhotoBusy(false);
     }
   };
 
@@ -178,13 +232,12 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       {/* User Identity Card */}
       <div className="rounded-3xl bg-white border border-[#2E6B34]/25 p-5 shadow-xs space-y-3">
         <div className="flex items-center gap-3">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2E6B34] to-[#1F4B23] text-white flex items-center justify-center font-bold text-xl shadow-md">
-            {user.role === 'pemimpin' ? (
-              <ShieldCheck className="w-8 h-8 text-[#A8D5A2]" />
-            ) : (
-              <UserIcon className="w-8 h-8 text-[#A8D5A2]" />
-            )}
-          </div>
+          <ProfileAvatar
+            userId={user.id}
+            name={user.name}
+            refreshKey={photoRefreshKey}
+            className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#2E6B34] to-[#1F4B23] text-xl font-bold text-white shadow-md"
+          />
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold font-poppins text-[#1F2A1F]">
@@ -204,7 +257,43 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
             <p className="text-[11px] text-gray-400 mt-0.5">Kontak: {user.contact}</p>
           </div>
         </div>
-
+        <div className="flex flex-wrap gap-2 border-t border-gray-100 pt-3">
+          <button
+            type="button"
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoBusy}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#2E6B34] px-3 text-xs font-bold text-white hover:bg-[#235328] disabled:opacity-60"
+          >
+            {photoBusy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+            {photoBusy ? 'Memproses foto...' : hasProfilePhoto ? 'Ganti foto profil' : 'Unggah foto profil'}
+          </button>
+          {hasProfilePhoto && (
+            <button
+              type="button"
+              onClick={() => void handleRemoveProfilePhoto()}
+              disabled={photoBusy}
+              className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-700 hover:bg-red-100 disabled:opacity-60"
+            >
+              <Trash2 className="h-4 w-4" />
+              Hapus foto
+            </button>
+          )}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={(event) => void handleProfilePhotoChange(event)}
+            className="hidden"
+          />
+        </div>
+        <p className="text-[10px] leading-relaxed text-gray-500">
+          Foto profil disimpan publik agar dapat dilihat pengguna lain. Maksimal 10 MB sebelum kompresi.
+        </p>
+        {photoError && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
+            {photoError}
+          </p>
+        )}
       </div>
 
       <section
