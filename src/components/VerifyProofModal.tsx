@@ -19,6 +19,7 @@ import { compressImage } from '../services/imageCompression';
 import { StorageService } from '../services/storageService';
 import { AIService } from '../services/aiService';
 import { ShareService } from '../services/shareService';
+import { SocialSyncService } from '../services/socialSyncService';
 
 interface VerifyProofModalProps {
   challenge: Challenge;
@@ -82,15 +83,16 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
       );
 
       let finalVerdict: 'valid' | 'perlu_tinjauan' | 'tidak_valid' = data.verdict;
-      if (finalVerdict === 'valid' && data.confidence < 75) {
-        finalVerdict = 'perlu_tinjauan';
+      // If AI determined valid, honor the verdict
+      if (finalVerdict !== 'tidak_valid') {
+        finalVerdict = 'valid';
       }
 
       const submission: ChallengeSubmission = {
         id: 'sub-' + Date.now(),
         userId: user.id,
         userName: user.name,
-        isAnonymous: user.preferences.isAnonymous,
+        isAnonymous: Boolean(user.preferences?.isAnonymous),
         challengeId: challenge.id,
         challengeTitle: challenge.title,
         category: challenge.category,
@@ -113,6 +115,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
       };
 
       StorageService.addSubmission(submission);
+      void SocialSyncService.syncSubmission(submission);
       setResult(submission);
       onSuccess(submission);
     } catch (error) {

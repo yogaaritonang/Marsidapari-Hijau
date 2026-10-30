@@ -173,7 +173,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 {isLocating && <span className="text-[9px] text-[#2E6B34] animate-pulse">...</span>}
               </button>
             </div>
-            <h1 className="mt-0.5 font-poppins text-lg sm:text-2xl font-extrabold text-[#1F2A1F] truncate">
+            <h1 className="mt-0.5 font-poppins text-lg sm:text-2xl font-extrabold text-[#1F2A1F] leading-snug">
               Horas, {user.name}! 🌿
             </h1>
             <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5 truncate">
@@ -183,7 +183,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </p>
           </div>
 
-          {/* Daily Streak Indicator */}
+          {/* Compact Minimalist Daily Streak Indicator */}
           <div
             onClick={() => {
               if (isGuest) {
@@ -194,42 +194,32 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onNavigateTab('impact');
               }
             }}
-            className={`cursor-pointer shrink-0 flex items-center gap-2 px-3 py-2 rounded-2xl transition duration-200 ${
+            className={`cursor-pointer shrink-0 flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full transition duration-200 border shadow-2xs active:scale-95 ${
               hasActiveStreak
-                ? 'bg-gradient-to-r from-amber-100/90 to-orange-100/90 border border-orange-300 shadow-xs hover:border-orange-400 hover:shadow-sm'
-                : 'bg-amber-50/80 border border-amber-200/80 shadow-xs hover:bg-amber-100/80'
+                ? 'bg-gradient-to-r from-amber-100 to-orange-100 border-orange-300 text-orange-950 hover:border-orange-400'
+                : 'bg-amber-50/90 border-amber-200 text-amber-900 hover:bg-amber-100'
             }`}
             title={
               isGuest
                 ? 'Masuk untuk mengaktifkan streak aksi berturut-turut'
                 : hasActiveStreak
-                ? `Streak Aktif: ${user.streakDays} hari berturut-turut masuk dan menyelesaikan aksi! Melewatkan 1 hari akan me-reset streak ke 0.`
-                : 'Streak 0 Hari: Anda belum menyelesaikan aksi hari ini atau melewatkan hari kemarin. Selesaikan tantangan sekarang untuk memulai streak!'
+                ? `Streak Aktif: ${user.streakDays} hari berturut-turut masuk dan menyelesaikan aksi!`
+                : 'Streak 0 Hari: Selesaikan tantangan hari ini untuk memulai streak!'
             }
           >
             <Flame
-              className={`w-5 h-5 transition-transform duration-200 ${
+              className={`w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 transition-transform ${
                 hasActiveStreak
-                  ? 'text-orange-500 fill-orange-500 animate-pulse drop-shadow-[0_2px_4px_rgba(249,115,22,0.35)] scale-110'
-                  : 'text-amber-400 stroke-[1.8]'
+                  ? 'text-orange-500 fill-orange-500 animate-pulse'
+                  : 'text-amber-500 stroke-[2]'
               }`}
             />
-            <div className="text-right leading-none">
-              <span
-                className={`text-xs font-extrabold ${
-                  hasActiveStreak ? 'text-amber-950' : 'text-amber-900'
-                }`}
-              >
-                {isGuest ? '—' : `${user.streakDays} Hari`}
-              </span>
-              <span
-                className={`block text-[9px] font-semibold mt-0.5 ${
-                  hasActiveStreak ? 'text-orange-700' : 'text-amber-600'
-                }`}
-              >
-                {isGuest ? 'Streak' : hasActiveStreak ? 'Streak Aktif' : 'Mulai Aksi'}
-              </span>
-            </div>
+            <span className="text-xs font-black leading-none">
+              {isGuest ? '0' : user.streakDays}
+            </span>
+            <span className="text-[10px] font-bold text-amber-800 leading-none">
+              {hasActiveStreak ? 'hari' : 'streak'}
+            </span>
           </div>
         </div>
       </div>

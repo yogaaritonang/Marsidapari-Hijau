@@ -16,6 +16,7 @@ import {
   Pencil,
   Save,
   Share2,
+  LogOut,
 } from 'lucide-react';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
@@ -265,7 +266,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   };
 
   return (
-    <div className="space-y-4 pb-24 pt-2 px-4">
+    <div className="mx-auto max-w-3xl space-y-4 pb-28 pt-3 px-4 sm:px-6">
       {/* Header */}
       <div>
         <span className="text-xs font-bold text-[#7A5230] uppercase tracking-wider">
@@ -698,25 +699,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </button>
         </div>
 
-        {/* Export Data */}
-        <div className="pt-1 border-t border-gray-100">
+        {/* Tombol Keluar Akun */}
+        <div className="pt-2 border-t border-gray-100">
           <button
-            onClick={handleExportData}
-            className="w-full py-2 rounded-xl bg-gray-50 hover:bg-gray-100 border text-gray-800 font-bold transition flex items-center justify-center gap-2"
+            type="button"
+            onClick={onLogout}
+            className="w-full py-2.5 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold transition flex items-center justify-center gap-2 active:scale-95 shadow-2xs cursor-pointer"
           >
-            <Download className="w-4 h-4 text-[#2E6B34]" />
-            <span>Ekspor &amp; Unduh Semua Data Saya (JSON)</span>
-          </button>
-        </div>
-
-        {/* Reset Account */}
-        <div className="pt-1 border-t border-gray-100">
-          <button
-            onClick={handleResetData}
-            className="w-full py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold transition flex items-center justify-center gap-2"
-          >
-            <Trash2 className="w-4 h-4" />
-            <span>Hapus Data Lokal &amp; Keluar</span>
+            <LogOut className="w-4 h-4 text-rose-600" />
+            <span>Keluar Akun</span>
           </button>
         </div>
       </div>

@@ -1,18 +1,103 @@
 import type { Request, Response } from 'express';
-import { ThreadPost, ChallengeSubmission, AppNotification } from '../src/types/index.js';
+import { ThreadPost, ChallengeSubmission, AppNotification, BrandSettings } from '../src/types/index.js';
 import { SEED_THREADS } from '../src/data/seedData.js';
 
 // Server-level in-memory state shared across client sessions on this server instance
 interface SocialStore {
+  brand: BrandSettings | null;
   threads: ThreadPost[];
   submissions: ChallengeSubmission[];
   cheers: Record<string, { count: number; users: string[] }>;
   notifications: AppNotification[];
 }
 
+const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
+  {
+    id: 'sub-seed-1',
+    userId: 'u-naomi',
+    userName: 'Naomi Siregar',
+    isAnonymous: false,
+    challengeId: 'chal-tumbler',
+    challengeTitle: 'Gunakan Tumbler & Kurangi Botol Plastik',
+    category: 'harian',
+    submittedAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+    verdict: 'valid',
+    confidence: 95,
+    userNotes: 'Membawa tumbler sendiri saat perkuliahan di IAKN Tarutung',
+    imageThumbnail: '',
+    imageHash: 'hash-naomi-tumbler-1',
+    yang_terlihat: 'Botol minum tumbler pribadi yang digunakan saat beraktivitas',
+    alasan: 'Sesuai dengan kriteria tantangan pengurangan sampah plastik',
+    saran: 'Terus pertahankan kebiasaan membawa tumbler setiap hari',
+    impact: { wasteKg: 0.8, trees: 0, waterLiters: 20, electricityKwh: 0 },
+    awardedPoints: 40,
+  },
+  {
+    id: 'sub-seed-2',
+    userId: 'u-daniel',
+    userName: 'Daniel Sitompul',
+    isAnonymous: false,
+    challengeId: 'chal-tanam-pohon',
+    challengeTitle: 'Tanam & Rawat 1 Pohon Endemik',
+    category: 'danau_toba',
+    submittedAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+    verdict: 'valid',
+    confidence: 92,
+    userNotes: 'Menanam bibit pohon alpukat di pekarangan gereja HKBP',
+    imageThumbnail: '',
+    imageHash: 'hash-daniel-tree-1',
+    yang_terlihat: 'Penanaman bibit pohon di pekarangan dengan tanah gembur',
+    alasan: 'Tindakan penghijauan nyata terverifikasi',
+    saran: 'Pastikan penyiraman rutin selama 3 bulan pertama',
+    impact: { wasteKg: 0, trees: 2, waterLiters: 0, electricityKwh: 0 },
+    awardedPoints: 50,
+  },
+  {
+    id: 'sub-seed-3',
+    userId: 'u-johannes',
+    userName: 'Johannes Hutabarat',
+    isAnonymous: false,
+    challengeId: 'chal-pilah-sampah',
+    challengeTitle: 'Pilah Sampah Organik & Anorganik',
+    category: 'harian',
+    submittedAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+    verdict: 'valid',
+    confidence: 88,
+    userNotes: 'Memilah sampah plastik dan kardus untuk bank sampah',
+    imageThumbnail: '',
+    imageHash: 'hash-johannes-sort-1',
+    yang_terlihat: 'Wadah terpisah untuk sampah plastik dan kertas',
+    alasan: 'Pemilahan sampah sesuai standar daur ulang',
+    saran: 'Dapat disalurkan ke bank sampah komunitas terdekat',
+    impact: { wasteKg: 3.5, trees: 0, waterLiters: 0, electricityKwh: 0 },
+    awardedPoints: 30,
+  },
+  {
+    id: 'sub-seed-4',
+    userId: 'u-ruth',
+    userName: 'Ruth Simanjuntak',
+    isAnonymous: false,
+    challengeId: 'chal-komunitas-iakn',
+    challengeTitle: 'Gotong Royong Kampus Asri IAKN Tarutung',
+    category: 'komunitas',
+    submittedAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+    verdict: 'valid',
+    confidence: 96,
+    userNotes: 'Aksi marsiadapari bersama pemuda membersihkan selokan',
+    imageThumbnail: '',
+    imageHash: 'hash-ruth-gotong-royong-1',
+    yang_terlihat: 'Kerja bakti gotong royong pembersihan selokan dan lingkungan',
+    alasan: 'Aktivitas aksi marsiadapari hijau komunitas terdokumentasi jelas',
+    saran: 'Sangat menginspirasi lingkungan sekitar',
+    impact: { wasteKg: 8.0, trees: 1, waterLiters: 40, electricityKwh: 0 },
+    awardedPoints: 70,
+  },
+];
+
 const store: SocialStore = {
+  brand: null,
   threads: [...SEED_THREADS],
-  submissions: [],
+  submissions: [...INITIAL_COMMUNITY_SUBMISSIONS],
   cheers: {},
   notifications: [],
 };
@@ -30,6 +115,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
       : store.notifications;
 
     return res.status(200).json({
+      brand: store.brand,
       threads: store.threads,
       submissions: store.submissions,
       cheers: store.cheers,
@@ -52,6 +138,14 @@ export default async function socialSyncHandler(req: Request, res: Response) {
     const { action, payload, userId } = body || {};
 
     switch (action) {
+      case 'update_brand': {
+        const brandPayload = payload as BrandSettings;
+        if (brandPayload && typeof brandPayload === 'object') {
+          store.brand = { ...(store.brand || {}), ...brandPayload };
+          return res.status(200).json({ success: true, brand: store.brand });
+        }
+        return res.status(400).json({ error: 'Data brand tidak valid.' });
+      }
       case 'create_thread': {
         const thread: ThreadPost = payload;
         if (!thread || !thread.id) {

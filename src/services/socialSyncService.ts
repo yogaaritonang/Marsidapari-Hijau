@@ -1,4 +1,4 @@
-import { ThreadPost, ThreadReply, ChallengeSubmission, AppNotification, User } from '../types';
+import { ThreadPost, ThreadReply, ChallengeSubmission, AppNotification, User, BrandSettings } from '../types';
 import { StorageService } from './storageService';
 
 const NOTIFICATIONS_STORAGE_KEY = 'mh_notifications';
@@ -8,7 +8,8 @@ export class SocialSyncService {
   private static isSyncing = false;
 
   /**
-   * Pulls the latest social data from the shared server:
+   * Pulls the latest social data and brand configuration from the shared server:
+   * - Brand identity & Logo (so admin changes reflect on all devices instantly)
    * - Threads (with likes, saves, comments from all users)
    * - Submissions (for unified leaderboard)
    * - Cheers (leaderboard loves from all users)
@@ -29,6 +30,17 @@ export class SocialSyncService {
       const data = await response.json();
       if (!data) return;
 
+      // 0. Sync Brand Settings & Logo (from Admin)
+      if (data.brand && typeof data.brand === 'object' && Object.keys(data.brand).length > 0) {
+        const localBrand = StorageService.getBrandSettings();
+        // Check if there are changes before updating
+        if (JSON.stringify(localBrand) !== JSON.stringify(data.brand)) {
+          const merged = { ...localBrand, ...data.brand };
+          StorageService.saveBrandSettings(merged);
+          window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: merged }));
+        }
+      }
+
       // 1. Sync Threads
       if (Array.isArray(data.threads) && data.threads.length > 0) {
         StorageService.saveThreads(data.threads);
@@ -36,16 +48,23 @@ export class SocialSyncService {
       }
 
       // 2. Sync Submissions for Leaderboard
-      if (Array.isArray(data.submissions) && data.submissions.length > 0) {
+      if (Array.isArray(data.submissions)) {
         const local = StorageService.getSubmissions();
         const map = new Map<string, ChallengeSubmission>();
         for (const s of data.submissions) map.set(s.id, s);
+        // Also ensure any local valid submission is uploaded to server if not on server yet
         for (const s of local) {
-          if (!map.has(s.id)) map.set(s.id, s);
+          if (!map.has(s.id)) {
+            map.set(s.id, s);
+            if (s.verdict === 'valid') {
+              void this.syncSubmission(s);
+            }
+          }
         }
         const merged = [...map.values()];
         StorageService.saveSubmissions(merged);
         window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: merged }));
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
       }
 
       // 3. Sync Cheers
@@ -63,6 +82,24 @@ export class SocialSyncService {
       console.warn('[SocialSyncService] Server sync temporarily offline, using local data', e);
     } finally {
       this.isSyncing = false;
+    }
+  }
+
+  /**
+   * Sync brand settings (logo, name, colors, etc.) from admin to server for all users
+   */
+  static async syncBrand(brand: BrandSettings): Promise<void> {
+    StorageService.saveBrandSettings(brand);
+    window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: brand }));
+
+    try {
+      await fetch('/api/social-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_brand', payload: brand }),
+      });
+    } catch (e) {
+      console.warn('[SocialSyncService] syncBrand error', e);
     }
   }
 
@@ -258,11 +295,19 @@ export class SocialSyncService {
    */
   static async syncSubmission(submission: ChallengeSubmission): Promise<void> {
     try {
-      await fetch('/api/social-sync', {
+      const res = await fetch('/api/social-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'submit_challenge', payload: submission }),
       });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.submissions)) {
+          StorageService.saveSubmissions(data.submissions);
+          window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: data.submissions }));
+          window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
+        }
+      }
     } catch (e) {
       console.warn('[SocialSyncService] syncSubmission error', e);
     }

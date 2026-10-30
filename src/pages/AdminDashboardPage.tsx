@@ -33,6 +33,7 @@ import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost
 import { StorageService } from '../services/storageService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 import { AIService, AiReadinessCheck } from '../services/aiService';
+import { SocialSyncService } from '../services/socialSyncService';
 
 type AdminSection = 'overview' | 'brand' | 'ai' | 'threads' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
 
@@ -267,9 +268,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     notify(`Status postingan diperbarui menjadi: ${status}.`);
   };
 
-  const saveBrand = () => {
+  const saveBrand = async () => {
     StorageService.saveBrandSettings(brand);
-    notify('Pengaturan aplikasi tersimpan.');
+    await SocialSyncService.syncBrand(brand);
+    notify('Pengaturan aplikasi & logo tersimpan dan disinkronkan ke seluruh pengguna.');
     void AIService.checkAiHealth(brand).then(setAiReadiness);
   };
 

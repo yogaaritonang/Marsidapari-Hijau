@@ -70,7 +70,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [profilePhotoUrls, setProfilePhotoUrls] = useState<Record<string, string>>({});
-
+  const [dataVersion, setDataVersion] = useState(0);
 
   const members = useMemo(() => {
     const now = new Date();
@@ -119,6 +119,32 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
       participants.set(submission.userId, participant);
     }
 
+    // Ensure active user is displayed with their latest earned points
+    if (user.id !== 'guest-preview' && (user.points > 0 || participants.has(user.id))) {
+      const existing = participants.get(user.id);
+      if (existing) {
+        if (user.points > existing.points) {
+          existing.points = user.points;
+          existing.monthlyPoints = Math.max(existing.monthlyPoints, user.points);
+          existing.weeklyPoints = Math.max(existing.weeklyPoints, user.points);
+        }
+      } else {
+        participants.set(user.id, {
+          userId: user.id,
+          name: user.name,
+          isAnonymous: Boolean(user.preferences?.isAnonymous),
+          community: user.communityName ? user.communityName.split('(')[0].trim() : 'Komunitas Marsiadapari Hijau',
+          points: user.points,
+          monthlyPoints: user.points,
+          weeklyPoints: user.points,
+          completedCount: 1,
+          trees: Math.max(0, Math.floor(user.points / 25)),
+          wasteKg: parseFloat((user.points * 0.15).toFixed(1)),
+          waterSavedLiters: user.points * 10,
+        });
+      }
+    }
+
     return [...participants.values()]
       .map((participant) => ({
         ...participant,
@@ -134,7 +160,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
         const pointsB = period === 'monthly' ? b.monthlyPoints : period === 'weekly' ? b.weeklyPoints : b.points;
         return pointsB - pointsA;
       });
-  }, [user, period]);
+  }, [user, period, dataVersion]);
 
   useEffect(() => {
     let active = true;
@@ -163,9 +189,20 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
         setCheersState(map);
       }
     };
+
+    const handleSubmissionsUpdate = () => {
+      setDataVersion((v) => v + 1);
+    };
+
     window.addEventListener('mh-cheers-updated', handleCheersUpdate);
+    window.addEventListener('mh-leaderboard-updated', handleSubmissionsUpdate);
+    window.addEventListener('mh-data-updated', handleSubmissionsUpdate);
+    window.addEventListener('storage', handleSubmissionsUpdate);
     return () => {
       window.removeEventListener('mh-cheers-updated', handleCheersUpdate);
+      window.removeEventListener('mh-leaderboard-updated', handleSubmissionsUpdate);
+      window.removeEventListener('mh-data-updated', handleSubmissionsUpdate);
+      window.removeEventListener('storage', handleSubmissionsUpdate);
     };
   }, [user]);
 

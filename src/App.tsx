@@ -10,6 +10,7 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { VerifyProofModal } from './components/VerifyProofModal';
 import { AuthService } from './services/authService';
 import { SharedDataService } from './services/sharedDataService';
+import { SocialSyncService } from './services/socialSyncService';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -239,6 +240,7 @@ export default function App() {
     }
     setTimeout(() => setSuccessToast(null), 4000);
     setUser(StorageService.getUser());
+    void SocialSyncService.syncSubmission(sub);
   };
 
   const renderActiveView = () => {

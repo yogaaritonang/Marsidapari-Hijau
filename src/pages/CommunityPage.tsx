@@ -67,7 +67,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
   };
 
   return (
-    <div className="space-y-4 pb-24 pt-2 px-4">
+    <div className="mx-auto max-w-3xl space-y-4 pb-28 pt-3 px-4 sm:px-6">
       {/* Header */}
       <div>
         <span className="text-xs font-bold text-[#7A5230] uppercase tracking-wider">

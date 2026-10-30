@@ -44,8 +44,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
   }, [user.id]);
 
   useEffect(() => {
-    const handleBrandChange = () => {
-      setBrand(StorageService.getBrandSettings());
+    const handleBrandChange = (e?: Event) => {
+      const detail = (e as CustomEvent<BrandSettings>)?.detail;
+      if (detail && typeof detail === 'object' && Object.keys(detail).length > 0) {
+        setBrand(detail);
+      } else {
+        setBrand(StorageService.getBrandSettings());
+      }
     };
     window.addEventListener('mh-brand-updated', handleBrandChange);
     window.addEventListener('storage', handleBrandChange);
