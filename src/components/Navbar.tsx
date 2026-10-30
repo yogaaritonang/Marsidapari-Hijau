@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Leaf, Award, ShieldCheck, User as UserIcon, Share2, Sun, Moon, CloudSun, Sunrise } from 'lucide-react';
-import { User, BrandSettings } from '../types';
+import { Leaf, Award, ShieldCheck, User as UserIcon, Share2, Sun, Moon, CloudSun, Sunrise, Bell } from 'lucide-react';
+import { User, BrandSettings, AppNotification } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { StorageService } from '../services/storageService';
 import { ProfileAvatar } from './ProfileAvatar';
 import { ShareAchievementModal } from './ShareAchievementModal';
+import { NotificationsModal } from './NotificationsModal';
+import { SocialSyncService } from '../services/socialSyncService';
 import { getRankTitle } from '../services/shareService';
 
 interface NavbarProps {
@@ -17,7 +19,30 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, onOpenAuth }) => {
   const [brand, setBrand] = useState<BrandSettings>(() => StorageService.getBrandSettings());
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => SocialSyncService.getLocalNotifications());
   const [greeting, setGreeting] = useState({ text: 'Selamat Datang', icon: 'sun' });
+
+  useEffect(() => {
+    // Initial pull and periodic refresh
+    void SocialSyncService.pullSocialData(user);
+
+    const handleNotifUpdate = (e: Event) => {
+      const detail = (e as CustomEvent<AppNotification[]>).detail;
+      if (Array.isArray(detail)) setNotifications(detail);
+      else setNotifications(SocialSyncService.getLocalNotifications());
+    };
+
+    window.addEventListener('mh-notifications-updated', handleNotifUpdate);
+    const interval = setInterval(() => {
+      void SocialSyncService.pullSocialData(user);
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('mh-notifications-updated', handleNotifUpdate);
+      clearInterval(interval);
+    };
+  }, [user.id]);
 
   useEffect(() => {
     const handleBrandChange = () => {
@@ -105,10 +130,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                     {isGuest ? `${greeting.text}!` : `${greeting.text}, ${firstName}!`}
                   </span>
                 </span>
-                <span className="hidden sm:inline text-gray-400">&bull;</span>
-                <span className="hidden sm:inline truncate max-w-[150px] text-gray-500">
-                  {user.communityName || 'Danau Toba'}
-                </span>
               </div>
             </div>
           </div>
@@ -127,6 +148,23 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
               >
                 <Share2 className="h-3.5 w-3.5 text-emerald-600" />
                 <span className="hidden sm:inline text-[11px]">Ajak Teman</span>
+              </button>
+            )}
+
+            {!isGuest && (
+              /* Notification Bell with unread badge */
+              <button
+                type="button"
+                onClick={() => setIsNotifOpen(true)}
+                className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 bg-white/80 hover:bg-white text-[#2E6B34] shadow-2xs hover:shadow-xs transition active:scale-95"
+                title="Notifikasi Interaksi (Like, Komentar, Love Peringkat)"
+              >
+                <Bell className="h-4 w-4 text-[#2E6B34]" />
+                {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow-xs animate-pulse">
+                    {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length}
+                  </span>
+                )}
               </button>
             )}
 
@@ -199,6 +237,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
           wasteKg: impact.wasteKg,
           rankTitle: rank,
         }}
+      />
+
+      {/* Interactive Notifications Modal */}
+      <NotificationsModal
+        isOpen={isNotifOpen}
+        onClose={() => setIsNotifOpen(false)}
+        notifications={notifications}
+        userId={user.id}
       />
     </>
   );

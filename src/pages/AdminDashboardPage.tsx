@@ -121,6 +121,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     lastChecked: '',
   });
 
+  // Direct manual test trigger state
+  const [directTriggerRunning, setDirectTriggerRunning] = useState(false);
+  const [directTriggerResult, setDirectTriggerResult] = useState<{
+    status: number;
+    ok: boolean;
+    durationMs: number;
+    rawText: string;
+  } | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     const verifyAi = async () => {
@@ -139,6 +148,44 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const notify = (text: string) => {
     setNotice(text);
     window.setTimeout(() => setNotice(''), 2800);
+  };
+
+  const handleManualTestTrigger = async () => {
+    setDirectTriggerRunning(true);
+    setDirectTriggerResult(null);
+    const start = performance.now();
+    try {
+      const res = await fetch('/api/test-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: brand.geminiModel?.trim() || undefined,
+          systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
+          testPrompt: 'PING TEST: Berikan respon 1 kalimat konfirmasi bahwa AI siap beroperasi.',
+        }),
+      });
+      const durationMs = Math.round(performance.now() - start);
+      const text = await res.text();
+      setDirectTriggerResult({
+        status: res.status,
+        ok: res.ok,
+        durationMs,
+        rawText: text,
+      });
+      notify(res.ok ? '⚡ Direct Test Trigger selesai (HTTP 200).' : `⚠️ Direct Test Trigger HTTP ${res.status}.`);
+    } catch (e) {
+      const durationMs = Math.round(performance.now() - start);
+      setDirectTriggerResult({
+        status: 0,
+        ok: false,
+        durationMs,
+        rawText: `Error jaringan / fetch gagal: ${e instanceof Error ? e.message : 'Unknown error'}`,
+      });
+      notify('❌ Direct Test Trigger gagal menghubungi server.');
+    } finally {
+      setDirectTriggerRunning(false);
+    }
   };
 
   const handleTestAi = async () => {
@@ -702,7 +749,64 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                       </>
                     )}
                   </button>
+
+                  {/* Manual Test Trigger Button */}
+                  <button
+                    type="button"
+                    onClick={handleManualTestTrigger}
+                    disabled={directTriggerRunning}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-bold text-slate-100 hover:bg-slate-800 transition shadow-xs active:scale-95 disabled:opacity-50"
+                    title="Kirim kueri langsung tanpa UI kompleks untuk isolasi konektivitas"
+                  >
+                    {directTriggerRunning ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin text-amber-400" />
+                        Menembak AI (Triggering)...
+                      </>
+                    ) : (
+                      <>
+                        <Terminal className="h-4 w-4 text-amber-400" />
+                        Direct Test Trigger
+                      </>
+                    )}
+                  </button>
                 </div>
+
+                {/* Direct Manual Test Trigger Output Terminal */}
+                {directTriggerResult && (
+                  <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950 p-4 text-xs font-mono text-emerald-400 shadow-md">
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
+                      <span className="flex items-center gap-2 font-bold text-slate-200">
+                        <Terminal className="h-4 w-4 text-amber-400" />
+                        Isolated AI Connectivity Output
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
+                          directTriggerResult.ok
+                            ? 'bg-emerald-900/60 text-emerald-300 border border-emerald-700'
+                            : 'bg-red-900/60 text-red-300 border border-red-700'
+                        }`}>
+                          HTTP {directTriggerResult.status} ({directTriggerResult.durationMs}ms)
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setDirectTriggerResult(null)}
+                          className="text-slate-400 hover:text-white text-[11px]"
+                        >
+                          ✕ Tutup
+                        </button>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[11px] text-slate-400 mb-1">
+                        &gt; Query: "PING TEST: Berikan respon 1 kalimat konfirmasi bahwa AI siap beroperasi."
+                      </p>
+                      <pre className="overflow-x-auto rounded-lg bg-black/60 p-3 text-[11px] text-slate-200 leading-relaxed font-mono whitespace-pre-wrap max-h-60">
+                        {directTriggerResult.rawText}
+                      </pre>
+                    </div>
+                  </div>
+                )}
 
                 {/* Live Diagnostic Results Panel */}
                 {testResult && (

@@ -15,12 +15,14 @@ import {
   CornerDownRight,
   ShieldCheck,
   RotateCcw,
+  Bookmark,
 } from 'lucide-react';
 import { User, ThreadPost, ThreadCategory, ThreadReply } from '../types';
 import { StorageService } from '../services/storageService';
 import { compressImage } from '../services/imageCompression';
 import { ShareService } from '../services/shareService';
 import { ProfileAvatar } from '../components/ProfileAvatar';
+import { SocialSyncService } from '../services/socialSyncService';
 
 interface ThreadsPageProps {
   user: User;
@@ -42,16 +44,21 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    // Sync latest threads from server
+    void SocialSyncService.pullSocialData(user);
+
     const handleUpdate = () => {
       setThreads(StorageService.getThreads());
     };
     window.addEventListener('mh-data-updated', handleUpdate);
+    window.addEventListener('mh-threads-updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('mh-data-updated', handleUpdate);
+      window.removeEventListener('mh-threads-updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
-  }, []);
+  }, [user]);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -82,7 +89,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
     }
   };
 
-  const handleCreatePost = (e: React.FormEvent) => {
+  const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isGuest) {
       onRequireAuth();
@@ -106,27 +113,38 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       createdAt: new Date().toISOString(),
       likes: 0,
       likedBy: [],
+      savedBy: [],
       status: 'aktif',
       replies: [],
     };
 
-    StorageService.addThread(newPost);
-    setThreads(StorageService.getThreads());
     setCaption('');
     setImage('');
+    await SocialSyncService.createThread(newPost);
+    setThreads(StorageService.getThreads());
     showToast('✨ Utas berhasil diposting!');
   };
 
-  const handleLike = (threadId: string) => {
+  const handleLike = async (threadId: string) => {
     if (isGuest) {
       onRequireAuth();
       return;
     }
-    StorageService.toggleLikeThread(threadId, user.id);
+    await SocialSyncService.toggleLikeThread(threadId, user);
     setThreads(StorageService.getThreads());
   };
 
-  const handleAddReply = (threadId: string) => {
+  const handleSave = async (threadId: string) => {
+    if (isGuest) {
+      onRequireAuth();
+      return;
+    }
+    const isSaved = await SocialSyncService.toggleSaveThread(threadId, user.id);
+    setThreads(StorageService.getThreads());
+    showToast(isSaved ? '📌 Utas disimpan!' : 'Utas batal disimpan.');
+  };
+
+  const handleAddReply = async (threadId: string) => {
     if (isGuest) {
       onRequireAuth();
       return;
@@ -144,15 +162,15 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       createdAt: new Date().toISOString(),
     };
 
-    StorageService.addThreadReply(threadId, reply);
-    setThreads(StorageService.getThreads());
     setReplyText((prev) => ({ ...prev, [threadId]: '' }));
+    await SocialSyncService.addThreadReply(threadId, reply);
+    setThreads(StorageService.getThreads());
     showToast('💬 Balasan terkirim!');
   };
 
-  const handleDeletePost = (threadId: string) => {
+  const handleDeletePost = async (threadId: string) => {
     if (confirm('Hapus postingan ini?')) {
-      StorageService.deleteThread(threadId);
+      await SocialSyncService.deleteThread(threadId);
       setThreads(StorageService.getThreads());
       showToast('Postingan dihapus.');
     }
@@ -362,6 +380,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
         ) : (
           filteredThreads.map((post) => {
             const hasLiked = (post.likedBy || []).includes(user.id);
+            const hasSaved = (post.savedBy || []).includes(user.id);
             const isAuthorOrAdmin = user.id === post.userId || user.role === 'admin';
             const isReplyOpen = replyOpenId === post.id;
             const replies = post.replies || [];
@@ -505,6 +524,18 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
                       >
                         <MessageCircle className="h-4 w-4" />
                         <span>{replies.length > 0 ? replies.length : 'Balas'}</span>
+                      </button>
+
+                      {/* Save / Bookmark */}
+                      <button
+                        onClick={() => handleSave(post.id)}
+                        className={`flex items-center gap-1.5 font-bold transition active:scale-95 ${
+                          hasSaved ? 'text-amber-600' : 'hover:text-amber-600'
+                        }`}
+                        title={hasSaved ? 'Tersimpan' : 'Simpan utas'}
+                      >
+                        <Bookmark className={`h-4 w-4 ${hasSaved ? 'fill-amber-500 text-amber-600' : ''}`} />
+                        <span>{(post.savedBy || []).length > 0 ? (post.savedBy || []).length : ''}</span>
                       </button>
 
                       {/* Share */}

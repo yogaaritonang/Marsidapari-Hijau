@@ -203,8 +203,24 @@ export interface ThreadPost {
   createdAt: string;
   likes: number;
   likedBy?: string[];
+  savedBy?: string[];
   replies?: ThreadReply[];
   isPinned?: boolean;
   status?: 'aktif' | 'ditindaklanjuti' | 'selesai';
+}
+
+export type NotificationType = 'thread_like' | 'thread_reply' | 'thread_save' | 'leaderboard_cheer';
+
+export interface AppNotification {
+  id: string;
+  recipientUserId: string;
+  senderUserId: string;
+  senderName: string;
+  type: NotificationType;
+  targetId: string;
+  title: string;
+  message: string;
+  createdAt: string;
+  read: boolean;
 }
 

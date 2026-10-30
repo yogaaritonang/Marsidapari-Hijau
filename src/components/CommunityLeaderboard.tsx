@@ -24,6 +24,7 @@ import { User, Community } from '../types';
 import { StorageService } from '../services/storageService';
 import { BatakGorgaBorder } from './BatakPattern';
 import { fetchProfilePhotoUrls } from '../services/profilePhotoService';
+import { SocialSyncService } from '../services/socialSyncService';
 
 export interface LeaderboardMember {
   id: string;
@@ -59,7 +60,14 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMember, setSelectedMember] = useState<LeaderboardMember | null>(null);
-  const [cheersState, setCheersState] = useState<{ [id: string]: number }>({});
+  const [cheersState, setCheersState] = useState<{ [id: string]: number }>(() => {
+    const local = SocialSyncService.getLocalCheers();
+    const map: Record<string, number> = {};
+    for (const [k, v] of Object.entries(local)) {
+      map[k] = v.count;
+    }
+    return map;
+  });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [profilePhotoUrls, setProfilePhotoUrls] = useState<Record<string, string>>({});
 
@@ -142,6 +150,25 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
     };
   }, [members]);
 
+  useEffect(() => {
+    void SocialSyncService.pullSocialData(user);
+
+    const handleCheersUpdate = (e: Event) => {
+      const custom = e as CustomEvent<Record<string, { count: number; users: string[] }>>;
+      if (custom.detail) {
+        const map: Record<string, number> = {};
+        for (const [k, v] of Object.entries(custom.detail)) {
+          map[k] = v.count;
+        }
+        setCheersState(map);
+      }
+    };
+    window.addEventListener('mh-cheers-updated', handleCheersUpdate);
+    return () => {
+      window.removeEventListener('mh-cheers-updated', handleCheersUpdate);
+    };
+  }, [user]);
+
   // Filtered list
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
@@ -194,6 +221,13 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
     e.stopPropagation();
     const current = cheersState[member.id] || member.cheers;
     setCheersState((prev) => ({ ...prev, [member.id]: current + 1 }));
+
+    // Send persistent cheer & notification to target member
+    void SocialSyncService.cheerLeaderboard(
+      member.id,
+      member.isAnonymous ? 'Sahabat Ciptaan' : member.name,
+      user
+    );
 
     const cheerPhrases = [
       `Horas! Semangat gotong royong dikirimkan ke ${member.isAnonymous ? 'Sahabat Ciptaan' : member.name}! 🎉`,

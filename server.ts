@@ -11,6 +11,7 @@ import prayerHandler from './api/prayer.js';
 import reportAssistHandler from './api/report-assist.js';
 import leaderRegisterHandler from './api/leader-register.js';
 import testAiHandler from './api/test-ai.js';
+import socialSyncHandler from './api/social-sync.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -49,6 +50,7 @@ async function startServer() {
   app.post('/api/report-assist', reportAssistHandler);
   app.post('/api/leader-register', leaderRegisterHandler);
   app.all('/api/test-ai', testAiHandler);
+  app.all('/api/social-sync', socialSyncHandler);
 
   const httpServer = http.createServer(app);
 

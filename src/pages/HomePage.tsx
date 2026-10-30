@@ -41,6 +41,70 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [waterToast, setWaterToast] = useState<string | null>(null);
   const [, setDataVersion] = useState(0);
 
+  // Dynamic User GPS Location State
+  const [userLocation, setUserLocation] = useState<string>(() => {
+    return localStorage.getItem('mh_user_gps_location') || 'Mendeteksi GPS...';
+  });
+  const [isLocating, setIsLocating] = useState(false);
+
+  const detectUserLocation = () => {
+    if (!navigator.geolocation) {
+      setUserLocation('GPS Tidak Didukung');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          // Reverse geocoding via OpenStreetMap Nominatim
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=14`,
+            { headers: { 'Accept-Language': 'id,en' } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const address = data.address || {};
+            const cityOrDistrict =
+              address.suburb ||
+              address.village ||
+              address.town ||
+              address.city ||
+              address.municipality ||
+              address.county ||
+              address.state_district ||
+              'Tarutung, Toba';
+
+            const locText = `${cityOrDistrict}`;
+            setUserLocation(locText);
+            localStorage.setItem('mh_user_gps_location', locText);
+            return;
+          }
+        } catch {
+          // If network / reverse geocoding is slow, show approximate coordinates
+        }
+        const fallbackText = `${latitude.toFixed(2)}°, ${longitude.toFixed(2)}°`;
+        setUserLocation(fallbackText);
+        localStorage.setItem('mh_user_gps_location', fallbackText);
+        setIsLocating(false);
+      },
+      (err) => {
+        console.warn('Geolocation permission or error:', err.message);
+        const existing = localStorage.getItem('mh_user_gps_location');
+        if (!existing || existing === 'Mendeteksi GPS...') {
+          setUserLocation('Tarutung, Tapanuli Utara');
+        }
+        setIsLocating(false);
+      },
+      { timeout: 7000, maximumAge: 60000 }
+    );
+  };
+
+  useEffect(() => {
+    detectUserLocation();
+  }, []);
+
   useEffect(() => {
     if (user.id !== 'guest-preview') {
       StorageService.syncUserStreak(user);
@@ -97,7 +161,18 @@ export const HomePage: React.FC<HomePageProps> = ({
                 Horas ma di hita!
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-[#2E6B34]" />
-              <span className="text-xs text-gray-700">Rura Silindung</span>
+              
+              {/* Dynamic GPS user location indicator */}
+              <button
+                type="button"
+                onClick={detectUserLocation}
+                className="inline-flex items-center gap-1 text-xs text-gray-700 hover:text-[#2E6B34] transition cursor-pointer group"
+                title="Klik untuk memperbarui lokasi GPS Anda"
+              >
+                <MapPin className={`w-3.5 h-3.5 text-[#2E6B34] transition-transform ${isLocating ? 'animate-bounce' : 'group-hover:scale-110'}`} />
+                <span className="font-semibold">{userLocation}</span>
+                {isLocating && <span className="text-[10px] text-[#2E6B34] animate-pulse">...</span>}
+              </button>
             </div>
             <h1 className="mt-0.5 font-poppins text-xl font-extrabold text-[#1F2A1F] sm:text-2xl">
               Horas, {user.name}! 🌿
