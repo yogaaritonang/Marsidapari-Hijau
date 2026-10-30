@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Leaf, Award, ShieldCheck, User as UserIcon, Share2, Sun, Moon, CloudSun, Sunrise, Bell } from 'lucide-react';
+import { Leaf, Award, Sun, Moon, CloudSun, Sunrise, Bell } from 'lucide-react';
 import { User, BrandSettings, AppNotification } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { StorageService } from '../services/storageService';
-import { ProfileAvatar } from './ProfileAvatar';
 import { ShareAchievementModal } from './ShareAchievementModal';
 import { NotificationsModal } from './NotificationsModal';
 import { SocialSyncService } from '../services/socialSyncService';
@@ -134,84 +133,45 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             </div>
           </div>
 
-          {/* Right Action Cluster */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <PWAInstallButton />
-
-            {/* Quick Share Button for achievements */}
-            {!isGuest && (
-              <button
-                type="button"
-                onClick={() => setIsShareOpen(true)}
-                className="flex items-center gap-1 rounded-xl border border-[#2E6B34]/20 bg-white/80 hover:bg-white px-2.5 py-1.5 text-xs font-bold text-[#2E6B34] shadow-2xs hover:shadow-xs transition active:scale-95"
-                title="Bagikan Pencapaian Poin Hijau ke Teman"
-              >
-                <Share2 className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="hidden sm:inline text-[11px]">Ajak Teman</span>
-              </button>
-            )}
-
-            {!isGuest && (
-              /* Notification Bell with unread badge */
-              <button
-                type="button"
-                onClick={() => setIsNotifOpen(true)}
-                className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 bg-white/80 hover:bg-white text-[#2E6B34] shadow-2xs hover:shadow-xs transition active:scale-95"
-                title="Notifikasi Interaksi (Like, Komentar, Love Peringkat)"
-              >
-                <Bell className="h-4 w-4 text-[#2E6B34]" />
-                {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow-xs animate-pulse">
-                    {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length}
-                  </span>
-                )}
-              </button>
-            )}
+          {/* Right Action Cluster: HANYA Poin & Notifikasi (dan tombol Masuk untuk tamu) */}
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden md:block">
+              <PWAInstallButton />
+            </div>
 
             {isGuest ? (
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => onOpenAuth('login')}
-                  className="min-h-10 rounded-xl px-2.5 text-xs font-bold text-[#2E6B34] transition hover:bg-[#A8D5A2]/25 sm:px-3 sm:text-sm"
-                >
-                  Masuk
-                </button>
-                <button
-                  onClick={() => onOpenAuth('register')}
-                  className="min-h-10 rounded-xl bg-[#2E6B34] px-3 text-xs font-bold text-white shadow-sm transition hover:bg-[#235328] sm:px-4 sm:text-sm"
-                >
-                  Daftar
-                </button>
-              </div>
+              <button
+                onClick={() => onOpenAuth('login')}
+                className="rounded-xl bg-[#2E6B34] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-[#235328] active:scale-95"
+              >
+                Masuk
+              </button>
             ) : (
               <>
                 {/* Live Green Points Badge */}
                 <button
+                  type="button"
                   onClick={() => setIsShareOpen(true)}
-                  className="touch-target flex items-center gap-1.5 rounded-full border border-[#2E6B34]/25 bg-gradient-to-r from-[#A8D5A2]/30 to-emerald-100/60 px-2.5 py-1 transition hover:bg-[#A8D5A2]/45 active:scale-95 shadow-2xs"
-                  title="Klik untuk melihat dan membagikan Poin Hijau Anda"
+                  className="flex items-center gap-1.5 rounded-full border border-[#2E6B34]/25 bg-gradient-to-r from-[#A8D5A2]/30 to-emerald-100/60 px-2.5 py-1 transition hover:bg-[#A8D5A2]/45 active:scale-95 shadow-2xs shrink-0 cursor-pointer"
+                  title="Klik untuk melihat pencapaian Poin Hijau Anda"
                 >
-                  <Award className="h-4 w-4 text-[#2E6B34]" />
+                  <Award className="h-4 w-4 text-[#2E6B34] shrink-0" />
                   <span className="text-xs font-black text-[#1F2A1F]">{user.points}</span>
                   <span className="text-[10px] font-bold text-[#2E6B34] uppercase tracking-wide">Poin</span>
                 </button>
 
-                {/* Profile Avatar Button */}
+                {/* Notification Bell with unread badge */}
                 <button
-                  onClick={() => onNavigateTab('profile')}
-                  className="relative flex h-9 w-9 items-center justify-center rounded-full border border-[#2E6B34]/20 bg-white text-[#2E6B34] shadow-xs transition hover:bg-[#FAF6EC] active:scale-95"
-                  title="Profil & Pengaturan"
+                  type="button"
+                  onClick={() => setIsNotifOpen(true)}
+                  className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 bg-white/90 hover:bg-white text-[#2E6B34] shadow-2xs hover:shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
+                  title="Notifikasi Interaksi (Like, Komentar, Love Peringkat)"
                 >
-                  {user.id !== 'guest-preview' ? (
-                    <ProfileAvatar
-                      userId={user.id}
-                      name={user.name}
-                      className="h-full w-full rounded-full bg-white text-xs font-bold text-[#2E6B34]"
-                    />
-                  ) : user.role === 'pemimpin' ? (
-                    <ShieldCheck className="h-5 w-5 text-[#2E6B34]" />
-                  ) : (
-                    <UserIcon className="h-5 w-5 text-[#2E6B34]" />
+                  <Bell className="h-4 w-4 text-[#2E6B34]" />
+                  {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-black text-white shadow-xs animate-pulse">
+                      {notifications.filter((n) => n.recipientUserId === user.id && !n.read).length}
+                    </span>
                   )}
                 </button>
               </>

@@ -153,30 +153,34 @@ export const HomePage: React.FC<HomePageProps> = ({
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 pb-28 pt-3 sm:space-y-5 sm:pt-4 md:pb-28 md:pt-6">
       {/* Horas Greeting Header */}
-      <div className="px-4 pt-1 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-[#7A5230] uppercase tracking-wider">
+      <div className="px-4 pt-2 sm:px-6 lg:px-8">
+        <div className="flex items-start sm:items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+              <span className="text-[10px] sm:text-xs font-bold text-[#7A5230] uppercase tracking-wider bg-[#FAF6EC] px-2 py-0.5 rounded-md border border-[#2E6B34]/15">
                 Horas ma di hita!
               </span>
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2E6B34]" />
-              
+
               {/* Dynamic GPS user location indicator */}
               <button
                 type="button"
                 onClick={detectUserLocation}
-                className="inline-flex items-center gap-1 text-xs text-gray-700 hover:text-[#2E6B34] transition cursor-pointer group"
+                className="inline-flex items-center gap-1 rounded-full bg-white/90 border border-[#2E6B34]/20 px-2 py-0.5 text-[11px] text-gray-700 hover:text-[#2E6B34] transition shadow-2xs cursor-pointer group"
                 title="Klik untuk memperbarui lokasi GPS Anda"
               >
-                <MapPin className={`w-3.5 h-3.5 text-[#2E6B34] transition-transform ${isLocating ? 'animate-bounce' : 'group-hover:scale-110'}`} />
-                <span className="font-semibold">{userLocation}</span>
-                {isLocating && <span className="text-[10px] text-[#2E6B34] animate-pulse">...</span>}
+                <MapPin className={`w-3 h-3 text-[#2E6B34] transition-transform ${isLocating ? 'animate-bounce' : 'group-hover:scale-110'}`} />
+                <span className="font-semibold truncate max-w-[130px] sm:max-w-[200px]">{userLocation}</span>
+                {isLocating && <span className="text-[9px] text-[#2E6B34] animate-pulse">...</span>}
               </button>
             </div>
-            <h1 className="mt-0.5 font-poppins text-xl font-extrabold text-[#1F2A1F] sm:text-2xl">
+            <h1 className="mt-0.5 font-poppins text-lg sm:text-2xl font-extrabold text-[#1F2A1F] truncate">
               Horas, {user.name}! 🌿
             </h1>
+            <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5 truncate">
+              {user.id === 'guest-preview'
+                ? 'Jelajahi gerakan merawat ciptaan bersama.'
+                : <>Komunitas: <strong className="text-[#2E6B34]">{user.communityName}</strong></>}
+            </p>
           </div>
 
           {/* Daily Streak Indicator */}
@@ -190,10 +194,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                 onNavigateTab('impact');
               }
             }}
-            className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-2xl transition duration-200 ${
+            className={`cursor-pointer shrink-0 flex items-center gap-2 px-3 py-2 rounded-2xl transition duration-200 ${
               hasActiveStreak
                 ? 'bg-gradient-to-r from-amber-100/90 to-orange-100/90 border border-orange-300 shadow-xs hover:border-orange-400 hover:shadow-sm'
-                : 'bg-amber-50/70 border border-amber-200/80 shadow-xs hover:bg-amber-100/80'
+                : 'bg-amber-50/80 border border-amber-200/80 shadow-xs hover:bg-amber-100/80'
             }`}
             title={
               isGuest
@@ -228,11 +232,6 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
         </div>
-        <p className="text-xs text-gray-700 mt-1">
-          {user.id === 'guest-preview'
-            ? 'Jelajahi gerakan merawat ciptaan bersama.'
-            : <>Komunitas: <strong>{user.communityName}</strong></>}
-        </p>
       </div>
 
       {/* Daily Scripture Banner */}

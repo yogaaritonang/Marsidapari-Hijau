@@ -35,14 +35,14 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, u
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
-              className={`touch-target relative flex flex-1 flex-col items-center justify-center rounded-xl px-1 py-2 transition-all duration-200 md:py-2.5 ${
+              className={`touch-target relative flex flex-1 flex-col items-center justify-center rounded-xl px-0.5 py-1.5 transition-all duration-200 md:px-2 md:py-2.5 ${
                 isActive
                   ? 'text-[#2E6B34] font-bold'
                   : 'text-gray-500 hover:text-[#2E6B34] font-medium'
               }`}
             >
               <div
-                className={`w-9 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
+                className={`w-8 h-7 sm:w-9 sm:h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
                   isActive && !showUserAvatar ? 'bg-[#A8D5A2]/35 scale-110' : ''
                 }`}
               >
@@ -64,7 +64,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, u
                   <Icon className={`w-5 h-5 ${isActive ? 'text-[#2E6B34] stroke-[2.5]' : 'stroke-[1.8]'}`} />
                 )}
               </div>
-              <span className={`text-[11px] leading-tight mt-0.5 ${isActive ? 'text-[#2E6B34]' : ''}`}>
+              <span className={`text-[10px] sm:text-[11px] leading-tight mt-0.5 truncate max-w-full ${isActive ? 'text-[#2E6B34]' : ''}`}>
                 {tab.label}
               </span>
               {isActive && (
