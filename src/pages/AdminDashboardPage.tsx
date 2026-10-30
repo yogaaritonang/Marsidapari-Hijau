@@ -1,28 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
+  Activity,
+  AlertCircle,
+  BookOpen,
   Building2,
+  Calendar,
   CalendarDays,
+  CheckCircle2,
+  ChevronRight,
   ClipboardList,
+  Cpu,
+  Edit3,
+  FileText,
   Image,
+  Key,
   Leaf,
   LogOut,
   MapPin,
+  MessageSquare,
   Plus,
+  RefreshCw,
   Save,
   Settings,
   Sparkles,
+  Terminal,
   Trash2,
   Users,
+  Wand2,
+  Zap,
 } from 'lucide-react';
-import { Challenge, Community, EnvironmentalReport, GreenEvent, User } from '../types';
+import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion } from '../types';
 import { StorageService } from '../services/storageService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
+import { AIService, AiReadinessCheck } from '../services/aiService';
 
-type AdminSection = 'overview' | 'brand' | 'ai' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
+type AdminSection = 'overview' | 'brand' | 'ai' | 'threads' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
 
 interface AdminDashboardPageProps {
   user: User;
   onLogout: () => void;
+}
+
+interface AiTestDiagnosticResult {
+  ok: boolean;
+  status: 'connected' | 'failed';
+  timestamp: string;
+  diagnostics: {
+    apiKeySource: 'admin_settings' | 'environment_variable' | 'none';
+    apiKeyMasked: string;
+    modelRequested: string;
+    modelResolved: string | null;
+    latencyMs: number;
+    hasSystemPrompt: boolean;
+    systemPromptLength: number;
+    systemPromptPreview: string;
+    hasAppDescription: boolean;
+    appDescriptionLength: number;
+  };
+  testOutput?: {
+    prompt: string;
+    response: string;
+    instructionApplied: boolean;
+  };
+  audit?: Array<{
+    model: string;
+    status: 'ok' | 'error';
+    code?: number;
+    error?: string;
+    latencyMs?: number;
+  }>;
+  notice?: string;
+  error?: {
+    code: number;
+    message: string;
+    suggestion: string;
+  };
 }
 
 export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, onLogout }) => {
@@ -32,20 +84,146 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const [challenges, setChallenges] = useState(StorageService.getChallenges());
   const [events, setEvents] = useState(StorageService.getEvents());
   const [reports, setReports] = useState(StorageService.getReports());
+  const [threads, setThreads] = useState<ThreadPost[]>(() => StorageService.getThreads());
+  const [threadFilter, setThreadFilter] = useState<'all' | 'ide' | 'keluhan'>('all');
   const [organizationName, setOrganizationName] = useState('');
   const [organizationCategory, setOrganizationCategory] = useState<Community['category']>('Komunitas Warga');
   const [challengeTitle, setChallengeTitle] = useState('');
   const [challengeDescription, setChallengeDescription] = useState('');
   const [notice, setNotice] = useState('');
 
+  // Daily Devotions Management State
+  const [devotions, setDevotions] = useState<Devotion[]>(() => StorageService.getDevotions());
+  const [editingDevotionId, setEditingDevotionId] = useState<string | null>(null);
+  const [devotionTitle, setDevotionTitle] = useState('');
+  const [devotionScripture, setDevotionScripture] = useState('');
+  const [devotionVerseText, setDevotionVerseText] = useState('');
+  const [devotionContent, setDevotionContent] = useState('');
+  const [devotionCallToAction, setDevotionCallToAction] = useState('');
+  const [devotionBatakWisdom, setDevotionBatakWisdom] = useState('');
+  const [devotionDate, setDevotionDate] = useState(() => StorageService.getTodayDateString());
+  const [devotionReadingTime, setDevotionReadingTime] = useState(1);
+
+  // AI Devotion Generator State
+  const [aiDevotionTopic, setAiDevotionTopic] = useState('');
+  const [generatingDevotion, setGeneratingDevotion] = useState(false);
+  const [aiDevotionError, setAiDevotionError] = useState<string | null>(null);
+  const [aiDevotionSuccess, setAiDevotionSuccess] = useState<string | null>(null);
+
+  // AI Connection Diagnostics & Readiness state
+  const [testingAi, setTestingAi] = useState(false);
+  const [testResult, setTestResult] = useState<AiTestDiagnosticResult | null>(null);
+  const [testCustomPrompt, setTestCustomPrompt] = useState('Perkenalkan dirimu dalam 1 kalimat dan sebutkan namamu sesuai instruksi sistem.');
+  const [aiReadiness, setAiReadiness] = useState<AiReadinessCheck>({
+    ready: true,
+    status: 'checking',
+    message: 'Memeriksa AI...',
+    lastChecked: '',
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    const verifyAi = async () => {
+      setAiReadiness((prev) => ({ ...prev, status: 'checking', message: 'Memeriksa AI...' }));
+      const res = await AIService.checkAiHealth(brand);
+      if (!cancelled) {
+        setAiReadiness(res);
+      }
+    };
+    verifyAi();
+    return () => {
+      cancelled = true;
+    };
+  }, [brand.geminiApiKey, brand.geminiModel, brand.aiSystemPrompt, brand.description]);
+
   const notify = (text: string) => {
     setNotice(text);
     window.setTimeout(() => setNotice(''), 2800);
   };
 
+  const handleTestAi = async () => {
+    setTestingAi(true);
+    setTestResult(null);
+    try {
+      const response = await fetch('/api/test-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: brand.geminiModel?.trim() || undefined,
+          systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
+          appDescription: brand.description?.trim() || undefined,
+          testPrompt: testCustomPrompt?.trim() || undefined,
+        }),
+      });
+      const data = await response.json();
+      setTestResult(data);
+      setAiReadiness({
+        ready: Boolean(data.ok),
+        status: data.ok ? 'ready' : 'error',
+        message: data.ok ? 'AI Siap' : 'AI Bermasalah',
+        model: data.diagnostics?.modelResolved || data.diagnostics?.modelRequested,
+        latencyMs: data.diagnostics?.latencyMs,
+        errorDetails: data.error?.message,
+        lastChecked: new Date().toLocaleTimeString(),
+      });
+      if (data.ok) {
+        notify('✅ Uji koneksi AI berhasil!');
+      } else {
+        notify('⚠️ Uji koneksi AI mengembalikan kendala.');
+      }
+    } catch (err) {
+      setTestResult({
+        ok: false,
+        status: 'failed',
+        timestamp: new Date().toISOString(),
+        diagnostics: {
+          apiKeySource: brand.geminiApiKey?.trim() ? 'admin_settings' : 'none',
+          apiKeyMasked: brand.geminiApiKey ? '***' : '(Tidak Ada)',
+          modelRequested: brand.geminiModel || 'gemini-3.5-flash',
+          modelResolved: null,
+          latencyMs: 0,
+          hasSystemPrompt: Boolean(brand.aiSystemPrompt?.trim()),
+          systemPromptLength: brand.aiSystemPrompt?.trim().length || 0,
+          systemPromptPreview: brand.aiSystemPrompt?.trim().slice(0, 100) || '',
+          hasAppDescription: Boolean(brand.description?.trim()),
+          appDescriptionLength: brand.description?.trim().length || 0,
+        },
+        error: {
+          code: 500,
+          message: err instanceof Error ? err.message : 'Gagal menghubungi server.',
+          suggestion: 'Pastikan server dev atau backend Vercel aktif.',
+        },
+      });
+      setAiReadiness({
+        ready: false,
+        status: 'error',
+        message: 'AI Bermasalah',
+        errorDetails: err instanceof Error ? err.message : 'Gagal menghubungi server.',
+        lastChecked: new Date().toLocaleTimeString(),
+      });
+      notify('❌ Gagal menghubungi endpoint server.');
+    } finally {
+      setTestingAi(false);
+    }
+  };
+
+  const deleteThread = (id: string) => {
+    StorageService.deleteThread(id);
+    setThreads(StorageService.getThreads());
+    notify('Postingan berhasil dihapus.');
+  };
+
+  const updateThreadStatus = (id: string, status: 'aktif' | 'ditindaklanjuti' | 'selesai') => {
+    StorageService.updateThreadStatus(id, status);
+    setThreads(StorageService.getThreads());
+    notify(`Status postingan diperbarui menjadi: ${status}.`);
+  };
+
   const saveBrand = () => {
     StorageService.saveBrandSettings(brand);
     notify('Pengaturan aplikasi tersimpan.');
+    void AIService.checkAiHealth(brand).then(setAiReadiness);
   };
 
   const addOrganization = (event: React.FormEvent<HTMLFormElement>) => {
@@ -124,17 +302,116 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     notify('Status laporan diperbarui.');
   };
 
+  const resetDevotionForm = () => {
+    setEditingDevotionId(null);
+    setDevotionTitle('');
+    setDevotionScripture('');
+    setDevotionVerseText('');
+    setDevotionContent('');
+    setDevotionCallToAction('');
+    setDevotionBatakWisdom('');
+    setDevotionDate(StorageService.getTodayDateString());
+    setDevotionReadingTime(1);
+    setAiDevotionError(null);
+    setAiDevotionSuccess(null);
+  };
+
+  const handleEditDevotion = (dev: Devotion) => {
+    setEditingDevotionId(dev.id);
+    setDevotionTitle(dev.title);
+    setDevotionScripture(dev.scripture);
+    setDevotionVerseText(dev.verseText);
+    setDevotionContent(dev.content);
+    setDevotionCallToAction(dev.callToAction);
+    setDevotionBatakWisdom(dev.batakWisdom);
+    setDevotionDate(dev.date || StorageService.getTodayDateString());
+    setDevotionReadingTime(dev.readingTime || 1);
+    setAiDevotionError(null);
+    setAiDevotionSuccess(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteDevotion = (id: string) => {
+    if (window.confirm('Yakin ingin menghapus renungan ini?')) {
+      StorageService.deleteDevotion(id);
+      setDevotions(StorageService.getDevotions());
+      if (editingDevotionId === id) resetDevotionForm();
+      notify('Renungan berhasil dihapus.');
+    }
+  };
+
+  const handleSaveDevotion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!devotionTitle.trim() || !devotionScripture.trim() || !devotionContent.trim()) {
+      setAiDevotionError('Judul, ayat Alkitab, dan isi renungan wajib diisi.');
+      return;
+    }
+
+    const item: Devotion = {
+      id: editingDevotionId || `devotion-${Date.now()}`,
+      title: devotionTitle.trim(),
+      scripture: devotionScripture.trim(),
+      verseText: devotionVerseText.trim(),
+      content: devotionContent.trim(),
+      callToAction: devotionCallToAction.trim(),
+      batakWisdom: devotionBatakWisdom.trim() || 'Marsiadapari mamparbuehon denggan: Gotong royong merawat ciptaan melahirkan sukacita.',
+      readingTime: Number(devotionReadingTime) || 1,
+      date: devotionDate || StorageService.getTodayDateString(),
+      isCustom: true,
+    };
+
+    StorageService.saveDevotion(item);
+    setDevotions(StorageService.getDevotions());
+    notify(editingDevotionId ? 'Renungan berhasil diperbarui.' : 'Renungan harian berhasil disimpan!');
+    resetDevotionForm();
+  };
+
+  const handleGenerateDevotionWithAi = async () => {
+    if (!aiDevotionTopic.trim()) {
+      setAiDevotionError('Tuliskan topik atau tema renungan yang ingin digenerate.');
+      return;
+    }
+
+    setGeneratingDevotion(true);
+    setAiDevotionError(null);
+    setAiDevotionSuccess(null);
+
+    try {
+      const result = await AIService.generateReflection(
+        aiDevotionTopic.trim(),
+        'Jemaat Marsiadapari',
+        'IAKN Tarutung & HKBP Danau Toba'
+      );
+
+      if (result.data) {
+        setDevotionTitle(result.data.title || '');
+        setDevotionScripture(result.data.scripture || '');
+        setDevotionVerseText(result.data.verse_text || '');
+        setDevotionContent(result.data.body || '');
+        setDevotionCallToAction(result.data.call_to_action || '');
+        setDevotionBatakWisdom(result.data.batak_wisdom || '');
+        setDevotionReadingTime(result.data.reading_time_minutes || 1);
+        setAiDevotionSuccess('✨ Renungan ekoteologi berhasil dibuat oleh AI! Periksa atau sesuaikan draf di bawah, lalu klik Simpan.');
+      }
+    } catch (err) {
+      setAiDevotionError(err instanceof Error ? err.message : 'Gagal menghasilkan renungan dengan AI.');
+    } finally {
+      setGeneratingDevotion(false);
+    }
+  };
+
   const navItems: Array<{ id: AdminSection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'overview', label: 'Ringkasan', icon: ClipboardList },
     { id: 'brand', label: 'Identitas & Tampilan', icon: Image },
     { id: 'ai', label: 'Pengaturan AI', icon: Sparkles },
+    { id: 'content', label: 'Renungan Harian', icon: BookOpen },
+    { id: 'threads', label: 'Threads & Keluhan', icon: MessageSquare },
     { id: 'users', label: 'Pengguna', icon: Users },
     { id: 'organizations', label: 'Organisasi', icon: Building2 },
     { id: 'challenges', label: 'Tantangan', icon: Leaf },
     { id: 'events', label: 'Kegiatan', icon: CalendarDays },
     { id: 'reports', label: 'Laporan', icon: ClipboardList },
     { id: 'locations', label: 'Titik Peta', icon: MapPin },
-    { id: 'content', label: 'Konten Aplikasi', icon: Settings },
   ];
 
   return (
@@ -154,10 +431,53 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               <p className="text-xs text-gray-500">Panel administrator · {user.contact}</p>
             </div>
           </div>
-          <button onClick={onLogout} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-600 hover:bg-gray-50">
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Keluar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Live AI Status Indicator Badge */}
+            <button
+              type="button"
+              onClick={() => setSection('ai')}
+              title={
+                aiReadiness.status === 'ready'
+                  ? `AI Siap: Model ${aiReadiness.model || 'Gemini'} aktif (${aiReadiness.latencyMs ? aiReadiness.latencyMs + 'ms' : 'normal'}). Klik untuk buka Pengaturan AI.`
+                  : aiReadiness.status === 'checking'
+                  ? 'Sedang memeriksa status operasional AI...'
+                  : `AI Bermasalah: ${aiReadiness.errorDetails || aiReadiness.message}. Klik untuk melihat diagnosa & solusi.`
+              }
+              className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer ${
+                aiReadiness.status === 'ready'
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400'
+                  : aiReadiness.status === 'checking'
+                  ? 'border-gray-200 bg-gray-50 text-gray-600'
+                  : 'border-red-300 bg-red-50 text-red-800 hover:bg-red-100 hover:border-red-400'
+              }`}
+            >
+              {aiReadiness.status === 'ready' ? (
+                <>
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                  </span>
+                  <span>AI Siap</span>
+                </>
+              ) : aiReadiness.status === 'checking' ? (
+                <>
+                  <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
+                  <span className="hidden sm:inline">Memeriksa AI...</span>
+                  <span className="sm:hidden">AI...</span>
+                </>
+              ) : (
+                <>
+                  <span className="flex h-2.5 w-2.5 rounded-full bg-red-600"></span>
+                  <span>AI Bermasalah</span>
+                </>
+              )}
+            </button>
+
+            <button onClick={onLogout} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-600 hover:bg-gray-50">
+              <LogOut className="h-4 w-4" />
+              <span className="hidden sm:inline">Keluar</span>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -192,9 +512,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
           {section === 'overview' && (
             <>
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 xl:grid-cols-5">
                 {[
                   { label: 'Organisasi', value: communities.length, icon: Building2 },
+                  { label: 'Threads / Aspirasi', value: threads.length, icon: MessageSquare },
                   { label: 'Tantangan', value: challenges.length, icon: Leaf },
                   { label: 'Kegiatan', value: events.length, icon: CalendarDays },
                   { label: 'Laporan', value: reports.length, icon: ClipboardList },
@@ -333,7 +654,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold">
                     Model Gemini
-                    <input value={brand.geminiModel || 'gemini-2.5-flash'} onChange={(event) => setBrand({ ...brand, geminiModel: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                    <input value={brand.geminiModel || 'gemini-3.5-flash'} onChange={(event) => setBrand({ ...brand, geminiModel: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                   <div className="flex items-center gap-3 sm:pt-6">
                     <label className="flex items-center gap-2 text-xs font-bold">
@@ -355,11 +676,395 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   </label>
                 </div>
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-900">
-                  Catatan: Untuk produksi tetap pakai GEMINI_API_KEY di environment server.
+                  Catatan: Di lingkungan Vercel production, API key dapat disetel melalui tab Settings &gt; Environment Variables (<code className="font-mono font-bold">GEMINI_API_KEY</code>). Di lingkungan lokal/preview, Anda dapat memasukkannya langsung pada kolom input di atas.
                 </div>
-                <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328]">
-                  <Save className="h-4 w-4" /> Simpan pengaturan AI
-                </button>
+
+                <div className="flex flex-wrap items-center gap-3 pt-2">
+                  <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328] transition shadow-xs active:scale-95">
+                    <Save className="h-4 w-4" /> Simpan pengaturan AI
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleTestAi}
+                    disabled={testingAi}
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-xs active:scale-95 disabled:opacity-50"
+                  >
+                    {testingAi ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin text-emerald-700" />
+                        Sedang Menguji Koneksi AI...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 text-emerald-700" />
+                        Uji Koneksi AI (Test Connection)
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Live Diagnostic Results Panel */}
+                {testResult && (
+                  <div className={`mt-5 rounded-2xl border p-4 sm:p-5 transition-all ${
+                    testResult.ok
+                      ? 'border-emerald-300 bg-emerald-50/70'
+                      : 'border-red-300 bg-red-50/70'
+                  }`}>
+                    {/* Header: Status, Badge, Latency, Timestamp */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 border-gray-200/70">
+                      <div className="flex items-center gap-2.5">
+                        {testResult.ok ? (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                            <CheckCircle2 className="h-5 w-5" />
+                          </div>
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white shadow-xs">
+                            <AlertCircle className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-sm font-extrabold text-gray-900">
+                              {testResult.ok ? 'Koneksi AI Berhasil Terhubung' : 'Koneksi AI Mengalami Kendala'}
+                            </h3>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                              testResult.ok ? 'bg-emerald-200 text-emerald-900' : 'bg-red-200 text-red-900'
+                            }`}>
+                              {testResult.status}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-gray-500">
+                            Diuji pada {new Date(testResult.timestamp).toLocaleTimeString()} · Latency: <span className="font-bold text-gray-800">{testResult.diagnostics.latencyMs} ms</span>
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={handleTestAi}
+                        disabled={testingAi}
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
+                        title="Uji ulang sekarang"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${testingAi ? 'animate-spin' : ''}`} />
+                        Uji Ulang
+                      </button>
+                    </div>
+
+                    {/* Diagnostics Metrics Grid */}
+                    <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 md:grid-cols-4">
+                      {/* Metric 1: API Key Source */}
+                      <div className="rounded-xl border border-gray-200/80 bg-white/90 p-3">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                          <Key className="h-3.5 w-3.5 text-amber-600" />
+                          Sumber API Key
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-gray-900">
+                          {testResult.diagnostics.apiKeySource === 'admin_settings'
+                            ? '🔑 Input Admin (Lokal)'
+                            : testResult.diagnostics.apiKeySource === 'environment_variable'
+                            ? '🌐 Vercel Env (Server)'
+                            : '❌ Tidak Ditemukan'}
+                        </p>
+                        <p className="text-[10px] text-gray-500 font-mono mt-0.5 truncate">
+                          {testResult.diagnostics.apiKeyMasked}
+                        </p>
+                      </div>
+
+                      {/* Metric 2: Model Resolved */}
+                      <div className="rounded-xl border border-gray-200/80 bg-white/90 p-3">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                          <Cpu className="h-3.5 w-3.5 text-indigo-600" />
+                          Model Aktif
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-gray-900 truncate">
+                          {testResult.diagnostics.modelResolved || testResult.diagnostics.modelRequested}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Diminta: {testResult.diagnostics.modelRequested}
+                        </p>
+                      </div>
+
+                      {/* Metric 3: System Instruction Status */}
+                      <div className="rounded-xl border border-gray-200/80 bg-white/90 p-3">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                          <FileText className="h-3.5 w-3.5 text-emerald-600" />
+                          Instruksi Sistem
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-gray-900">
+                          {testResult.diagnostics.hasSystemPrompt
+                            ? `Aktif (${testResult.diagnostics.systemPromptLength} kar)`
+                            : 'Default Aplikasi'}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {testResult.diagnostics.hasAppDescription ? '+ Deskripsi Konteks' : 'Standar'}
+                        </p>
+                      </div>
+
+                      {/* Metric 4: Latency & Speed */}
+                      <div className="rounded-xl border border-gray-200/80 bg-white/90 p-3">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                          <Activity className="h-3.5 w-3.5 text-teal-600" />
+                          Respons Waktu
+                        </div>
+                        <p className="mt-1 text-xs font-bold text-gray-900">
+                          {testResult.diagnostics.latencyMs} ms
+                        </p>
+                        <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                          {testResult.diagnostics.latencyMs < 1500 ? 'Sangat Cepat' : 'Wajar'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Notice if fallback model was used */}
+                    {testResult.notice && (
+                      <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/80 p-2.5 text-xs text-blue-900 flex items-start gap-2">
+                        <span className="font-bold text-blue-700">ℹ️ Catatan:</span>
+                        <span>{testResult.notice}</span>
+                      </div>
+                    )}
+
+                    {/* Error diagnosis box with actionable guidance */}
+                    {testResult.error && (
+                      <div className="mt-3 rounded-xl border border-red-300 bg-red-100/80 p-3 text-xs text-red-950 space-y-1.5">
+                        <div className="flex items-center gap-2 font-bold text-red-800">
+                          <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />
+                          <span>Penyebab Error (Kode HTTP {testResult.error.code}):</span>
+                        </div>
+                        <p className="font-mono text-[11px] bg-white/80 p-2 rounded-lg border border-red-200 text-red-900 overflow-x-auto">
+                          {testResult.error.message}
+                        </p>
+                        <div className="mt-2 text-xs text-red-900 bg-amber-50 border border-amber-200 p-2.5 rounded-lg">
+                          <span className="font-bold text-amber-900">💡 Langkah Solusi yang Disarankan:</span>
+                          <p className="mt-0.5 text-gray-800">{testResult.error.suggestion}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Model Output Demonstration */}
+                    {testResult.testOutput && (
+                      <div className="mt-3 rounded-xl border border-gray-200 bg-white p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                            <Terminal className="h-3.5 w-3.5 text-gray-500" />
+                            Uji Coba Respons Nyata Model:
+                          </span>
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Instruksi Diterapkan
+                          </span>
+                        </div>
+
+                        {/* Test prompt query editor */}
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={testCustomPrompt}
+                            onChange={(e) => setTestCustomPrompt(e.target.value)}
+                            placeholder="Ketik pertanyaan uji untuk AI..."
+                            className="flex-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs text-gray-800 outline-none focus:border-[#2E6B34]"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleTestAi}
+                            disabled={testingAi}
+                            className="rounded-lg bg-[#2E6B34] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#235328] disabled:opacity-50"
+                          >
+                            Kirim Uji
+                          </button>
+                        </div>
+
+                        <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
+                          <span className="text-[11px] font-bold text-gray-500 block mb-1">
+                            Jawaban Sahabat Ciptaan (Gemini):
+                          </span>
+                          <p className="text-xs text-gray-900 leading-relaxed whitespace-pre-wrap font-medium">
+                            {testResult.testOutput.response}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Audit Table of Tested Fallback Models */}
+                    {testResult.audit && testResult.audit.length > 0 && (
+                      <div className="mt-3 rounded-xl border border-gray-200/90 bg-white/90 p-3">
+                        <span className="text-xs font-bold text-gray-700 block mb-2">
+                          Audit Status Model Gemini:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {testResult.audit.map((aud) => (
+                            <div
+                              key={aud.model}
+                              className={`flex items-center justify-between p-2 rounded-lg border ${
+                                aud.status === 'ok'
+                                  ? 'border-emerald-200 bg-emerald-50/50 text-emerald-900'
+                                  : 'border-gray-200 bg-gray-50 text-gray-600'
+                              }`}
+                            >
+                              <div className="min-w-0 pr-2">
+                                <span className="font-mono font-bold text-[11px] block truncate">{aud.model}</span>
+                                {aud.error && (
+                                  <span className="text-[10px] text-red-600 truncate block">
+                                    {aud.error}
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`shrink-0 text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                aud.status === 'ok'
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {aud.status === 'ok' ? `OK (${aud.latencyMs}ms)` : `Error ${aud.code || ''}`}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
+
+          {section === 'threads' && (
+            <section className="space-y-4">
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h2 className="font-bold text-lg">Moderasi Threads & Keluhan Warga</h2>
+                    <p className="mt-1 text-xs text-gray-500">
+                      Pantau dan tindak lanjuti aspirasi, foto instan, ide, serta keluhan lingkungan hidup yang dikirimkan jemaat & mahasiswa.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 self-start sm:self-auto bg-gray-100 p-1 rounded-xl">
+                    <button
+                      onClick={() => setThreadFilter('all')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${threadFilter === 'all' ? 'bg-[#2E6B34] text-white shadow-xs' : 'text-gray-600 hover:text-black'}`}
+                    >
+                      Semua ({threads.length})
+                    </button>
+                    <button
+                      onClick={() => setThreadFilter('ide')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${threadFilter === 'ide' ? 'bg-[#2E6B34] text-white shadow-xs' : 'text-gray-600 hover:text-black'}`}
+                    >
+                      💡 Ide ({threads.filter((t) => t.category === 'ide').length})
+                    </button>
+                    <button
+                      onClick={() => setThreadFilter('keluhan')}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${threadFilter === 'keluhan' ? 'bg-[#2E6B34] text-white shadow-xs' : 'text-gray-600 hover:text-black'}`}
+                    >
+                      📢 Keluhan ({threads.filter((t) => t.category === 'keluhan').length})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5 space-y-4">
+                  {threads
+                    .filter((t) => threadFilter === 'all' || t.category === threadFilter)
+                    .map((post) => (
+                      <article
+                        key={post.id}
+                        className="rounded-2xl border border-gray-200 bg-white p-4 transition hover:border-[#2E6B34]/40"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#EAF3E6] font-bold text-[#2E6B34]">
+                              {post.userName.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-bold text-gray-900">{post.userName}</span>
+                                {post.userRole && (
+                                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-[#2E6B34]">
+                                    {post.userRole}
+                                  </span>
+                                )}
+                                <span className="text-xs text-gray-400">· {post.createdAt}</span>
+                              </div>
+                              <p className="text-xs text-gray-500">{post.communityName || 'Komunitas Danau Toba'}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
+                                post.category === 'keluhan'
+                                  ? 'bg-red-50 text-red-700 border border-red-200'
+                                  : post.category === 'ide'
+                                  ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              }`}
+                            >
+                              {post.category === 'keluhan' ? '📢 Keluhan' : post.category === 'ide' ? '💡 Ide' : post.category}
+                            </span>
+                            <button
+                              onClick={() => deleteThread(post.id)}
+                              aria-label={`Hapus kiriman dari ${post.userName}`}
+                              className="flex h-8 w-8 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 transition"
+                              title="Hapus kiriman ini"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="mt-3 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{post.caption}</p>
+
+                        {post.imageUrl && (
+                          <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 max-w-sm">
+                            <img src={post.imageUrl} alt="Foto kiriman warga" className="h-48 w-full object-cover" />
+                          </div>
+                        )}
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                          <div className="flex items-center gap-3 text-xs text-gray-500">
+                            <span>❤️ {post.likes} Dukungan</span>
+                            <span>💬 {post.replies?.length || 0} Tanggapan</span>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-600">Status Tindakan:</span>
+                            <button
+                              onClick={() => updateThreadStatus(post.id, 'aktif')}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                                (post.status || 'aktif') === 'aktif'
+                                  ? 'bg-gray-800 text-white'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              Aktif
+                            </button>
+                            <button
+                              onClick={() => updateThreadStatus(post.id, 'ditindaklanjuti')}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                                post.status === 'ditindaklanjuti'
+                                  ? 'bg-amber-600 text-white'
+                                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                              }`}
+                            >
+                              Ditindaklanjuti
+                            </button>
+                            <button
+                              onClick={() => updateThreadStatus(post.id, 'selesai')}
+                              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                                post.status === 'selesai'
+                                  ? 'bg-[#2E6B34] text-white'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                              }`}
+                            >
+                              Selesai
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    ))}
+
+                  {threads.filter((t) => threadFilter === 'all' || t.category === threadFilter).length === 0 && (
+                    <p className="rounded-xl bg-gray-50 p-6 text-center text-sm text-gray-500">
+                      Tidak ada postingan dalam kategori ini.
+                    </p>
+                  )}
+                </div>
               </div>
             </section>
           )}
@@ -470,6 +1175,336 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
           )}
 
           {section === 'locations' && <MapLocationReviewPanel />}
+
+          {section === 'content' && (
+            <section className="space-y-6">
+              {/* Header Box */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#1F2A1F] flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-[#2E6B34]" />
+                      Kelola Renungan Ciptaan Harian
+                    </h2>
+                    <p className="mt-1 text-xs text-gray-600">
+                      Kelola renungan ekoteologi Kristen harian untuk jemaat dan mahasiswa. Renungan akan berganti setiap hari di beranda, atau dijadwalkan sesuai tanggal.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-800">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      {devotions.length} Renungan Tersedia
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* AI Devotion Generator Card */}
+              <div className="relative overflow-hidden rounded-2xl border-2 border-[#2E6B34]/30 bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 p-5 sm:p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
+                  <Wand2 className="h-4 w-4 text-[#2E6B34]" />
+                  Pembuat Renungan Cepat dengan AI
+                </div>
+                <h3 className="mt-1 text-base font-extrabold text-[#1F2A1F]">
+                  Generate Renungan Ekoteologi Harian dalam Hitungan Detik
+                </h3>
+                <p className="mt-1 text-xs text-gray-600 leading-relaxed max-w-2xl">
+                  AI akan otomatis memilihkan ayat Alkitab yang tepat, menyusun refleksi ekoteologi kontekstual Batak &amp; Danau Toba, falsafah kearifan lokal, serta ajakan aksi nyata.
+                </p>
+
+                {/* Quick Topic Chips */}
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-2">Ide Topik Cepat:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Kejernihan Air Danau Toba & Mazmur 104',
+                      'Merawat Pohon & Hutan Tele (Kej 2:15)',
+                      'Gereja dan Kampus Bebas Sampah Plastik',
+                      'Marsiadapari Mengatasi Longsor dan Banjir',
+                      'Hemat Energi dan Syukur atas Udara Bersih',
+                      'Teologi Kejadian 1: Menjaga Keseimbangan Ekosistem',
+                    ].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setAiDevotionTopic(chip)}
+                        className="rounded-lg border border-[#2E6B34]/25 bg-white/90 px-2.5 py-1 text-xs font-medium text-[#2E6B34] hover:bg-[#2E6B34] hover:text-white transition active:scale-95 shadow-2xs"
+                      >
+                        + {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+                  <input
+                    type="text"
+                    value={aiDevotionTopic}
+                    onChange={(e) => setAiDevotionTopic(e.target.value)}
+                    placeholder="Contoh: Merawat Kejernihan Danau Toba, Mengurangi Sampah Plastik..."
+                    className="min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm outline-none focus:border-[#2E6B34] focus:ring-2 focus:ring-[#2E6B34]/20"
+                  />
+                  <button
+                    type="button"
+                    disabled={generatingDevotion}
+                    onClick={handleGenerateDevotionWithAi}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-5 text-xs font-bold text-white shadow-sm hover:bg-[#245429] disabled:opacity-60 transition active:scale-95"
+                  >
+                    {generatingDevotion ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Menyusun Renungan AI...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 text-amber-300" />
+                        <span>Buat dengan AI</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {aiDevotionError && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-700">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{aiDevotionError}</span>
+                  </div>
+                )}
+
+                {aiDevotionSuccess && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{aiDevotionSuccess}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Tambah / Edit Renungan */}
+              <form onSubmit={handleSaveDevotion} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <h3 className="text-sm font-bold text-[#1F2A1F] flex items-center gap-2">
+                    <Edit3 className="h-4 w-4 text-[#2E6B34]" />
+                    {editingDevotionId ? 'Edit Renungan Harian' : 'Tulis / Sesuaikan Renungan'}
+                  </h3>
+                  {editingDevotionId && (
+                    <button
+                      type="button"
+                      onClick={resetDevotionForm}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline"
+                    >
+                      Batal Edit (Buat Baru)
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Tanggal Tayang Harian
+                    <input
+                      type="date"
+                      required
+                      value={devotionDate}
+                      onChange={(e) => setDevotionDate(e.target.value)}
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                    <span className="block text-[10px] font-normal text-gray-500">
+                      Renungan akan otomatis diprioritaskan tampil pada tanggal ini.
+                    </span>
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Waktu Baca (Menit)
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={devotionReadingTime}
+                      onChange={(e) => setDevotionReadingTime(Number(e.target.value))}
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+                </div>
+
+                <label className="block space-y-1.5 text-xs font-bold text-gray-700">
+                  Judul Renungan
+                  <input
+                    type="text"
+                    required
+                    value={devotionTitle}
+                    onChange={(e) => setDevotionTitle(e.target.value)}
+                    placeholder="Contoh: Mata Air Pengharapan di Rura Silindung"
+                    className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                  />
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <label className="sm:col-span-1 space-y-1.5 text-xs font-bold text-gray-700">
+                    Ayat Alkitab (Kitab Pasal:Ayat)
+                    <input
+                      type="text"
+                      required
+                      value={devotionScripture}
+                      onChange={(e) => setDevotionScripture(e.target.value)}
+                      placeholder="Contoh: Mazmur 104:10-13"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="sm:col-span-2 space-y-1.5 text-xs font-bold text-gray-700">
+                    Kutipan Teks Ayat
+                    <input
+                      type="text"
+                      required
+                      value={devotionVerseText}
+                      onChange={(e) => setDevotionVerseText(e.target.value)}
+                      placeholder="Contoh: Engkau yang melepas mata-mata air ke dalam lembah-lembah..."
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+                </div>
+
+                <label className="block space-y-1.5 text-xs font-bold text-gray-700">
+                  Isi Refleksi / Renungan (Ekoteologi)
+                  <textarea
+                    required
+                    rows={4}
+                    value={devotionContent}
+                    onChange={(e) => setDevotionContent(e.target.value)}
+                    placeholder="Tuliskan renungan ekoteologi singkat (100-200 kata)..."
+                    className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                  />
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Aksi Nyata Ciptaan Hari Ini (Call to Action)
+                    <input
+                      type="text"
+                      required
+                      value={devotionCallToAction}
+                      onChange={(e) => setDevotionCallToAction(e.target.value)}
+                      placeholder="Contoh: Siram pekarangan dan hemat air saat mandi hari ini."
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Kearifan Lokal / Pepatah Batak
+                    <input
+                      type="text"
+                      value={devotionBatakWisdom}
+                      onChange={(e) => setDevotionBatakWisdom(e.target.value)}
+                      placeholder="Contoh: Marsiadapari mamparbuehon denggan"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
+                  {editingDevotionId && (
+                    <button
+                      type="button"
+                      onClick={resetDevotionForm}
+                      className="min-h-11 rounded-xl border border-gray-300 px-4 text-xs font-bold text-gray-600 hover:bg-gray-50"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-6 text-xs font-bold text-white shadow-sm hover:bg-[#245429] transition active:scale-95"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{editingDevotionId ? 'Perbarui Renungan' : 'Simpan Renungan'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Daftar Renungan Harian */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-[#1F2A1F]">Daftar Renungan Terjadwal &amp; Rotasi Harian</h3>
+                  <span className="text-xs text-gray-500">Total: {devotions.length} renungan</span>
+                </div>
+
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {devotions.map((dev) => {
+                    const todayDev = StorageService.getTodayDevotion();
+                    const isCurrentlyActive = todayDev.id === dev.id;
+
+                    return (
+                      <article
+                        key={dev.id}
+                        className={`flex flex-col justify-between rounded-2xl border bg-white p-4 transition shadow-xs ${
+                          isCurrentlyActive
+                            ? 'border-emerald-500 ring-2 ring-emerald-500/20'
+                            : 'border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {isCurrentlyActive && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600 text-white px-2.5 py-0.5 text-[10px] font-extrabold shadow-2xs">
+                                  🌟 Tayang Hari Ini
+                                </span>
+                              )}
+                              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 text-gray-700 px-2 py-0.5 text-[10px] font-semibold">
+                                <Calendar className="h-3 w-3" />
+                                {dev.date || 'Rotasi Harian'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-[#2E6B34]">
+                              {dev.readingTime || 1} mnt baca
+                            </span>
+                          </div>
+
+                          <h4 className="font-bold text-sm text-[#1F2A1F] leading-snug">
+                            {dev.title}
+                          </h4>
+                          <p className="mt-1 text-xs font-semibold text-[#2E6B34]">
+                            {dev.scripture}
+                          </p>
+                          <p className="mt-1 text-xs text-gray-600 line-clamp-3 leading-relaxed">
+                            {dev.content}
+                          </p>
+                          {dev.callToAction && (
+                            <p className="mt-2 text-[11px] font-medium text-amber-900 bg-amber-50/80 rounded-lg p-2 border border-amber-200/50">
+                              🌱 Aksi: {dev.callToAction}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                          <span className="text-[11px] text-gray-500 truncate max-w-[180px] italic">
+                            {dev.batakWisdom}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => handleEditDevotion(dev)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#2E6B34] hover:bg-emerald-50 transition"
+                              title="Edit Renungan"
+                            >
+                              <Edit3 className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDevotion(dev.id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 transition"
+                              title="Hapus Renungan"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+          )}
         </main>
       </div>
     </div>

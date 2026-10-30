@@ -1,10 +1,12 @@
 import type { Request, Response } from 'express';
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { getGeminiClient, getGeminiModel } from './geminiClient.js';
 
 export interface GenerateReflectionRequest {
   topicOrMood: string;
   userName?: string;
   community?: string;
+  apiKey?: string;
+  model?: string;
 }
 
 export interface GeneratedReflection {
@@ -19,17 +21,32 @@ export interface GeneratedReflection {
 }
 
 export default async function reflectionHandler(req: Request, res: Response) {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { topicOrMood, userName, community } = req.body as GenerateReflectionRequest;
+  let body: Partial<GenerateReflectionRequest> = {};
+  if (typeof req.body === 'string') {
+    try {
+      body = JSON.parse(req.body);
+    } catch {
+      return res.status(400).json({ error: 'Format data JSON tidak valid.' });
+    }
+  } else if (req.body && typeof req.body === 'object') {
+    body = req.body;
+  }
+
+  const { topicOrMood, userName, community, apiKey, model } = body;
 
   if (!topicOrMood) {
     return res.status(400).json({ error: 'Topik atau suasana hati wajib diisi.' });
   }
 
-  const ai = getGeminiClient();
+  const ai = getGeminiClient(apiKey);
   if (!ai) {
     return res.status(200).json(getSimulatedReflection(topicOrMood));
   }
@@ -57,8 +74,9 @@ Persyaratan:
 }
 `;
 
+    const chosenModel = getGeminiModel(model);
     const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model: chosenModel,
       contents: promptText,
     });
 

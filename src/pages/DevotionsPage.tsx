@@ -24,7 +24,7 @@ interface DevotionsPageProps {
 export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChallenge }) => {
   const [devotions, setDevotions] = useState<Devotion[]>(StorageService.getDevotions());
   const [filter, setFilter] = useState<'all' | 'favorites'>('all');
-  const [selectedDevotion, setSelectedDevotion] = useState<Devotion | null>(devotions[0]);
+  const [selectedDevotion, setSelectedDevotion] = useState<Devotion | null>(() => StorageService.getTodayDevotion() || devotions[0]);
   const [showAiModal, setShowAiModal] = useState(false);
   const [topicOrMood, setTopicOrMood] = useState('');
   const [generating, setGenerating] = useState(false);

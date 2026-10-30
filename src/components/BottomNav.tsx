@@ -1,16 +1,21 @@
 import React from 'react';
-import { Home, Flame, Trees, Users, User as UserIcon } from 'lucide-react';
+import { Home, MessageSquare, Flame, Trees, Users, User as UserIcon } from 'lucide-react';
+import { User } from '../types';
+import { ProfileAvatar } from './ProfileAvatar';
 
-export type NavTabId = 'home' | 'challenges' | 'garden' | 'community' | 'profile';
+export type NavTabId = 'home' | 'threads' | 'challenges' | 'garden' | 'community' | 'profile';
 
-interface BottomNavProps {
+export interface BottomNavProps {
   currentTab: NavTabId;
   onChangeTab: (tab: NavTabId) => void;
+  user?: User;
+  isGuest?: boolean;
 }
 
-export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab }) => {
+export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, user, isGuest }) => {
   const tabs: Array<{ id: NavTabId; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'home', label: 'Beranda', icon: Home },
+    { id: 'threads', label: 'Threads', icon: MessageSquare },
     { id: 'challenges', label: 'Aksi', icon: Flame },
     { id: 'garden', label: 'Taman', icon: Trees },
     { id: 'community', label: 'Komunitas', icon: Users },
@@ -23,6 +28,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab })
         {tabs.map((tab) => {
           const isActive = currentTab === tab.id;
           const Icon = tab.icon;
+          const isProfileTab = tab.id === 'profile';
+          const showUserAvatar = isProfileTab && !isGuest && user && user.id !== 'guest-preview';
 
           return (
             <button
@@ -36,10 +43,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab })
             >
               <div
                 className={`w-9 h-7 flex items-center justify-center rounded-full transition-all duration-200 ${
-                  isActive ? 'bg-[#A8D5A2]/35 scale-110' : ''
+                  isActive && !showUserAvatar ? 'bg-[#A8D5A2]/35 scale-110' : ''
                 }`}
               >
-                <Icon className={`w-5 h-5 ${isActive ? 'text-[#2E6B34] stroke-[2.5]' : 'stroke-[1.8]'}`} />
+                {showUserAvatar ? (
+                  <div
+                    className={`relative flex items-center justify-center rounded-full transition-all duration-200 ${
+                      isActive
+                        ? 'p-[1.5px] ring-2 ring-[#2E6B34] ring-offset-2 ring-offset-[#FAF6EC] scale-105'
+                        : 'ring-1 ring-gray-400/60 hover:ring-[#2E6B34]/60'
+                    }`}
+                  >
+                    <ProfileAvatar
+                      userId={user.id}
+                      name={user.name}
+                      className="w-6 h-6 rounded-full bg-[#E8E1D5] text-[10px] font-bold text-[#2E6B34] object-cover"
+                    />
+                  </div>
+                ) : (
+                  <Icon className={`w-5 h-5 ${isActive ? 'text-[#2E6B34] stroke-[2.5]' : 'stroke-[1.8]'}`} />
+                )}
               </div>
               <span className={`text-[11px] leading-tight mt-0.5 ${isActive ? 'text-[#2E6B34]' : ''}`}>
                 {tab.label}

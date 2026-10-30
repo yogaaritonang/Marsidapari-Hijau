@@ -9,6 +9,8 @@ import {
   GreenEvent,
   MapMarkerLocation,
   BrandSettings,
+  ThreadPost,
+  ThreadReply,
 } from '../types';
 import {
   SEED_COMMUNITIES,
@@ -16,8 +18,10 @@ import {
   SEED_CHALLENGES,
   SEED_LOCATIONS,
   SEED_EVENTS,
+  SEED_THREADS,
 } from '../data/seedData';
 import { POINT_BADGES } from '../data/badges';
+import { UserService } from './userService';
 
 const CIPHER_KEY = 'marsiadapari-hijau-iakn-toba-2026';
 
@@ -61,6 +65,7 @@ const STORAGE_KEYS = {
   LOCATIONS: 'mh_locations',
   ONBOARDED: 'mh_onboarded',
   BRAND: 'mh_brand',
+  THREADS: 'mh_threads',
 };
 
 function awardPoints(user: User, points: number): string[] {
@@ -89,6 +94,9 @@ function notifySharedDataChange(collection: SharedCollection, values: unknown[])
   window.dispatchEvent(new CustomEvent('mh-shared-data-change', {
     detail: { collection, values },
   }));
+  window.dispatchEvent(new CustomEvent('mh-data-updated', {
+    detail: { collection, values },
+  }));
 }
 
 const DEFAULT_BRAND: BrandSettings = {
@@ -103,7 +111,7 @@ const DEFAULT_BRAND: BrandSettings = {
   allowGuestChat: true,
   aiSystemPrompt: '',
   geminiApiKey: '',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.5-flash',
 };
 
 export const DEFAULT_USER: User = {
@@ -159,8 +167,42 @@ export class StorageService {
     }
   }
 
+  static getTodayDateString(): string {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  static getDaysDifference(dateStr1: string, dateStr2: string): number {
+    try {
+      const d1 = new Date(dateStr1 + 'T00:00:00');
+      const d2 = new Date(dateStr2 + 'T00:00:00');
+      const diffMs = d2.getTime() - d1.getTime();
+      return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Synchronizes and resets the user's consecutive day streak if a day was missed without entering (>24 jam).
+   */
+  static syncUserStreak(user: User): User {
+    if (!user || user.id === 'guest-preview') return user;
+
+    const synced = UserService.recordDailyVisit(user);
+    this.saveUser(synced);
+    return synced;
+  }
+
   static getUser(): User {
-    return this.getItem<User>(STORAGE_KEYS.USER, DEFAULT_USER);
+    const user = this.getItem<User>(STORAGE_KEYS.USER, DEFAULT_USER);
+    if (user && user.id !== 'guest-preview') {
+      return this.syncUserStreak(user);
+    }
+    return user;
   }
 
   static saveUser(user: User): void {
@@ -204,6 +246,7 @@ export class StorageService {
   static saveBrandSettings(settings: BrandSettings): void {
     this.setItem<BrandSettings>(STORAGE_KEYS.BRAND, settings);
     notifySharedDataChange('brand', [{ id: 'global', ...settings }]);
+    window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: settings }));
   }
 
   static getCommunities(): Community[] {
@@ -226,6 +269,29 @@ export class StorageService {
     return this.getItem<Devotion[]>(STORAGE_KEYS.DEVOTIONS, SEED_DEVOTIONS);
   }
 
+  /**
+   * Mengambil renungan harian yang berganti setiap harinya secara otomatis
+   * atau sesuai tanggal yang diatur oleh admin.
+   */
+  static getTodayDevotion(): Devotion {
+    const devotions = this.getDevotions();
+    if (!devotions || devotions.length === 0) {
+      return SEED_DEVOTIONS[0];
+    }
+    const today = this.getTodayDateString();
+    // 1. Cek apakah ada renungan yang dijadwalkan khusus untuk tanggal hari ini
+    const matched = devotions.find((d) => d.date === today);
+    if (matched) return matched;
+
+    // 2. Jika tidak ada, rotasi otomatis berdasarkan hari dalam tahun (day of the year)
+    const [year, month, day] = today.split('-').map(Number);
+    const dateObj = new Date(year, (month || 1) - 1, day || 1);
+    const startOfYear = new Date(year, 0, 0);
+    const dayOfYear = Math.floor((dateObj.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24));
+    const index = Math.abs(dayOfYear) % devotions.length;
+    return devotions[index];
+  }
+
   static saveDevotions(devotions: Devotion[]): void {
     this.setItem<Devotion[]>(STORAGE_KEYS.DEVOTIONS, devotions);
     notifySharedDataChange('devotions', devotions);
@@ -234,6 +300,22 @@ export class StorageService {
   static addCustomDevotion(devotion: Devotion): void {
     const list = this.getDevotions();
     list.unshift(devotion);
+    this.saveDevotions(list);
+  }
+
+  static deleteDevotion(id: string): void {
+    const list = this.getDevotions().filter((d) => d.id !== id);
+    this.saveDevotions(list);
+  }
+
+  static saveDevotion(devotion: Devotion): void {
+    const list = this.getDevotions();
+    const existingIndex = list.findIndex((d) => d.id === devotion.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = devotion;
+    } else {
+      list.unshift(devotion);
+    }
     this.saveDevotions(list);
   }
 
@@ -273,11 +355,31 @@ export class StorageService {
       const user = this.getUser();
       const newlyUnlocked = awardPoints(user, sub.awardedPoints);
 
-      const today = new Date().toISOString().split('T')[0];
-      if (user.lastActiveDate !== today) {
-        user.streakDays += 1;
+      const today = this.getTodayDateString();
+      const lastChallenge = user.lastChallengeDate;
+
+      if (!lastChallenge) {
+        user.streakDays = 1;
+        user.lastChallengeDate = today;
+        user.lastActiveDate = today;
+      } else if (lastChallenge === today) {
+        if (!user.streakDays || user.streakDays <= 0) {
+          user.streakDays = 1;
+        }
+        user.lastActiveDate = today;
+      } else {
+        const daysSinceLastChallenge = this.getDaysDifference(lastChallenge, today);
+        if (daysSinceLastChallenge === 1) {
+          // Consecutive day challenge completion!
+          user.streakDays = (user.streakDays || 0) + 1;
+        } else {
+          // Missed a day -> reset to 1 starting today
+          user.streakDays = 1;
+        }
+        user.lastChallengeDate = today;
         user.lastActiveDate = today;
       }
+
       this.saveUser(user);
       notifyBadgeUnlocks(user.id, newlyUnlocked);
 
@@ -431,28 +533,95 @@ export class StorageService {
     notifySharedDataChange('locations', locations);
   }
 
+  static getThreads(): ThreadPost[] {
+    return this.getItem<ThreadPost[]>(STORAGE_KEYS.THREADS, SEED_THREADS);
+  }
+
+  static saveThreads(threads: ThreadPost[]): void {
+    this.setItem<ThreadPost[]>(STORAGE_KEYS.THREADS, threads);
+    notifySharedDataChange('threads', threads);
+  }
+
+  static addThread(thread: ThreadPost): void {
+    const list = this.getThreads();
+    const updated = [thread, ...list];
+    this.saveThreads(updated);
+  }
+
+  static toggleLikeThread(threadId: string, userId: string): void {
+    const list = this.getThreads();
+    const updated = list.map((thread) => {
+      if (thread.id !== threadId) return thread;
+      const likedBy = thread.likedBy || [];
+      const hasLiked = likedBy.includes(userId);
+      const newLikedBy = hasLiked ? likedBy.filter((id) => id !== userId) : [...likedBy, userId];
+      return {
+        ...thread,
+        likes: hasLiked ? Math.max(0, thread.likes - 1) : thread.likes + 1,
+        likedBy: newLikedBy,
+      };
+    });
+    this.saveThreads(updated);
+  }
+
+  static addThreadReply(threadId: string, reply: ThreadReply): void {
+    const list = this.getThreads();
+    const updated = list.map((thread) => {
+      if (thread.id !== threadId) return thread;
+      const replies = thread.replies || [];
+      return {
+        ...thread,
+        replies: [...replies, reply],
+      };
+    });
+    this.saveThreads(updated);
+  }
+
+  static deleteThread(threadId: string): void {
+    const list = this.getThreads();
+    const updated = list.filter((thread) => thread.id !== threadId);
+    this.saveThreads(updated);
+  }
+
+  static updateThreadStatus(threadId: string, status: 'aktif' | 'ditindaklanjuti' | 'selesai'): void {
+    const list = this.getThreads();
+    const updated = list.map((thread) => thread.id === threadId ? { ...thread, status } : thread);
+    this.saveThreads(updated);
+  }
+
   static applySharedSnapshot(collection: SharedCollection, data: unknown): void {
     switch (collection) {
       case 'brand':
         this.setItem<BrandSettings>(STORAGE_KEYS.BRAND, data as BrandSettings);
+        window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: data }));
         break;
       case 'challenges':
         this.setItem<Challenge[]>(STORAGE_KEYS.CHALLENGES, data as Challenge[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'challenges' } }));
         break;
       case 'communities':
         this.setItem<Community[]>(STORAGE_KEYS.COMMUNITIES, data as Community[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
         break;
       case 'devotions':
         this.setItem<Devotion[]>(STORAGE_KEYS.DEVOTIONS, data as Devotion[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'devotions' } }));
         break;
       case 'events':
         this.setItem<GreenEvent[]>(STORAGE_KEYS.EVENTS, data as GreenEvent[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'events' } }));
         break;
       case 'locations':
         this.setItem<MapMarkerLocation[]>(STORAGE_KEYS.LOCATIONS, data as MapMarkerLocation[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'locations' } }));
         break;
       case 'reports':
         this.setItem<EnvironmentalReport[]>(STORAGE_KEYS.REPORTS, data as EnvironmentalReport[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'reports' } }));
+        break;
+      case 'threads':
+        this.setItem<ThreadPost[]>(STORAGE_KEYS.THREADS, data as ThreadPost[]);
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'threads' } }));
         break;
     }
   }

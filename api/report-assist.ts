@@ -2,11 +2,26 @@ import type { Request, Response } from 'express';
 import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
 
 export default async function reportAssistHandler(req: Request, res: Response) {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { title, rawNotes, category, locationName } = req.body;
+  let body: { title?: string; rawNotes?: string; category?: string; locationName?: string } = {};
+  if (typeof req.body === 'string') {
+    try {
+      body = JSON.parse(req.body);
+    } catch {
+      return res.status(400).json({ error: 'Format data JSON tidak valid.' });
+    }
+  } else if (req.body && typeof req.body === 'object') {
+    body = req.body;
+  }
+
+  const { title = '', rawNotes = '', category = 'masalah lingkungan', locationName = 'Tarutung' } = body;
 
   const ai = getGeminiClient();
   if (!ai) {

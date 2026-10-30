@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   Pencil,
   Save,
+  Share2,
 } from 'lucide-react';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
@@ -22,6 +23,7 @@ import { AuthService } from '../services/authService';
 import { POINT_BADGES } from '../data/badges';
 import { ProfileAvatar } from '../components/ProfileAvatar';
 import { fetchProfilePhotoUrls, removeProfilePhoto, uploadProfilePhoto } from '../services/profilePhotoService';
+import { ShareAchievementModal } from '../components/ShareAchievementModal';
 
 interface ProfilePageProps {
   user: User;
@@ -51,8 +53,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
   const communities = StorageService.getCommunities();
+  const impact = StorageService.getUserImpact(user);
   const earnedBadges = POINT_BADGES.filter((badge) => user.points >= badge.requiredPoints);
   const nextBadge = POINT_BADGES.find((badge) => user.points < badge.requiredPoints);
   const previousBadgePoints = nextBadge
@@ -531,6 +535,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </p>
         )}
 
+        <button
+          type="button"
+          onClick={() => setIsShareModalOpen(true)}
+          className="w-full flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#2E6B34] to-[#204E25] text-white py-3 px-4 text-xs font-bold shadow-md hover:brightness-105 active:scale-[0.98] transition cursor-pointer"
+        >
+          <Share2 className="w-4 h-4 text-[#A8D5A2]" />
+          <span>Ajak Teman &amp; Bagikan Capaian ({user.points} Poin Hijau)</span>
+        </button>
+
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           {POINT_BADGES.map((badge) => {
             const unlocked = user.points >= badge.requiredPoints;
@@ -759,6 +772,20 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Web Share Achievement Modal */}
+      <ShareAchievementModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        payload={{
+          name: user.name,
+          points: user.points,
+          communityName: user.communityName,
+          trees: impact.trees,
+          wasteKg: impact.wasteKg,
+          earnedBadgesCount: earnedBadges.length,
+        }}
+      />
     </div>
   );
 };

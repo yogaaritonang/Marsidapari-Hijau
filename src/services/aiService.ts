@@ -2,6 +2,26 @@ import { VerifyResponsePayload } from '../../api/verify';
 import { WasteScanResult } from '../../api/waste-scan';
 import { GeneratedReflection } from '../../api/reflection';
 import { PrayerResponse } from '../../api/prayer';
+import { BrandSettings } from '../types';
+
+export interface AiConfigValidation {
+  isValid: boolean;
+  keyStatus: 'valid' | 'missing' | 'malformed';
+  promptStatus: 'valid' | 'empty' | 'too_long' | 'invalid_format';
+  modelStatus: 'valid' | 'deprecated' | 'unknown';
+  effectiveModel: string;
+  issues: string[];
+}
+
+export interface AiReadinessCheck {
+  ready: boolean;
+  status: 'ready' | 'error' | 'checking';
+  message: string;
+  model?: string;
+  latencyMs?: number;
+  errorDetails?: string;
+  lastChecked: string;
+}
 
 /**
  * AI Service for Marsiadapari Hijau
@@ -10,18 +30,172 @@ import { PrayerResponse } from '../../api/prayer';
  */
 
 export class AIService {
+  /**
+   * Validates API Key integrity, model validity, and system instruction format
+   * prior to calling Gemini generation endpoints.
+   */
+  static validateAiConfig(brand?: BrandSettings | null): AiConfigValidation {
+    const issues: string[] = [];
+    let keyStatus: 'valid' | 'missing' | 'malformed' = 'valid';
+    let promptStatus: 'valid' | 'empty' | 'too_long' | 'invalid_format' = 'valid';
+    let modelStatus: 'valid' | 'deprecated' | 'unknown' = 'valid';
+
+    const rawKey = brand?.geminiApiKey?.trim() || '';
+    if (!rawKey) {
+      keyStatus = 'missing';
+      // Missing local key is not fatal if server has GEMINI_API_KEY env var
+    } else {
+      if (/\s/.test(rawKey)) {
+        keyStatus = 'malformed';
+        issues.push('Kunci API tidak boleh mengandung spasi atau karakter baris baru.');
+      } else if (rawKey.startsWith('"') || rawKey.startsWith("'") || rawKey.endsWith('"') || rawKey.endsWith("'")) {
+        keyStatus = 'malformed';
+        issues.push('Kunci API tidak boleh diawali atau diakhiri tanda kutip.');
+      } else if (rawKey.length < 20 || rawKey.length > 200) {
+        keyStatus = 'malformed';
+        issues.push(`Panjang Kunci API (${rawKey.length} karakter) tidak sesuai standar Google AI (umumnya ~39 karakter).`);
+      } else if (!/^[a-zA-Z0-9_\-]+$/.test(rawKey)) {
+        keyStatus = 'malformed';
+        issues.push('Kunci API mengandung karakter simbol yang tidak valid.');
+      }
+    }
+
+    const systemPrompt = brand?.aiSystemPrompt?.trim() || '';
+    if (!systemPrompt) {
+      promptStatus = 'empty';
+    } else {
+      if (systemPrompt.length > 20000) {
+        promptStatus = 'too_long';
+        issues.push(`Instruksi sistem terlalu panjang (${systemPrompt.length} karakter). Batas wajar adalah 20.000 karakter.`);
+      }
+      // Check for non-printable control characters (excluding newline, cr, tab)
+      // eslint-disable-next-line no-control-regex
+      if (/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/.test(systemPrompt)) {
+        promptStatus = 'invalid_format';
+        issues.push('Instruksi sistem mengandung karakter kontrol biner yang tidak valid.');
+      }
+    }
+
+    const requestedModel = brand?.geminiModel?.trim() || 'gemini-3.5-flash';
+    const deprecatedModels = [
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+      'gemini-2.0-flash',
+      'gemini-2.5-flash',
+      'gemini-2.5-flash-lite',
+    ];
+
+    let effectiveModel = requestedModel;
+    if (deprecatedModels.includes(requestedModel.toLowerCase())) {
+      modelStatus = 'deprecated';
+      effectiveModel = 'gemini-3.5-flash';
+      issues.push(`Model '${requestedModel}' sudah didepresiasi Google. Sistem beralih ke 'gemini-3.5-flash'.`);
+    }
+
+    const isValid = keyStatus !== 'malformed' && promptStatus !== 'invalid_format' && promptStatus !== 'too_long';
+
+    return {
+      isValid,
+      keyStatus,
+      promptStatus,
+      modelStatus,
+      effectiveModel,
+      issues,
+    };
+  }
+
+  /**
+   * Health check probe that verifies AI operational readiness via /api/test-ai
+   */
+  static async checkAiHealth(brandOverride?: BrandSettings | null): Promise<AiReadinessCheck> {
+    const now = new Date().toLocaleTimeString();
+    try {
+      const { StorageService } = await import('./storageService');
+      const brand = brandOverride || StorageService.getBrandSettings();
+      const validation = AIService.validateAiConfig(brand);
+
+      if (validation.keyStatus === 'malformed') {
+        return {
+          ready: false,
+          status: 'error',
+          message: 'AI Bermasalah',
+          model: validation.effectiveModel,
+          errorDetails: `Integritas Kunci API: ${validation.issues.join('; ')}`,
+          lastChecked: now,
+        };
+      }
+
+      const response = await fetch('/api/test-ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: validation.effectiveModel,
+          systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
+          appDescription: brand.description?.trim() || undefined,
+          testPrompt: 'Tes kesiapan koneksi AI.',
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+      if (response.ok && data?.ok) {
+        return {
+          ready: true,
+          status: 'ready',
+          message: 'AI Siap',
+          model: data.diagnostics?.modelResolved || validation.effectiveModel,
+          latencyMs: data.diagnostics?.latencyMs,
+          lastChecked: now,
+        };
+      }
+
+      const errorMessage = data?.error?.message || data?.error || 'AI tidak merespons pengujian.';
+      return {
+        ready: false,
+        status: 'error',
+        message: 'AI Bermasalah',
+        model: validation.effectiveModel,
+        errorDetails: errorMessage,
+        lastChecked: now,
+      };
+    } catch (err) {
+      return {
+        ready: false,
+        status: 'error',
+        message: 'AI Bermasalah',
+        errorDetails: err instanceof Error ? err.message : 'Koneksi ke backend gagal.',
+        lastChecked: now,
+      };
+    }
+  }
+
   static async verifyChallengeProof(
     image: string,
     challengeTitle: string,
     challengeCategory = 'Aksi Hijau',
     userNotes = ''
   ): Promise<{ data: VerifyResponsePayload; isFallback: boolean }> {
+    const { StorageService } = await import('./storageService');
+    const brand = StorageService.getBrandSettings();
+    const validation = AIService.validateAiConfig(brand);
+
+    if (validation.keyStatus === 'malformed') {
+      throw new Error(`Integritas Kunci API tidak valid: ${validation.issues.join('; ')}`);
+    }
+
     let response: Response;
     try {
       response = await fetch('/api/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image, challengeTitle, challengeCategory, userNotes }),
+        body: JSON.stringify({ 
+          image, 
+          challengeTitle, 
+          challengeCategory, 
+          userNotes,
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: validation.effectiveModel,
+        }),
       });
     } catch (error) {
       throw new Error(
@@ -54,6 +228,15 @@ export class AIService {
   ): Promise<{ reply: string; isFallback: boolean }> {
     const { StorageService } = await import('./storageService');
     const brand = StorageService.getBrandSettings();
+    const validation = AIService.validateAiConfig(brand);
+
+    if (validation.keyStatus === 'malformed') {
+      throw new Error(`Integritas Kunci API tidak valid: ${validation.issues.join('; ')}`);
+    }
+    if (validation.promptStatus === 'invalid_format' || validation.promptStatus === 'too_long') {
+      throw new Error(`Format Instruksi Sistem AI tidak valid: ${validation.issues.join('; ')}`);
+    }
+
     let response: Response;
     try {
       response = await fetch('/api/chat', {
@@ -63,8 +246,10 @@ export class AIService {
           message, 
           history, 
           context,
-          systemPrompt: brand.aiSystemPrompt || undefined,
-          appDescription: brand.description || brand.name || undefined,
+          systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
+          appDescription: brand.description?.trim() || brand.name?.trim() || undefined,
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: validation.effectiveModel,
         }),
       });
     } catch {
@@ -81,10 +266,23 @@ export class AIService {
 
   static async scanWaste(image: string): Promise<{ data: WasteScanResult; isFallback: boolean }> {
     try {
+      const { StorageService } = await import('./storageService');
+      const brand = StorageService.getBrandSettings();
+      const validation = AIService.validateAiConfig(brand);
+
+      if (validation.keyStatus === 'malformed') {
+        console.warn(`[AIService] Waste scan aborted due to key integrity issue: ${validation.issues.join('; ')}`);
+        return { isFallback: true, data: AIService.getFallbackWasteScan() };
+      }
+
       const response = await fetch('/api/waste-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image }),
+        body: JSON.stringify({ 
+          image,
+          apiKey: brand.geminiApiKey?.trim() || undefined,
+          model: validation.effectiveModel,
+        }),
       });
 
       if (response.ok) {
@@ -97,15 +295,19 @@ export class AIService {
 
     return {
       isFallback: true,
-      data: {
-        category: 'plastik',
-        item_name: 'Botol Plastik Minuman PET',
-        confidence: 90,
-        how_to_sort: 'Lepaskan tutup dan label botol, bilas dengan sedikit air, lalu tekan hingga pipih.',
-        how_to_recycle: 'Kumpulkan dan serahkan ke Bank Sampah terdekat untuk dicacah menjadi biji plastik daur ulang.',
-        eco_impact_tip: 'Mencegah mikroplastik mencemari Danau Toba dan biota air tawar endemik.',
-        nearest_facility_suggestion: 'Bank Sampah Induk Tarutung & Bank Sampah IAKN Sipoholon',
-      },
+      data: AIService.getFallbackWasteScan(),
+    };
+  }
+
+  private static getFallbackWasteScan(): WasteScanResult {
+    return {
+      category: 'plastik',
+      item_name: 'Botol Plastik Minuman PET',
+      confidence: 90,
+      how_to_sort: 'Lepaskan tutup dan label botol, bilas dengan sedikit air, lalu tekan hingga pipih.',
+      how_to_recycle: 'Kumpulkan dan serahkan ke Bank Sampah terdekat untuk dicacah menjadi biji plastik daur ulang.',
+      eco_impact_tip: 'Mencegah mikroplastik mencemari Danau Toba dan biota air tawar endemik.',
+      nearest_facility_suggestion: 'Bank Sampah Induk Tarutung & Bank Sampah IAKN Sipoholon',
     };
   }
 

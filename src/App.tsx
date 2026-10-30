@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { User, Challenge, ChallengeSubmission } from './types';
 import { DEFAULT_USER, StorageService } from './services/storageService';
 import { Navbar } from './components/Navbar';
@@ -64,7 +65,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
-  const [sharedSyncState, setSharedSyncState] = useState<SharedSyncState>('connecting');
+  const [sharedSyncState, setSharedSyncState] = useState<SharedSyncState>('synced');
   const [sharedSyncMessage, setSharedSyncMessage] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [verifyChallenge, setVerifyChallenge] = useState<Challenge | null>(null);
@@ -81,6 +82,21 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const handleActiveSync = () => {
+      const currentUser = StorageService.getUser();
+      if (currentUser && currentUser.id !== 'guest-preview') {
+        setUser(currentUser);
+      }
+    };
+    window.addEventListener('focus', handleActiveSync);
+    document.addEventListener('visibilitychange', handleActiveSync);
+    return () => {
+      window.removeEventListener('focus', handleActiveSync);
+      document.removeEventListener('visibilitychange', handleActiveSync);
+    };
+  }, []);
+
+  useEffect(() => {
     const handleBadgeUnlocks = (event: Event) => {
       const detail = (event as CustomEvent<{ userId: string }>).detail;
       if (detail?.userId === user.id) setUser(StorageService.getUser());
@@ -88,6 +104,28 @@ export default function App() {
     window.addEventListener('mh-badges-unlocked', handleBadgeUnlocks);
     return () => window.removeEventListener('mh-badges-unlocked', handleBadgeUnlocks);
   }, [user.id]);
+
+  useEffect(() => {
+    const syncBrandInfo = () => {
+      const brand = StorageService.getBrandSettings();
+      if (brand.name) {
+        document.title = `${brand.name} - ${brand.tagline || 'Ekoteologi Kristen Danau Toba'}`;
+      }
+      if (brand.logoUrl) {
+        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+        if (link) {
+          link.href = brand.logoUrl;
+        }
+      }
+    };
+    syncBrandInfo();
+    window.addEventListener('mh-brand-updated', syncBrandInfo);
+    window.addEventListener('storage', syncBrandInfo);
+    return () => {
+      window.removeEventListener('mh-brand-updated', syncBrandInfo);
+      window.removeEventListener('storage', syncBrandInfo);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,9 +160,10 @@ export default function App() {
             }
             return;
           }
-          StorageService.saveUser(restoredUser);
+          const syncedUser = StorageService.syncUserStreak(restoredUser);
+          StorageService.saveUser(syncedUser);
           StorageService.setOnboarded(true);
-          setUser(restoredUser);
+          setUser(syncedUser);
           setIsOnboarded(true);
           void AuthService.getAccessToken()
             .then((token) => SharedDataService.connect(restoredUser, token))
@@ -138,6 +177,7 @@ export default function App() {
         else if (!cancelled) {
           setUser(DEFAULT_USER);
           setIsOnboarded(false);
+          setSharedSyncState('synced');
         }
       } catch (error) {
         if (!cancelled) {
@@ -202,9 +242,10 @@ export default function App() {
   };
 
   const renderActiveView = () => {
+    let content: React.ReactNode;
     switch (currentTab) {
       case 'home':
-        return (
+        content = (
           <HomePage
             user={user}
             onNavigateTab={setCurrentTab}
@@ -212,8 +253,9 @@ export default function App() {
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
       case 'devotions':
-        return (
+        content = (
           <DevotionsPage
             user={user}
             onSelectChallenge={(challengeId) => {
@@ -225,31 +267,35 @@ export default function App() {
             }}
           />
         );
+        break;
       case 'challenges':
-        return (
+        content = (
           <ChallengesPage
             user={user}
             onOpenVerifyModal={handleOpenVerify}
           />
         );
+        break;
       case 'waste-scan':
-        return (
+        content = (
           <WasteScannerPage
             isGuest={!isOnboarded}
             onRequireAuth={() => openAuthentication('register')}
             onOpenMap={() => setCurrentTab('map')}
           />
         );
+        break;
       case 'garden':
-        return (
+        content = (
           <GardenPage
             user={user}
             onNavigateTab={setCurrentTab}
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
       case 'impact':
-        return (
+        content = (
           <ImpactPage
             user={user}
             onOpenChallenge={(challengeId) => {
@@ -261,8 +307,9 @@ export default function App() {
             }}
           />
         );
+        break;
       case 'community':
-        return (
+        content = (
           <CommunityPage
             user={user}
             isGuest={!isOnboarded}
@@ -270,33 +317,47 @@ export default function App() {
             onNavigateTab={setCurrentTab}
           />
         );
+        break;
       case 'map':
-        return (
+        content = (
           <MapPage
             user={user}
             isGuest={!isOnboarded}
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
       case 'reports':
-        return (
+        content = (
           <ReportsPage
             user={user}
             isGuest={!isOnboarded}
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
       case 'events':
-        return (
+        content = (
           <EventsPage
             isGuest={!isOnboarded}
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
       case 'liturgy':
-        return <LiturgyPage user={user} />;
+        content = <LiturgyPage user={user} />;
+        break;
+      case 'threads':
+        content = (
+          <ThreadsPage
+            user={user}
+            isGuest={!isOnboarded}
+            onRequireAuth={() => openAuthentication('register')}
+          />
+        );
+        break;
       case 'profile':
-        return (
+        content = (
           <ProfilePage
             user={user}
             onUpdateUser={handleUpdateUser}
@@ -305,8 +366,9 @@ export default function App() {
             }}
           />
         );
+        break;
       default:
-        return (
+        content = (
           <HomePage
             user={user}
             onNavigateTab={setCurrentTab}
@@ -314,11 +376,27 @@ export default function App() {
             onRequireAuth={() => openAuthentication('register')}
           />
         );
+        break;
     }
+
+    return (
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentTab}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+          className="w-full"
+        >
+          {content}
+        </motion.div>
+      </AnimatePresence>
+    );
   };
 
   // Convert current tab string to bottom nav id if valid
-  const bottomNavTab = ['home', 'challenges', 'garden', 'community', 'profile'].includes(currentTab)
+  const bottomNavTab = ['home', 'threads', 'challenges', 'garden', 'community', 'profile'].includes(currentTab)
     ? (currentTab as NavTabId)
     : 'home';
 
@@ -419,7 +497,7 @@ export default function App() {
         />
 
         {/* Sub-navigation bar when in auxiliary views */}
-        {!['home', 'challenges', 'garden', 'community', 'profile'].includes(currentTab) && (
+        {!['home', 'threads', 'challenges', 'garden', 'community', 'profile'].includes(currentTab) && (
           <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between border-b border-gray-200 bg-white/60 px-4 py-2 text-xs">
             <button
               onClick={() => setCurrentTab('home')}
@@ -462,6 +540,8 @@ export default function App() {
         {/* 5-Tab Bottom Navigation Bar */}
         <BottomNav
           currentTab={bottomNavTab}
+          user={user}
+          isGuest={!isOnboarded || user.id === 'guest-preview'}
           onChangeTab={(tab) => {
             setCurrentTab(tab);
             if (tab === 'profile' && !isOnboarded) {
@@ -491,7 +571,8 @@ export default function App() {
               setAuthError(null);
             }}
             onComplete={(newUser) => {
-              setUser(newUser);
+              const syncedUser = StorageService.syncUserStreak(newUser);
+              setUser(syncedUser);
               setIsOnboarded(true);
               setIsAuthModalOpen(false);
               setAuthError(null);

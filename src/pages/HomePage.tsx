@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Flame,
   Camera,
@@ -39,9 +39,34 @@ export const HomePage: React.FC<HomePageProps> = ({
     user.id === 'guest-preview' ? StorageService.getPreviewGarden() : StorageService.getGardenState(),
   );
   const [waterToast, setWaterToast] = useState<string | null>(null);
+  const [, setDataVersion] = useState(0);
 
+  useEffect(() => {
+    if (user.id !== 'guest-preview') {
+      StorageService.syncUserStreak(user);
+    }
+
+    const handleUpdate = () => {
+      setDataVersion((v) => v + 1);
+      if (user.id !== 'guest-preview') {
+        setGarden(StorageService.getGardenState());
+      }
+    };
+    window.addEventListener('mh-data-updated', handleUpdate);
+    window.addEventListener('mh-brand-updated', handleUpdate);
+    window.addEventListener('mh-shared-data-change', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('mh-data-updated', handleUpdate);
+      window.removeEventListener('mh-brand-updated', handleUpdate);
+      window.removeEventListener('mh-shared-data-change', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, [user.id]);
+
+  const brand = StorageService.getBrandSettings();
   const devotions = StorageService.getDevotions();
-  const todayDevotion = devotions[0];
+  const todayDevotion = StorageService.getTodayDevotion();
   const challenges = StorageService.getChallenges();
   const featuredChallenges = challenges.filter((c) => c.featured).slice(0, 3);
   const submissions = StorageService.getSubmissions().slice(0, 4);
@@ -57,6 +82,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     setWaterToast(res.message);
     setTimeout(() => setWaterToast(null), 3000);
   };
+
+  const isGuest = user.id === 'guest-preview';
+  const hasActiveStreak = !isGuest && user.streakDays > 0;
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4 pb-28 pt-3 sm:space-y-5 sm:pt-4 md:pb-28 md:pt-6">
@@ -78,17 +106,49 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Daily Streak Indicator */}
           <div
-            onClick={() => onNavigateTab('impact')}
-            className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-amber-50 border border-amber-200/80 shadow-xs hover:bg-amber-100 transition"
-            title="Streak Aksi Hijau Harian"
+            onClick={() => {
+              if (isGuest) {
+                onRequireAuth();
+              } else if (user.streakDays === 0) {
+                onNavigateTab('challenges');
+              } else {
+                onNavigateTab('impact');
+              }
+            }}
+            className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-2xl transition duration-200 ${
+              hasActiveStreak
+                ? 'bg-gradient-to-r from-amber-100/90 to-orange-100/90 border border-orange-300 shadow-xs hover:border-orange-400 hover:shadow-sm'
+                : 'bg-amber-50/70 border border-amber-200/80 shadow-xs hover:bg-amber-100/80'
+            }`}
+            title={
+              isGuest
+                ? 'Masuk untuk mengaktifkan streak aksi berturut-turut'
+                : hasActiveStreak
+                ? `Streak Aktif: ${user.streakDays} hari berturut-turut masuk dan menyelesaikan aksi! Melewatkan 1 hari akan me-reset streak ke 0.`
+                : 'Streak 0 Hari: Anda belum menyelesaikan aksi hari ini atau melewatkan hari kemarin. Selesaikan tantangan sekarang untuk memulai streak!'
+            }
           >
-            <Flame className="w-4 h-4 text-amber-500 fill-amber-500" />
+            <Flame
+              className={`w-5 h-5 transition-transform duration-200 ${
+                hasActiveStreak
+                  ? 'text-orange-500 fill-orange-500 animate-pulse drop-shadow-[0_2px_4px_rgba(249,115,22,0.35)] scale-110'
+                  : 'text-amber-400 stroke-[1.8]'
+              }`}
+            />
             <div className="text-right leading-none">
-              <span className="text-xs font-extrabold text-amber-800">
-                {user.id === 'guest-preview' ? '—' : `${user.streakDays} Hari`}
+              <span
+                className={`text-xs font-extrabold ${
+                  hasActiveStreak ? 'text-amber-950' : 'text-amber-900'
+                }`}
+              >
+                {isGuest ? '—' : `${user.streakDays} Hari`}
               </span>
-              <span className="block text-[9px] text-amber-600 font-semibold mt-0.5">
-                Streak
+              <span
+                className={`block text-[9px] font-semibold mt-0.5 ${
+                  hasActiveStreak ? 'text-orange-700' : 'text-amber-600'
+                }`}
+              >
+                {isGuest ? 'Streak' : hasActiveStreak ? 'Streak Aktif' : 'Mulai Aksi'}
               </span>
             </div>
           </div>

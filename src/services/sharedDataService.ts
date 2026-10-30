@@ -92,7 +92,7 @@ function storedRecords(collection: SharedCollection): unknown[] {
     case 'reports':
       return StorageService.getReports();
     case 'threads':
-      return [];
+      return StorageService.getThreads();
   }
 }
 
@@ -111,6 +111,7 @@ function saveCollection(collection: SharedCollection, values: unknown[]) {
     case 'events':
     case 'locations':
     case 'reports':
+    case 'threads':
       StorageService.applySharedSnapshot(collection, values);
       break;
   }
@@ -131,9 +132,9 @@ function canWrite(collection: SharedCollection): boolean {
   if (!activeUser) return false;
   if (activeUser.role === 'admin') return true;
   if (activeUser.role === 'pemimpin') {
-    return ['events', 'locations', 'reports'].includes(collection);
+    return ['events', 'locations', 'reports', 'threads'].includes(collection);
   }
-  return collection === 'locations' || collection === 'reports';
+  return collection === 'locations' || collection === 'reports' || collection === 'threads';
 }
 
 function recordOrganization(collection: SharedCollection): string | null {

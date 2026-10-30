@@ -1,4 +1,4 @@
-import { Community, Devotion, Challenge, MapMarkerLocation, GreenEvent } from '../types';
+import { Community, Devotion, Challenge, MapMarkerLocation, GreenEvent, ThreadPost } from '../types';
 
 export const SEED_COMMUNITIES: Community[] = [
 ];
@@ -209,3 +209,64 @@ export const SEED_CHALLENGES: Challenge[] = [
 export const SEED_LOCATIONS: MapMarkerLocation[] = [];
 
 export const SEED_EVENTS: GreenEvent[] = [];
+
+export const SEED_THREADS: ThreadPost[] = [
+  {
+    id: 'th-seed-1',
+    userId: 'u-naomi',
+    userName: 'Naomi Siregar',
+    communityName: 'IAKN Tarutung',
+    category: 'ide',
+    caption: '💡 Ide untuk teman-teman kampus & pemuda gereja: Bagaimana kalau setiap persekutuan doa dan ibadah Minggu kita terapkan "Gerakan Bawa Tumbler & Wadah Sendiri"? Selain mengurangi sampah botol plastik sekali pakai di kawasan Tarutung, ini bentuk nyata kita mengasihi ciptaan Tuhan (Kejadian 2:15)! Setuju gak kawan-kawan? 🙏🌱',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+    likes: 12,
+    likedBy: [],
+    status: 'aktif',
+    replies: [
+      {
+        id: 'rep-1',
+        userId: 'u-daniel',
+        userName: 'Daniel Sitompul',
+        communityName: 'HKBP Pearaja',
+        content: 'Sangat setuju Kak Naomi! Nanti kami di seksi pemuda HKBP Pearaja siap bikin imbauan serupa.',
+        createdAt: new Date(Date.now() - 3600000).toISOString(),
+      },
+    ],
+  },
+  {
+    id: 'th-seed-2',
+    userId: 'u-johannes',
+    userName: 'Johannes Hutabarat',
+    communityName: 'Pemuda Silindung',
+    category: 'keluhan',
+    caption: '📢 Keluhan Lingkungan: Pagi ini jalan pagi di bantaran Sungai Sigeaon dekat jembatan, sedih sekali melihat tumpukan kantong kresek dan kemasan sachet tersangkut di bebatuan air sungai. Jika dibiarkan bisa mengalir ke Danau Toba.\n\nMari kita agendakan Sabtu Bersih Marsiadapari minggu ini, siapa yang bersedia ikut?',
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+    likes: 18,
+    likedBy: [],
+    status: 'ditindaklanjuti',
+    replies: [
+      {
+        id: 'rep-2',
+        userId: 'u-admin',
+        userName: 'Admin Marsiadapari',
+        userRole: 'admin',
+        content: 'Laporan dicatat! Lokasi ini akan dimasukkan ke agenda Marsiadapari pekanan dan dikoordinasikan dengan relawan setempat. Mauliate atas kepeduliannya!',
+        createdAt: new Date(Date.now() - 3600000 * 3).toISOString(),
+      },
+    ],
+  },
+  {
+    id: 'th-seed-3',
+    userId: 'u-ruth',
+    userName: 'Ruth Simanjuntak',
+    communityName: 'IAKN Tarutung',
+    category: 'aksi',
+    caption: '📸 Puji Tuhan! Bibit pohon alpukat dan mangga yang ditanam di pekarangan asrama bulan lalu sekarang sudah mulai bertunas daun baru yang hijau segar! Merawat sebutir bibit mengingatkan kita akan kesetiaan Allah memelihara semesta. 🌿✨',
+    createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+    likes: 24,
+    likedBy: [],
+    status: 'selesai',
+    replies: [],
+  },
+];
+

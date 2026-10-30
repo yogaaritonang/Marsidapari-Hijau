@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
+import { ShareAchievementModal } from '../components/ShareAchievementModal';
 
 interface ImpactPageProps {
   user: User;
@@ -553,72 +554,17 @@ export const ImpactPage: React.FC<ImpactPageProps> = ({ user, onOpenChallenge })
         </div>
       )}
 
-      {showShareCard && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/30 p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b">
-              <span className="text-xs font-bold font-poppins text-[#2E6B34]">
-                Kartu Capaian Marsiadapari
-              </span>
-              <button
-                onClick={() => setShowShareCard(false)}
-                className="p-1 text-gray-400 hover:text-gray-700"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-[#2E6B34] to-[#1B4320] text-white shadow-xl space-y-3 relative overflow-hidden">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-[#A8D5A2] font-semibold tracking-wider uppercase">
-                    Marsiadapari Hijau
-                  </span>
-                  <h4 className="text-base font-bold font-poppins">{user.name}</h4>
-                  <p className="text-[11px] text-[#FAF6EC]/80">{user.communityName}</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-xl">
-                  🌿
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 text-center text-xs py-1">
-                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-xs">
-                  <span className="text-[10px] text-[#A8D5A2] block">Poin Hijau</span>
-                  <span className="text-sm font-extrabold">{user.points}</span>
-                </div>
-                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-xs">
-                  <span className="text-[10px] text-[#A8D5A2] block">Pohon Tertanam</span>
-                  <span className="text-sm font-extrabold">{impact.trees} Pohon</span>
-                </div>
-                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-xs">
-                  <span className="text-[10px] text-[#A8D5A2] block">Sampah Tercegah</span>
-                  <span className="text-sm font-extrabold">{impact.wasteKg} kg</span>
-                </div>
-                <div className="bg-white/10 p-2 rounded-xl backdrop-blur-xs">
-                  <span className="text-[10px] text-[#A8D5A2] block">Air Dihemat</span>
-                  <span className="text-sm font-extrabold">{impact.waterLiters} Liter</span>
-                </div>
-              </div>
-
-              <p className="text-[10px] text-[#FAF6EC]/90 text-center italic pt-1 border-t border-white/15">
-                "Merawat ciptaan Tuhan, bergotong royong setiap hari."
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleShare}
-                className="flex-1 py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] transition flex items-center justify-center gap-1.5 shadow-md"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Salin Teks Capaian</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ShareAchievementModal
+        isOpen={showShareCard}
+        onClose={() => setShowShareCard(false)}
+        payload={{
+          name: user.name,
+          points: user.points,
+          communityName: user.communityName,
+          trees: impact.trees,
+          wasteKg: impact.wasteKg,
+        }}
+      />
     </div>
   );
 };

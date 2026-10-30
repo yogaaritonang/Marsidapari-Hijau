@@ -10,6 +10,7 @@ import reflectionHandler from './api/reflection.js';
 import prayerHandler from './api/prayer.js';
 import reportAssistHandler from './api/report-assist.js';
 import leaderRegisterHandler from './api/leader-register.js';
+import testAiHandler from './api/test-ai.js';
 
 dotenv.config({ path: '.env.local' });
 dotenv.config();
@@ -47,6 +48,7 @@ async function startServer() {
   app.post('/api/prayer', prayerHandler);
   app.post('/api/report-assist', reportAssistHandler);
   app.post('/api/leader-register', leaderRegisterHandler);
+  app.all('/api/test-ai', testAiHandler);
 
   const httpServer = http.createServer(app);
 

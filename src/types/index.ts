@@ -40,6 +40,8 @@ export interface User {
   points: number;
   streakDays: number;
   lastActiveDate: string;
+  lastActiveTimestamp?: string;
+  lastChallengeDate?: string;
   joinedDate: string;
   preferences: UserPreferences;
 }
@@ -176,3 +178,33 @@ export interface ChatMessage {
   timestamp: string;
   actionTag?: string; // e.g. "[REKOMENDASI: Bawa Tumbler]"
 }
+
+export type ThreadCategory = 'ide' | 'keluhan' | 'aksi' | 'tanya';
+
+export interface ThreadReply {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole?: UserRole;
+  communityName?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface ThreadPost {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole?: UserRole;
+  communityName?: string;
+  category: ThreadCategory;
+  caption: string;
+  imageUrl?: string;
+  createdAt: string;
+  likes: number;
+  likedBy?: string[];
+  replies?: ThreadReply[];
+  isPinned?: boolean;
+  status?: 'aktif' | 'ditindaklanjuti' | 'selesai';
+}
+

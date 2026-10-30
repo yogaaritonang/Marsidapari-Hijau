@@ -1,12 +1,14 @@
 import type { Request, Response } from 'express';
 import { ThinkingLevel } from '@google/genai';
-import { getGeminiClient, GEMINI_MODEL } from './geminiClient.js';
+import { getGeminiClient, GEMINI_MODEL, getGeminiModel } from './geminiClient.js';
 
 export interface VerifyRequestBody {
   image: string; // base64 data URL or raw base64
   challengeTitle: string;
   challengeCategory?: string;
   userNotes?: string;
+  apiKey?: string;
+  model?: string;
 }
 
 export interface VerifyResponsePayload {
@@ -24,11 +26,26 @@ export interface VerifyResponsePayload {
 }
 
 export default async function verifyHandler(req: Request, res: Response) {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { image, challengeTitle, challengeCategory, userNotes } = req.body as VerifyRequestBody;
+  let body: Partial<VerifyRequestBody> = {};
+  if (typeof req.body === 'string') {
+    try {
+      body = JSON.parse(req.body);
+    } catch {
+      return res.status(400).json({ error: 'Format data JSON tidak valid.' });
+    }
+  } else if (req.body && typeof req.body === 'object') {
+    body = req.body;
+  }
+
+  const { image, challengeTitle, challengeCategory, userNotes, apiKey, model } = body;
 
   if (typeof image !== 'string' || typeof challengeTitle !== 'string' || !image.trim() || !challengeTitle.trim()) {
     return res.status(400).json({ error: 'Foto bukti dan judul tantangan wajib disertakan.' });
@@ -39,9 +56,11 @@ export default async function verifyHandler(req: Request, res: Response) {
     return res.status(400).json({ error: 'Format foto tidak didukung. Unggah foto JPG, PNG, atau WebP.' });
   }
 
-  const ai = getGeminiClient();
+  const ai = getGeminiClient(apiKey);
   if (!ai) {
-    return res.status(503).json({ error: 'Verifikator AI belum tersedia. Silakan coba lagi nanti.' });
+    return res.status(503).json({
+      error: 'Verifikator AI belum aktif. Pastikan API Key diisi di Dashboard Admin atau Environment Variables Vercel (GEMINI_API_KEY).',
+    });
   }
 
   try {
@@ -70,17 +89,20 @@ Kembalikan hanya JSON valid tanpa markdown:
 `;
 
     let response;
+    const chosenModel = getGeminiModel(model);
     const modelsToTry = [
-      GEMINI_MODEL,
-      'gemini-2.5-flash',
-      'gemini-2.5-flash-lite',
-      'gemini-2.0-flash',
+      chosenModel,
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-3-flash-preview',
+      'gemini-3.8-flash',
     ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
     let lastErr: unknown;
-    for (const model of modelsToTry) {
+    for (const mod of modelsToTry) {
       try {
         response = await ai.models.generateContent({
-          model,
+          model: mod,
           contents: {
             parts: [
               {
@@ -95,20 +117,19 @@ Kembalikan hanya JSON valid tanpa markdown:
           config: {
             responseMimeType: 'application/json',
             maxOutputTokens: 512,
-            thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           },
         });
-        break;
+        if (response && response.text) break;
       } catch (err) {
         lastErr = err;
         continue;
       }
     }
-    if (!response) {
+    if (!response || !response.text) {
       throw lastErr;
     }
 
-    let text = response.text?.trim() || '';
+    let text = response.text.trim();
     if (text.startsWith('```json')) {
       text = text.replace(/^```json\s*/, '').replace(/\s*```$/, '');
     } else if (text.startsWith('```')) {
@@ -135,12 +156,13 @@ Kembalikan hanya JSON valid tanpa markdown:
   } catch (error) {
     console.error('Error in /api/verify:', error);
     const status = getGeminiErrorStatus(error);
+    const errorDetails = error instanceof Error ? error.message : String(error);
     const message = status === 429
-      ? 'Kuota AI sedang penuh. Tunggu sebentar sebelum mencoba verifikasi lagi.'
+      ? 'Kuota AI sedang penuh (429 Too Many Requests). Tunggu beberapa saat sebelum mencoba verifikasi lagi.'
       : status === 401 || status === 403
-      ? 'Kunci AI tidak valid atau tidak memiliki akses. Admin perlu memeriksa konfigurasi Gemini.'
+      ? 'Kunci API Gemini tidak valid atau tidak memiliki izin akses (401/403). Periksa kembali API Key di Pengaturan Admin.'
       : status === 400
-      ? 'Foto atau konfigurasi model tidak dapat diproses. Coba unggah gambar JPG, PNG, atau WebP yang lebih kecil.'
+      ? `Foto atau konfigurasi verifikator tidak dapat diproses: ${errorDetails.slice(0, 120)}`
       : 'Verifikasi AI gagal memeriksa gambar. Silakan coba lagi sebentar.';
     return res.status(status >= 400 && status < 600 ? status : 502).json({ error: message });
   }
@@ -158,12 +180,23 @@ function getGeminiErrorStatus(error: unknown): number {
 }
 
 function parseImage(image: string): { data: string; mimeType: string } | null {
-  const match = image.match(/^(?:data:(image\/(?:jpeg|png|webp));base64,)?([A-Za-z0-9+/]+={0,2})$/);
-  if (!match) return null;
-  return {
-    data: match[2],
-    mimeType: match[1] || 'image/jpeg',
-  };
+  if (!image || typeof image !== 'string') return null;
+  const commaIndex = image.indexOf(',');
+  if (image.startsWith('data:') && commaIndex !== -1) {
+    const meta = image.substring(5, commaIndex);
+    const data = image.substring(commaIndex + 1).replace(/\s+/g, '');
+    let mimeType = 'image/jpeg';
+    const mimeMatch = meta.match(/^[a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+/);
+    if (mimeMatch) {
+      mimeType = mimeMatch[0].toLowerCase();
+      if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+    }
+    if (!data) return null;
+    return { data, mimeType };
+  }
+  const cleanData = image.replace(/\s+/g, '');
+  if (!cleanData) return null;
+  return { data: cleanData, mimeType: 'image/jpeg' };
 }
 
 function isVerifyResponsePayload(value: unknown): value is VerifyResponsePayload {

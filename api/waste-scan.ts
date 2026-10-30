@@ -12,31 +12,41 @@ export interface WasteScanResult {
 }
 
 export default async function wasteScanHandler(req: Request, res: Response) {
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { image } = req.body;
-  if (!image) {
+  let body: { image?: string; apiKey?: string; model?: string } = {};
+  if (typeof req.body === 'string') {
+    try {
+      body = JSON.parse(req.body);
+    } catch {
+      return res.status(400).json({ error: 'Format data JSON tidak valid.' });
+    }
+  } else if (req.body && typeof req.body === 'object') {
+    body = req.body;
+  }
+
+  const { image, apiKey, model } = body;
+  if (!image || typeof image !== 'string' || !image.trim()) {
     return res.status(400).json({ error: 'Foto sampah wajib disertakan.' });
   }
 
-  const ai = getGeminiClient();
+  const ai = getGeminiClient(apiKey);
   if (!ai) {
     return res.status(200).json(getSimulatedWasteScan());
   }
 
-  try {
-    let base64Data = image;
-    let mimeType = 'image/jpeg';
-    if (image.startsWith('data:')) {
-      const match = image.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-      if (match) {
-        mimeType = match[1];
-        base64Data = match[2];
-      }
-    }
+  const parsed = parseImage(image);
+  if (!parsed) {
+    return res.status(400).json({ error: 'Format foto sampah tidak dikenali.' });
+  }
 
+  try {
     const promptText = `
 Identifikasi objek sampah pada foto ini untuk pemilahan sampah ramah lingkungan di Tarutung & Danau Toba.
 Kembalikan HANYA JSON MURNI tanpa format markdown:
@@ -51,20 +61,43 @@ Kembalikan HANYA JSON MURNI tanpa format markdown:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType,
-            },
+    const modelsToTry = [
+      GEMINI_MODEL,
+      'gemini-3.5-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-3-flash-preview',
+      'gemini-3.7-flash',
+      'gemini-3.8-flash',
+    ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+    let response;
+    let lastErr: unknown;
+    for (const model of modelsToTry) {
+      try {
+        response = await ai.models.generateContent({
+          model,
+          contents: {
+            parts: [
+              {
+                inlineData: {
+                  data: parsed.data,
+                  mimeType: parsed.mimeType,
+                },
+              },
+              { text: promptText },
+            ],
           },
-          { text: promptText },
-        ],
-      },
-    });
+        });
+        break;
+      } catch (err) {
+        lastErr = err;
+        continue;
+      }
+    }
+
+    if (!response) {
+      throw lastErr;
+    }
 
     let text = response.text?.trim() || '';
     if (text.startsWith('```json')) {
@@ -79,6 +112,26 @@ Kembalikan HANYA JSON MURNI tanpa format markdown:
     console.error('Error in /api/waste-scan:', error);
     return res.status(200).json(getSimulatedWasteScan());
   }
+}
+
+function parseImage(image: string): { data: string; mimeType: string } | null {
+  if (!image || typeof image !== 'string') return null;
+  const commaIndex = image.indexOf(',');
+  if (image.startsWith('data:') && commaIndex !== -1) {
+    const meta = image.substring(5, commaIndex);
+    const data = image.substring(commaIndex + 1).replace(/\s+/g, '');
+    let mimeType = 'image/jpeg';
+    const mimeMatch = meta.match(/^[a-zA-Z0-9.+_-]+\/[a-zA-Z0-9.+_-]+/);
+    if (mimeMatch) {
+      mimeType = mimeMatch[0].toLowerCase();
+      if (mimeType === 'image/jpg') mimeType = 'image/jpeg';
+    }
+    if (!data) return null;
+    return { data, mimeType };
+  }
+  const cleanData = image.replace(/\s+/g, '');
+  if (!cleanData) return null;
+  return { data: cleanData, mimeType: 'image/jpeg' };
 }
 
 function getSimulatedWasteScan(): WasteScanResult {

@@ -12,11 +12,13 @@ import {
   Zap,
   Trash2,
   AlertTriangle,
+  Share2,
 } from 'lucide-react';
 import { Challenge, User, ChallengeSubmission } from '../types';
 import { compressImage } from '../services/imageCompression';
 import { StorageService } from '../services/storageService';
 import { AIService } from '../services/aiService';
+import { ShareService } from '../services/shareService';
 
 interface VerifyProofModalProps {
   challenge: Challenge;
@@ -363,6 +365,24 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                     className="flex-1 py-2.5 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-bold transition"
                   >
                     Unggah Ulang
+                  </button>
+                )}
+                {result.verdict === 'valid' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void ShareService.shareAchievement({
+                        name: user.name,
+                        points: user.points + result.awardedPoints,
+                        communityName: user.communityName,
+                        trees: result.impact.trees,
+                        wasteKg: result.impact.wasteKg,
+                      });
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-[#2E6B34] text-white text-xs font-bold hover:brightness-105 transition flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Ajak Teman</span>
                   </button>
                 )}
                 <button
