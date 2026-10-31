@@ -258,18 +258,20 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-800">
             {profileGalleryError}
           </p>
-        ) : profilePhotos.length > 0 ? (
+        ) : profilePhotos.filter((p) => p.url && p.url.trim()).length > 0 ? (
           <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
-            {profilePhotos.map((photo) => (
-              <img
-                key={photo.userId}
-                src={photo.url}
-                alt="Foto profil publik anggota"
-                title="Foto profil anggota"
-                loading="lazy"
-                className="aspect-square w-full rounded-full border border-[#2E6B34]/15 bg-[#FAF6EC] object-cover"
-              />
-            ))}
+            {profilePhotos
+              .filter((photo) => photo.url && photo.url.trim())
+              .map((photo) => (
+                <img
+                  key={photo.userId}
+                  src={photo.url}
+                  alt="Foto profil publik anggota"
+                  title="Foto profil anggota"
+                  loading="lazy"
+                  className="aspect-square w-full rounded-full border border-[#2E6B34]/15 bg-[#FAF6EC] object-cover"
+                />
+              ))}
           </div>
         ) : (
           <p className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4 text-center text-xs text-gray-500">
@@ -341,7 +343,9 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
-          {photos.map((photo, index) => (
+          {photos
+            .filter((photo) => photo.url && photo.url.trim())
+            .map((photo, index) => (
             <button
               type="button"
               key={photo.path}
@@ -397,7 +401,9 @@ export const CommunityGallery: React.FC<CommunityGalleryProps> = ({
                   <ChevronLeft className="h-5 w-5" />
                 </button>
               )}
-              <img src={selectedPhoto.url} alt={`Aksi gotong royong oleh ${selectedPhoto.ownerName}`} className="max-h-[78vh] max-w-full rounded-xl object-contain" />
+              {selectedPhoto.url && selectedPhoto.url.trim() ? (
+                <img src={selectedPhoto.url} alt={`Aksi gotong royong oleh ${selectedPhoto.ownerName}`} className="max-h-[78vh] max-w-full rounded-xl object-contain" />
+              ) : null}
               {photos.length > 1 && (
                 <button type="button" onClick={showNextPhoto} className="absolute right-2 z-10 rounded-full bg-black/50 p-2 text-white hover:bg-black/70" aria-label="Foto berikutnya">
                   <ChevronRight className="h-5 w-5" />

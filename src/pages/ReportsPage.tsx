@@ -341,7 +341,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
                 <label className="block font-bold text-gray-700 mb-1">
                   Foto Bukti Kondisi
                 </label>
-                {photo ? (
+                {photo && photo.trim() ? (
                   <div className="relative rounded-2xl overflow-hidden aspect-video border border-gray-300 bg-black/5">
                     <img src={photo} alt="Foto kondisi" className="w-full h-full object-cover" />
                     <button
@@ -381,10 +381,10 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
                     type="button"
                     onClick={handleAiPolish}
                     disabled={polishingWithAi || !rawNotes.trim()}
-                    className="text-[11px] font-bold text-[#2E6B34] hover:underline flex items-center gap-1 disabled:opacity-40"
+                    className="text-[11px] font-bold text-[#2E6B34] hover:underline flex items-center gap-1 disabled:opacity-40 cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3 text-amber-500" />
-                    <span>{polishingWithAi ? 'Merumuskan...' : 'Rapikan Deskripsi AI'}</span>
+                    <span>{polishingWithAi ? 'Merumuskan...' : 'Rapikan Deskripsi Otomatis'}</span>
                   </button>
                 </div>
                 <textarea
@@ -400,7 +400,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
                 <div className="p-3 bg-white rounded-xl border border-[#2E6B34]/30 space-y-1">
                   <span className="font-bold text-[#2E6B34] flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5" />
-                    Deskripsi Resmi Hasil Rumusan AI:
+                    Deskripsi Resmi Hasil Rumusan Sistem:
                   </span>
                   <p className="text-gray-700 text-[11px] leading-relaxed">
                     {formalDescription}

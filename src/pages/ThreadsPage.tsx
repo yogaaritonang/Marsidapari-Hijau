@@ -44,19 +44,35 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Sync latest threads from server
+    // Sync latest threads from server immediately
     void SocialSyncService.pullSocialData(user);
 
     const handleUpdate = () => {
       setThreads(StorageService.getThreads());
     };
+
+    const handleFocus = () => {
+      void SocialSyncService.pullSocialData(user);
+    };
+
     window.addEventListener('mh-data-updated', handleUpdate);
     window.addEventListener('mh-threads-updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+
+    // Continuous polling so likes and comments from other users appear live
+    const pollInterval = setInterval(() => {
+      void SocialSyncService.pullSocialData(user);
+    }, 8000);
+
     return () => {
       window.removeEventListener('mh-data-updated', handleUpdate);
       window.removeEventListener('mh-threads-updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
+      clearInterval(pollInterval);
     };
   }, [user]);
 
@@ -322,7 +338,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
           </div>
 
           {/* Photo Preview if attached */}
-          {image && (
+          {Boolean(image && image.trim()) && (
             <div className="relative mt-2 overflow-hidden rounded-2xl border border-gray-200 bg-black/5 aspect-video flex items-center justify-center">
               <img src={image} alt="Pratinjau foto instan" className="h-full w-full object-cover" />
               <button
@@ -491,7 +507,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
                     )}
 
                     {/* Instant Photo Attachment */}
-                    {post.imageUrl && (
+                    {Boolean(post.imageUrl && post.imageUrl.trim()) && (
                       <div className="mt-2.5 overflow-hidden rounded-2xl border border-gray-200 max-h-[380px] bg-black/5">
                         <img
                           src={post.imageUrl}

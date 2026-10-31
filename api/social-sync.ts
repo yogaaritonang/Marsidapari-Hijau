@@ -1,14 +1,17 @@
 import type { Request, Response } from 'express';
-import { ThreadPost, ChallengeSubmission, AppNotification, BrandSettings } from '../src/types/index.js';
-import { SEED_THREADS } from '../src/data/seedData.js';
+import fs from 'fs';
+import path from 'path';
+import { ThreadPost, ChallengeSubmission, AppNotification, BrandSettings, EcotheologyArticle } from '../src/types/index.js';
+import { SEED_THREADS, SEED_ECOTHEOLOGY } from '../src/data/seedData.js';
 
-// Server-level in-memory state shared across client sessions on this server instance
+// Server-level shared state with disk-backed persistence
 interface SocialStore {
   brand: BrandSettings | null;
   threads: ThreadPost[];
   submissions: ChallengeSubmission[];
   cheers: Record<string, { count: number; users: string[] }>;
   notifications: AppNotification[];
+  ecotheology: EcotheologyArticle[];
 }
 
 const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
@@ -24,7 +27,7 @@ const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
     verdict: 'valid',
     confidence: 95,
     userNotes: 'Membawa tumbler sendiri saat perkuliahan di IAKN Tarutung',
-    imageThumbnail: '',
+    imageThumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="%232E6B34" rx="20"/><path d="M48 30h24v12H48zM44 44h32v52a6 6 0 0 1-6 6H50a6 6 0 0 1-6-6V44z" fill="%23FAF6EC"/><path d="M52 56h16v24H52z" fill="%232E6B34" opacity="0.3"/></svg>',
     imageHash: 'hash-naomi-tumbler-1',
     yang_terlihat: 'Botol minum tumbler pribadi yang digunakan saat beraktivitas',
     alasan: 'Sesuai dengan kriteria tantangan pengurangan sampah plastik',
@@ -44,7 +47,7 @@ const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
     verdict: 'valid',
     confidence: 92,
     userNotes: 'Menanam bibit pohon alpukat di pekarangan gereja HKBP',
-    imageThumbnail: '',
+    imageThumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="%23235328" rx="20"/><path d="M60 25c-15 0-25 14-20 28 4 10 12 15 15 20v24h10V73c3-5 11-10 15-20 5-14-5-28-20-28z" fill="%237A5230"/><circle cx="60" cy="45" r="22" fill="%23A8D5A2"/></svg>',
     imageHash: 'hash-daniel-tree-1',
     yang_terlihat: 'Penanaman bibit pohon di pekarangan dengan tanah gembur',
     alasan: 'Tindakan penghijauan nyata terverifikasi',
@@ -64,7 +67,7 @@ const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
     verdict: 'valid',
     confidence: 88,
     userNotes: 'Memilah sampah plastik dan kardus untuk bank sampah',
-    imageThumbnail: '',
+    imageThumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="%231E5429" rx="20"/><rect x="35" y="45" width="22" height="45" rx="4" fill="%23FAF6EC"/><rect x="63" y="45" width="22" height="45" rx="4" fill="%23A8D5A2"/><path d="M30 38h60v5H30z" fill="%23FAF6EC"/></svg>',
     imageHash: 'hash-johannes-sort-1',
     yang_terlihat: 'Wadah terpisah untuk sampah plastik dan kertas',
     alasan: 'Pemilahan sampah sesuai standar daur ulang',
@@ -84,7 +87,7 @@ const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
     verdict: 'valid',
     confidence: 96,
     userNotes: 'Aksi marsiadapari bersama pemuda membersihkan selokan',
-    imageThumbnail: '',
+    imageThumbnail: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" fill="%232E6B34" rx="20"/><circle cx="45" cy="45" r="14" fill="%23FAF6EC"/><circle cx="75" cy="45" r="14" fill="%23FAF6EC"/><path d="M30 85c0-12 10-18 20-18h20c10 0 20 6 20 18z" fill="%23A8D5A2"/></svg>',
     imageHash: 'hash-ruth-gotong-royong-1',
     yang_terlihat: 'Kerja bakti gotong royong pembersihan selokan dan lingkungan',
     alasan: 'Aktivitas aksi marsiadapari hijau komunitas terdokumentasi jelas',
@@ -94,13 +97,119 @@ const INITIAL_COMMUNITY_SUBMISSIONS: ChallengeSubmission[] = [
   },
 ];
 
-const store: SocialStore = {
-  brand: null,
-  threads: [...SEED_THREADS],
-  submissions: [...INITIAL_COMMUNITY_SUBMISSIONS],
-  cheers: {},
-  notifications: [],
-};
+const DATA_DIR = path.resolve(process.cwd(), 'data');
+const PRIMARY_STORE_PATH = path.join(DATA_DIR, 'social_store.json');
+const BACKUP_STORE_PATH = '/tmp/marsiadapari_social_store.json';
+
+function ensureDirectoryExists(dir: string) {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  } catch (err) {
+    console.warn('[social-sync] Could not ensure data directory:', err);
+  }
+}
+
+function loadPersistedStore(): SocialStore {
+  const defaultStore: SocialStore = {
+    brand: null,
+    threads: [...SEED_THREADS],
+    submissions: [...INITIAL_COMMUNITY_SUBMISSIONS],
+    cheers: {},
+    notifications: [],
+    ecotheology: [...SEED_ECOTHEOLOGY],
+  };
+
+  for (const filePath of [PRIMARY_STORE_PATH, BACKUP_STORE_PATH]) {
+    try {
+      if (fs.existsSync(filePath)) {
+        const raw = fs.readFileSync(filePath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          const storedThreads: ThreadPost[] = Array.isArray(parsed.threads) ? parsed.threads : [];
+          const storedSubs: ChallengeSubmission[] = Array.isArray(parsed.submissions) ? parsed.submissions : [];
+          const storedEco: EcotheologyArticle[] = Array.isArray(parsed.ecotheology) ? parsed.ecotheology : [];
+
+          // Merge seed threads with stored threads
+          const threadMap = new Map<string, ThreadPost>();
+          for (const t of defaultStore.threads) {
+            if (t && t.id) threadMap.set(t.id, t);
+          }
+          for (const t of storedThreads) {
+            if (t && t.id) {
+              const existing = threadMap.get(t.id);
+              if (existing) {
+                const mergedLikedBy = Array.from(new Set([...(existing.likedBy || []), ...(t.likedBy || [])]));
+                threadMap.set(t.id, {
+                  ...existing,
+                  ...t,
+                  likedBy: mergedLikedBy,
+                  likes: Math.max(existing.likes || 0, t.likes || 0, mergedLikedBy.length),
+                  savedBy: Array.from(new Set([...(existing.savedBy || []), ...(t.savedBy || [])])),
+                });
+              } else {
+                threadMap.set(t.id, t);
+              }
+            }
+          }
+
+          // Merge seed submissions with stored submissions
+          const subMap = new Map<string, ChallengeSubmission>();
+          for (const s of defaultStore.submissions) {
+            if (s && s.id) subMap.set(s.id, s);
+          }
+          for (const s of storedSubs) {
+            if (s && s.id) subMap.set(s.id, s);
+          }
+
+          // Merge ecotheology
+          const ecoMap = new Map<string, EcotheologyArticle>();
+          for (const e of defaultStore.ecotheology) {
+            if (e && e.id) ecoMap.set(e.id, e);
+          }
+          for (const e of storedEco) {
+            if (e && e.id) ecoMap.set(e.id, e);
+          }
+
+          return {
+            brand: parsed.brand || null,
+            threads: [...threadMap.values()],
+            submissions: [...subMap.values()],
+            cheers: parsed.cheers || {},
+            notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
+            ecotheology: [...ecoMap.values()],
+          };
+        }
+      }
+    } catch (err) {
+      console.warn(`[social-sync] Could not read ${filePath}:`, err);
+    }
+  }
+
+  return defaultStore;
+}
+
+let store: SocialStore = loadPersistedStore();
+
+async function persistStore(): Promise<void> {
+  try {
+    ensureDirectoryExists(DATA_DIR);
+    const serialized = JSON.stringify(store, null, 2);
+    try {
+      await fs.promises.writeFile(PRIMARY_STORE_PATH, serialized, 'utf-8');
+    } catch {
+      // primary write error, continue to backup
+    }
+    try {
+      await fs.promises.writeFile(BACKUP_STORE_PATH, serialized, 'utf-8');
+    } catch {
+      // backup error
+    }
+  } catch (err) {
+    console.error('[social-sync] Error persisting store to disk:', err);
+  }
+}
 
 export default async function socialSyncHandler(req: Request, res: Response) {
   if (req.method === 'OPTIONS') {
@@ -120,6 +229,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
       submissions: store.submissions,
       cheers: store.cheers,
       notifications: userNotifications,
+      ecotheology: store.ecotheology || [...SEED_ECOTHEOLOGY],
       serverTime: new Date().toISOString(),
     });
   }
@@ -142,6 +252,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
         const brandPayload = payload as BrandSettings;
         if (brandPayload && typeof brandPayload === 'object') {
           store.brand = { ...(store.brand || {}), ...brandPayload };
+          void persistStore();
           return res.status(200).json({ success: true, brand: store.brand });
         }
         return res.status(400).json({ error: 'Data brand tidak valid.' });
@@ -153,25 +264,29 @@ export default async function socialSyncHandler(req: Request, res: Response) {
         }
         // Prepend to server threads
         store.threads = [thread, ...store.threads.filter((t) => t.id !== thread.id)];
+        void persistStore();
         return res.status(200).json({ success: true, thread, threads: store.threads });
       }
 
       case 'like_thread': {
-        const { threadId, user: likingUser } = payload || {};
+        const { threadId, user: likingUser, thread: incomingThread } = payload || {};
         if (!threadId || !likingUser) {
           return res.status(400).json({ error: 'threadId dan user diperlukan.' });
         }
 
-        const thread = store.threads.find((t) => t.id === threadId);
+        let thread = store.threads.find((t) => t.id === threadId);
+        if (!thread && incomingThread && incomingThread.id === threadId) {
+          thread = incomingThread;
+          store.threads.unshift(thread!);
+        }
+
         if (thread) {
-          thread.likedBy = thread.likedBy || [];
+          thread.likedBy = Array.isArray(thread.likedBy) ? thread.likedBy : [];
           const hasLiked = thread.likedBy.includes(likingUser.id);
           if (hasLiked) {
             thread.likedBy = thread.likedBy.filter((id) => id !== likingUser.id);
-            thread.likes = Math.max(0, (thread.likes || 1) - 1);
           } else {
-            thread.likedBy.push(likingUser.id);
-            thread.likes = (thread.likes || 0) + 1;
+            thread.likedBy = Array.from(new Set([...thread.likedBy, likingUser.id]));
 
             // Trigger notification to thread owner if it's not the same user
             if (thread.userId && thread.userId !== likingUser.id) {
@@ -190,8 +305,20 @@ export default async function socialSyncHandler(req: Request, res: Response) {
               store.notifications.unshift(notif);
             }
           }
+          thread.likes = thread.likedBy.length;
+          void persistStore();
         }
         return res.status(200).json({ success: true, threads: store.threads });
+      }
+
+      case 'update_ecotheology': {
+        const articles = payload as EcotheologyArticle[];
+        if (Array.isArray(articles)) {
+          store.ecotheology = articles;
+          void persistStore();
+          return res.status(200).json({ success: true, ecotheology: store.ecotheology });
+        }
+        return res.status(400).json({ error: 'Data artikel ekoteologi tidak valid.' });
       }
 
       case 'save_thread': {
@@ -202,13 +329,14 @@ export default async function socialSyncHandler(req: Request, res: Response) {
 
         const thread = store.threads.find((t) => t.id === threadId);
         if (thread) {
-          thread.savedBy = thread.savedBy || [];
+          thread.savedBy = Array.isArray(thread.savedBy) ? thread.savedBy : [];
           const hasSaved = thread.savedBy.includes(savingUserId);
           if (hasSaved) {
             thread.savedBy = thread.savedBy.filter((id) => id !== savingUserId);
           } else {
-            thread.savedBy.push(savingUserId);
+            thread.savedBy = Array.from(new Set([...thread.savedBy, savingUserId]));
           }
+          void persistStore();
         }
         return res.status(200).json({ success: true, threads: store.threads });
       }
@@ -240,6 +368,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
             };
             store.notifications.unshift(notif);
           }
+          void persistStore();
         }
         return res.status(200).json({ success: true, threads: store.threads });
       }
@@ -247,6 +376,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
       case 'delete_thread': {
         const { threadId } = payload || {};
         store.threads = store.threads.filter((t) => t.id !== threadId);
+        void persistStore();
         return res.status(200).json({ success: true, threads: store.threads });
       }
 
@@ -279,6 +409,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
           };
           store.notifications.unshift(notif);
         }
+        void persistStore();
 
         return res.status(200).json({ success: true, cheers: store.cheers });
       }
@@ -289,6 +420,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
           return res.status(400).json({ error: 'Data submission tidak valid.' });
         }
         store.submissions = [submission, ...store.submissions.filter((s) => s.id !== submission.id)];
+        void persistStore();
         return res.status(200).json({ success: true, submissions: store.submissions });
       }
 
@@ -304,6 +436,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
             n.recipientUserId === userId ? { ...n, read: true } : n
           );
         }
+        void persistStore();
         return res.status(200).json({ success: true });
       }
 
@@ -325,6 +458,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
           }
           store.submissions = [...map.values()];
         }
+        void persistStore();
         return res.status(200).json({
           success: true,
           threads: store.threads,

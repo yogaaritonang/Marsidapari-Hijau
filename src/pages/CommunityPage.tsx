@@ -223,7 +223,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
                         {sub.challengeTitle}
                       </h4>
                       <p className="text-[11px] text-gray-500">
-                        Oleh: {sub.isAnonymous ? 'Sahabat Ciptaan' : sub.userName} &bull; Keyakinan AI: {sub.confidence}%
+                        Oleh: {sub.isAnonymous ? 'Sahabat Ciptaan' : sub.userName} &bull; Keyakinan Sistem: {sub.confidence}%
                       </p>
                     </div>
                     <span className="text-xs font-bold text-[#2E6B34]">
@@ -232,17 +232,23 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
                   </div>
 
                   <div className="flex gap-3">
-                    <img
-                      src={sub.imageThumbnail}
-                      alt="Bukti foto"
-                      className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0"
-                    />
+                    {sub.imageThumbnail && sub.imageThumbnail.trim() ? (
+                      <img
+                        src={sub.imageThumbnail}
+                        alt="Bukti foto"
+                        className="w-20 h-20 rounded-xl object-cover border border-gray-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-xl bg-emerald-100/80 border border-emerald-200/80 flex items-center justify-center text-[#2E6B34] shrink-0">
+                        <Trees className="w-8 h-8" />
+                      </div>
+                    )}
                     <div className="text-xs text-gray-700 space-y-1">
                       <p className="italic bg-gray-50 p-2 rounded-xl border border-gray-100">
                         "{sub.userNotes || 'Tanpa catatan'}"
                       </p>
                       <p className="text-[11px] text-gray-500">
-                        Alasan AI: {sub.alasan}
+                        Alasan Analisis: {sub.alasan}
                       </p>
                     </div>
                   </div>

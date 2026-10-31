@@ -44,7 +44,7 @@ export const ProfileAvatar: React.FC<ProfileAvatarProps> = ({
 
   return (
     <span className={`${className} relative inline-flex shrink-0 items-center justify-center overflow-hidden`}>
-      {photoUrl ? (
+      {photoUrl && photoUrl.trim() ? (
         <img src={photoUrl} alt={`Foto profil ${name}`} className="h-full w-full object-cover" />
       ) : name.trim() ? (
         <span aria-hidden="true">

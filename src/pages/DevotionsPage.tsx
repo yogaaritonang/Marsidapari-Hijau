@@ -353,10 +353,10 @@ export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChal
                 type="button"
                 disabled={!topicOrMood.trim() || generating}
                 onClick={handleGenerateCustom}
-                className="flex-1 py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-50 transition active:scale-95 shadow-md flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-50 transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>{generating ? 'Menyusun Renungan...' : 'Susun Renungan AI'}</span>
+                <span>{generating ? 'Menyusun Renungan...' : 'Susun Renungan Otomatis'}</span>
               </button>
             </div>
           </div>

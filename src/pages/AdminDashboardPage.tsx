@@ -28,14 +28,17 @@ import {
   Users,
   Wand2,
   Zap,
+  Eye,
+  Compass,
 } from 'lucide-react';
-import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion } from '../types';
+import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion, EcotheologyArticle } from '../types';
 import { StorageService } from '../services/storageService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 import { AIService, AiReadinessCheck } from '../services/aiService';
 import { SocialSyncService } from '../services/socialSyncService';
+import { compressImage } from '../services/imageCompression';
 
-type AdminSection = 'overview' | 'brand' | 'ai' | 'threads' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
+type AdminSection = 'overview' | 'brand' | 'ecotheology' | 'ai' | 'threads' | 'users' | 'organizations' | 'challenges' | 'events' | 'reports' | 'locations' | 'content';
 
 interface AdminDashboardPageProps {
   user: User;
@@ -105,20 +108,39 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const [devotionDate, setDevotionDate] = useState(() => StorageService.getTodayDateString());
   const [devotionReadingTime, setDevotionReadingTime] = useState(1);
 
-  // AI Devotion Generator State
+  // Devotion Generator State
   const [aiDevotionTopic, setAiDevotionTopic] = useState('');
   const [generatingDevotion, setGeneratingDevotion] = useState(false);
   const [aiDevotionError, setAiDevotionError] = useState<string | null>(null);
   const [aiDevotionSuccess, setAiDevotionSuccess] = useState<string | null>(null);
 
-  // AI Connection Diagnostics & Readiness state
+  // Ecotheology Articles Management State
+  const [ecotheologyList, setEcotheologyList] = useState<EcotheologyArticle[]>(() =>
+    StorageService.getEcotheologyArticles()
+  );
+  const [editingEcoId, setEditingEcoId] = useState<string | null>(null);
+  const [ecoTitle, setEcoTitle] = useState('');
+  const [ecoCategory, setEcoCategory] = useState<EcotheologyArticle['category']>('mandatum_creationis');
+  const [ecoSummary, setEcoSummary] = useState('');
+  const [ecoContent, setEcoContent] = useState('');
+  const [ecoScriptureRef, setEcoScriptureRef] = useState('');
+  const [ecoScriptureText, setEcoScriptureText] = useState('');
+  const [ecoBatakWisdom, setEcoBatakWisdom] = useState('');
+  const [ecoAuthor, setEcoAuthor] = useState('Pusat Studi Ekoteologi IAKN Tarutung');
+  const [ecoActionCall, setEcoActionCall] = useState('');
+  const [ecoTopicPrompt, setEcoTopicPrompt] = useState('');
+  const [generatingEco, setGeneratingEco] = useState(false);
+  const [ecoAssistantSuccess, setEcoAssistantSuccess] = useState<string | null>(null);
+  const [ecoAssistantError, setEcoAssistantError] = useState<string | null>(null);
+
+  // Intelligent Service Connection Diagnostics & Readiness state
   const [testingAi, setTestingAi] = useState(false);
   const [testResult, setTestResult] = useState<AiTestDiagnosticResult | null>(null);
   const [testCustomPrompt, setTestCustomPrompt] = useState('Perkenalkan dirimu dalam 1 kalimat dan sebutkan namamu sesuai instruksi sistem.');
   const [aiReadiness, setAiReadiness] = useState<AiReadinessCheck>({
     ready: true,
     status: 'checking',
-    message: 'Memeriksa AI...',
+    message: 'Memeriksa Layanan...',
     lastChecked: '',
   });
 
@@ -134,10 +156,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   useEffect(() => {
     let cancelled = false;
     const verifyAi = async () => {
-      setAiReadiness((prev) => ({ ...prev, status: 'checking', message: 'Memeriksa AI...' }));
+      setAiReadiness((prev) => ({ ...prev, status: 'checking', message: 'Memeriksa Layanan...' }));
       const res = await AIService.checkAiHealth(brand);
       if (!cancelled) {
-        setAiReadiness(res);
+        setAiReadiness({
+          ...res,
+          message: res.status === 'ready' ? 'Layanan Cerdas Aktif' : res.status === 'checking' ? 'Memeriksa Layanan...' : 'Layanan Cerdas Terputus',
+        });
       }
     };
     verifyAi();
@@ -163,7 +188,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
           apiKey: brand.geminiApiKey?.trim() || undefined,
           model: brand.geminiModel?.trim() || undefined,
           systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
-          testPrompt: 'PING TEST: Berikan respon 1 kalimat konfirmasi bahwa AI siap beroperasi.',
+          testPrompt: 'PING TEST: Berikan respon 1 kalimat konfirmasi bahwa sistem cerdas siap beroperasi.',
         }),
       });
       const durationMs = Math.round(performance.now() - start);
@@ -174,7 +199,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         durationMs,
         rawText: text,
       });
-      notify(res.ok ? '⚡ Direct Test Trigger selesai (HTTP 200).' : `⚠️ Direct Test Trigger HTTP ${res.status}.`);
+      notify(res.ok ? '⚡ Uji Pemicu Langsung selesai (HTTP 200).' : `⚠️ Uji Pemicu Langsung HTTP ${res.status}.`);
     } catch (e) {
       const durationMs = Math.round(performance.now() - start);
       setDirectTriggerResult({
@@ -183,7 +208,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         durationMs,
         rawText: `Error jaringan / fetch gagal: ${e instanceof Error ? e.message : 'Unknown error'}`,
       });
-      notify('❌ Direct Test Trigger gagal menghubungi server.');
+      notify('❌ Uji pemicu langsung gagal menghubungi server.');
     } finally {
       setDirectTriggerRunning(false);
     }
@@ -209,16 +234,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
       setAiReadiness({
         ready: Boolean(data.ok),
         status: data.ok ? 'ready' : 'error',
-        message: data.ok ? 'AI Siap' : 'AI Bermasalah',
+        message: data.ok ? 'Layanan Cerdas Aktif' : 'Layanan Cerdas Terputus',
         model: data.diagnostics?.modelResolved || data.diagnostics?.modelRequested,
         latencyMs: data.diagnostics?.latencyMs,
         errorDetails: data.error?.message,
         lastChecked: new Date().toLocaleTimeString(),
       });
       if (data.ok) {
-        notify('✅ Uji koneksi AI berhasil!');
+        notify('✅ Uji koneksi layanan berhasil!');
       } else {
-        notify('⚠️ Uji koneksi AI mengembalikan kendala.');
+        notify('⚠️ Uji koneksi layanan mengembalikan kendala.');
       }
     } catch (err) {
       setTestResult({
@@ -240,13 +265,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         error: {
           code: 500,
           message: err instanceof Error ? err.message : 'Gagal menghubungi server.',
-          suggestion: 'Pastikan server dev atau backend Vercel aktif.',
+          suggestion: 'Pastikan server dev atau backend aktif.',
         },
       });
       setAiReadiness({
         ready: false,
         status: 'error',
-        message: 'AI Bermasalah',
+        message: 'Layanan Cerdas Terputus',
         errorDetails: err instanceof Error ? err.message : 'Gagal menghubungi server.',
         lastChecked: new Date().toLocaleTimeString(),
       });
@@ -272,7 +297,117 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     StorageService.saveBrandSettings(brand);
     await SocialSyncService.syncBrand(brand);
     notify('Pengaturan aplikasi & logo tersimpan dan disinkronkan ke seluruh pengguna.');
-    void AIService.checkAiHealth(brand).then(setAiReadiness);
+    void AIService.checkAiHealth(brand).then((res) => {
+      setAiReadiness({
+        ...res,
+        message: res.status === 'ready' ? 'Layanan Cerdas Aktif' : res.status === 'checking' ? 'Memeriksa Layanan...' : 'Layanan Cerdas Terputus',
+      });
+    });
+  };
+
+  // Ecotheology handlers
+  const resetEcoForm = () => {
+    setEditingEcoId(null);
+    setEcoTitle('');
+    setEcoCategory('mandatum_creationis');
+    setEcoSummary('');
+    setEcoContent('');
+    setEcoScriptureRef('');
+    setEcoScriptureText('');
+    setEcoBatakWisdom('');
+    setEcoAuthor('Pusat Studi Ekoteologi IAKN Tarutung');
+    setEcoActionCall('');
+    setEcoAssistantSuccess(null);
+    setEcoAssistantError(null);
+  };
+
+  const handleEditEco = (article: EcotheologyArticle) => {
+    setEditingEcoId(article.id);
+    setEcoTitle(article.title);
+    setEcoCategory(article.category);
+    setEcoSummary(article.summary);
+    setEcoContent(article.content);
+    setEcoScriptureRef(article.scriptureRef);
+    setEcoScriptureText(article.scriptureText);
+    setEcoBatakWisdom(article.batakWisdom);
+    setEcoAuthor(article.author);
+    setEcoActionCall(article.actionCall || '');
+    setEcoAssistantSuccess(null);
+    setEcoAssistantError(null);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDeleteEco = async (id: string) => {
+    if (window.confirm('Yakin ingin menghapus artikel ekoteologi ini?')) {
+      StorageService.deleteEcotheologyArticle(id);
+      const updated = StorageService.getEcotheologyArticles();
+      setEcotheologyList(updated);
+      await SocialSyncService.syncEcotheologyArticles(updated);
+      if (editingEcoId === id) resetEcoForm();
+      notify('Artikel ekoteologi berhasil dihapus.');
+    }
+  };
+
+  const handleSaveEco = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!ecoTitle.trim() || !ecoContent.trim()) {
+      setEcoAssistantError('Judul dan isi artikel ekoteologi wajib diisi.');
+      return;
+    }
+
+    const item: EcotheologyArticle = {
+      id: editingEcoId || `eco-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      title: ecoTitle.trim(),
+      category: ecoCategory,
+      summary: ecoSummary.trim() || ecoContent.trim().slice(0, 140) + '...',
+      content: ecoContent.trim(),
+      scriptureRef: ecoScriptureRef.trim(),
+      scriptureText: ecoScriptureText.trim(),
+      batakWisdom: ecoBatakWisdom.trim() || 'Marsiadapari mamparbuehon denggan: Gotong royong merawat ciptaan membuahkan berkat.',
+      author: ecoAuthor.trim() || 'Civitas IAKN Tarutung',
+      publishedAt: new Date().toISOString().split('T')[0],
+      actionCall: ecoActionCall.trim(),
+      isFeatured: true,
+    };
+
+    StorageService.saveEcotheologyArticle(item);
+    const updated = StorageService.getEcotheologyArticles();
+    setEcotheologyList(updated);
+    await SocialSyncService.syncEcotheologyArticles(updated);
+    notify(editingEcoId ? 'Artikel ekoteologi berhasil diperbarui.' : 'Artikel ekoteologi baru berhasil diterbitkan!');
+    resetEcoForm();
+  };
+
+  const handleGenerateEcoContent = async () => {
+    if (!ecoTopicPrompt.trim()) {
+      setEcoAssistantError('Tuliskan topik atau tema alam yang ingin disusun naskahnya.');
+      return;
+    }
+
+    setGeneratingEco(true);
+    setEcoAssistantError(null);
+    setEcoAssistantSuccess(null);
+
+    try {
+      const res = await AIService.generateReflection(
+        ecoTopicPrompt.trim(),
+        'Civitas Akademika IAKN Tarutung',
+        'Komunitas Marsiadapari Hijau'
+      );
+      const d = res.data;
+      setEcoTitle(d.title || `Refleksi Ekoteologi: ${ecoTopicPrompt.trim()}`);
+      setEcoScriptureRef(d.scripture || 'Kejadian 2:15');
+      setEcoScriptureText(d.verse_text || 'Tuhan Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.');
+      setEcoContent(d.body || '');
+      setEcoSummary(d.body ? d.body.slice(0, 160) + '...' : '');
+      setEcoBatakWisdom(d.batak_wisdom || 'Marsiadapari mamparbuehon denggan: Kerja bersama merawat alam melahirkan buah kedamaian.');
+      setEcoActionCall(d.call_to_action || 'Lakukan gotong royong pembersihan lingkungan pekan ini.');
+      setEcoAssistantSuccess('✨ Naskah ekoteologi & ayat Alkitab berhasil disusun secara cerdas! Silakan periksa atau sesuaikan draf di bawah, lalu klik Terbitkan.');
+    } catch (err) {
+      setEcoAssistantError(err instanceof Error ? err.message : 'Gagal menyusun naskah ekoteologi otomatis.');
+    } finally {
+      setGeneratingEco(false);
+    }
   };
 
   const addOrganization = (event: React.FormEvent<HTMLFormElement>) => {
@@ -417,7 +552,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
   const handleGenerateDevotionWithAi = async () => {
     if (!aiDevotionTopic.trim()) {
-      setAiDevotionError('Tuliskan topik atau tema renungan yang ingin digenerate.');
+      setAiDevotionError('Tuliskan topik atau tema renungan yang ingin disusun.');
       return;
     }
 
@@ -440,10 +575,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         setDevotionCallToAction(result.data.call_to_action || '');
         setDevotionBatakWisdom(result.data.batak_wisdom || '');
         setDevotionReadingTime(result.data.reading_time_minutes || 1);
-        setAiDevotionSuccess('✨ Renungan ekoteologi berhasil dibuat oleh AI! Periksa atau sesuaikan draf di bawah, lalu klik Simpan.');
+        setAiDevotionSuccess('✨ Renungan ekoteologi berhasil disusun secara cerdas! Periksa atau sesuaikan draf di bawah, lalu klik Simpan.');
       }
     } catch (err) {
-      setAiDevotionError(err instanceof Error ? err.message : 'Gagal menghasilkan renungan dengan AI.');
+      setAiDevotionError(err instanceof Error ? err.message : 'Gagal menghasilkan renungan otomatis.');
     } finally {
       setGeneratingDevotion(false);
     }
@@ -451,9 +586,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
   const navItems: Array<{ id: AdminSection; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'overview', label: 'Ringkasan', icon: ClipboardList },
-    { id: 'brand', label: 'Identitas & Tampilan', icon: Image },
-    { id: 'ai', label: 'Pengaturan AI', icon: Sparkles },
+    { id: 'brand', label: 'Identitas & Layar Pembuka', icon: Image },
+    { id: 'ecotheology', label: 'Ekoteologi & Alam', icon: Leaf },
     { id: 'content', label: 'Renungan Harian', icon: BookOpen },
+    { id: 'ai', label: 'Layanan Cerdas & Otomasi', icon: Cpu },
     { id: 'threads', label: 'Threads & Keluhan', icon: MessageSquare },
     { id: 'users', label: 'Pengguna', icon: Users },
     { id: 'organizations', label: 'Organisasi', icon: Building2 },
@@ -469,7 +605,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#2E6B34] text-white">
-              {brand.logoUrl ? (
+              {brand.logoUrl && brand.logoUrl.trim() ? (
                 <img src={brand.logoUrl} alt="" className="h-full w-full object-contain" />
               ) : (
                 <Leaf className="h-5 w-5 text-[#B9E0A9]" />
@@ -481,16 +617,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Live AI Status Indicator Badge */}
+            {/* Live Service Status Indicator Badge */}
             <button
               type="button"
               onClick={() => setSection('ai')}
               title={
                 aiReadiness.status === 'ready'
-                  ? `AI Siap: Model ${aiReadiness.model || 'Gemini'} aktif (${aiReadiness.latencyMs ? aiReadiness.latencyMs + 'ms' : 'normal'}). Klik untuk buka Pengaturan AI.`
+                  ? `Layanan Aktif (${aiReadiness.latencyMs ? aiReadiness.latencyMs + 'ms' : 'normal'}). Klik untuk buka Konfigurasi Layanan.`
                   : aiReadiness.status === 'checking'
-                  ? 'Sedang memeriksa status operasional AI...'
-                  : `AI Bermasalah: ${aiReadiness.errorDetails || aiReadiness.message}. Klik untuk melihat diagnosa & solusi.`
+                  ? 'Sedang memeriksa status operasional layanan...'
+                  : `Kendala Layanan: ${aiReadiness.errorDetails || aiReadiness.message}. Klik untuk melihat diagnosa & solusi.`
               }
               className={`flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs active:scale-95 cursor-pointer ${
                 aiReadiness.status === 'ready'
@@ -506,18 +642,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
                   </span>
-                  <span>AI Siap</span>
+                  <span>Layanan Aktif</span>
                 </>
               ) : aiReadiness.status === 'checking' ? (
                 <>
                   <RefreshCw className="h-3 w-3 animate-spin text-gray-500" />
-                  <span className="hidden sm:inline">Memeriksa AI...</span>
-                  <span className="sm:hidden">AI...</span>
+                  <span className="hidden sm:inline">Memeriksa Layanan...</span>
+                  <span className="sm:hidden">Memeriksa...</span>
                 </>
               ) : (
                 <>
                   <span className="flex h-2.5 w-2.5 rounded-full bg-red-600"></span>
-                  <span>AI Bermasalah</span>
+                  <span>Layanan Terputus</span>
                 </>
               )}
             </button>
@@ -619,12 +755,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <input type="file" accept="image/*" onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        const result = typeof reader.result === 'string' ? reader.result : '';
-                        setBrand({ ...brand, logoUrl: result });
-                      };
-                      reader.readAsDataURL(file);
+                      try {
+                        const compressed = await compressImage(file, 256, 256, 0.85);
+                        setBrand({ ...brand, logoUrl: compressed.dataUrl });
+                        notify('Gambar logo dikompresi & disiapkan.');
+                      } catch {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const result = typeof reader.result === 'string' ? reader.result : '';
+                          setBrand({ ...brand, logoUrl: result });
+                        };
+                        reader.readAsDataURL(file);
+                      }
                     }} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm font-normal" />
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
@@ -672,9 +814,165 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <input value={brand.footerText || ''} onChange={(event) => setBrand({ ...brand, footerText: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                 </div>
+
+                {/* Launch Screen Settings Sub-panel */}
+                <div className="mt-6 border-t border-gray-200 pt-6 space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-[#2E6B34]" />
+                        Pengaturan Layar Pembuka (Launch Screen)
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Tampilan splash saat pengguna membuka aplikasi pertama kali.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('mh-preview-launch-screen', { detail: brand.launchScreen }));
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-[#2E6B34] bg-[#EAF3E6] px-3 py-1.5 text-xs font-bold text-[#2E6B34] hover:bg-[#2E6B34] hover:text-white transition cursor-pointer"
+                    >
+                      <Eye className="h-3.5 w-3.5" /> Pratinjau Layar Pembuka
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex items-center gap-2 text-xs font-bold sm:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={brand.launchScreen?.enabled !== false}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: e.target.checked,
+                            title: brand.launchScreen?.title || brand.name || 'Marsiadapari Hijau',
+                            subtitle: brand.launchScreen?.subtitle || 'Gerakan Ekoteologi & Aksi Iklim Bona Pasogit',
+                            verseText: brand.launchScreen?.verseText || 'Tuhan Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.',
+                            verseRef: brand.launchScreen?.verseRef || 'Kejadian 2:15',
+                            durationSeconds: brand.launchScreen?.durationSeconds || 3,
+                          }
+                        })}
+                        className="h-4 w-4 rounded text-[#2E6B34] focus:ring-[#2E6B34]"
+                      />
+                      Aktifkan Layar Pembuka saat Aplikasi Dimuat
+                    </label>
+
+                    <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                      Judul Layar Pembuka
+                      <input
+                        type="text"
+                        value={brand.launchScreen?.title ?? (brand.name || 'Marsiadapari Hijau')}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: brand.launchScreen?.enabled !== false,
+                            title: e.target.value,
+                            subtitle: brand.launchScreen?.subtitle || '',
+                            verseText: brand.launchScreen?.verseText || '',
+                            verseRef: brand.launchScreen?.verseRef || '',
+                            durationSeconds: brand.launchScreen?.durationSeconds || 3,
+                          }
+                        })}
+                        className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                      Subjudul / Tagline Pembuka
+                      <input
+                        type="text"
+                        value={brand.launchScreen?.subtitle ?? (brand.tagline || 'Gerakan Ekoteologi & Aksi Iklim Bona Pasogit')}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: brand.launchScreen?.enabled !== false,
+                            title: brand.launchScreen?.title || brand.name || '',
+                            subtitle: e.target.value,
+                            verseText: brand.launchScreen?.verseText || '',
+                            verseRef: brand.launchScreen?.verseRef || '',
+                            durationSeconds: brand.launchScreen?.durationSeconds || 3,
+                          }
+                        })}
+                        className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
+                      Ayat Alkitab Pijakan (Mandatum Creationis)
+                      <textarea
+                        rows={2}
+                        value={brand.launchScreen?.verseText ?? 'Tuhan Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.'}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: brand.launchScreen?.enabled !== false,
+                            title: brand.launchScreen?.title || brand.name || '',
+                            subtitle: brand.launchScreen?.subtitle || '',
+                            verseText: e.target.value,
+                            verseRef: brand.launchScreen?.verseRef || '',
+                            durationSeconds: brand.launchScreen?.durationSeconds || 3,
+                          }
+                        })}
+                        className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 text-xs font-bold">
+                      Referensi Ayat
+                      <input
+                        type="text"
+                        value={brand.launchScreen?.verseRef ?? 'Kejadian 2:15'}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: brand.launchScreen?.enabled !== false,
+                            title: brand.launchScreen?.title || brand.name || '',
+                            subtitle: brand.launchScreen?.subtitle || '',
+                            verseText: brand.launchScreen?.verseText || '',
+                            verseRef: e.target.value,
+                            durationSeconds: brand.launchScreen?.durationSeconds || 3,
+                          }
+                        })}
+                        placeholder="Contoh: Kejadian 2:15"
+                        className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                      />
+                    </label>
+
+                    <label className="block space-y-1.5 text-xs font-bold">
+                      Durasi Tayang (Detik: 2 - 8)
+                      <input
+                        type="number"
+                        min={2}
+                        max={8}
+                        value={brand.launchScreen?.durationSeconds ?? 3}
+                        onChange={(e) => setBrand({
+                          ...brand,
+                          launchScreen: {
+                            ...(brand.launchScreen || {}),
+                            enabled: brand.launchScreen?.enabled !== false,
+                            title: brand.launchScreen?.title || brand.name || '',
+                            subtitle: brand.launchScreen?.subtitle || '',
+                            verseText: brand.launchScreen?.verseText || '',
+                            verseRef: brand.launchScreen?.verseRef || '',
+                            durationSeconds: Math.max(2, Math.min(8, Number(e.target.value))),
+                          }
+                        })}
+                        className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                      />
+                    </label>
+                  </div>
+                </div>
+
                 <div className="flex items-center gap-3 rounded-xl bg-[#F3F6F1] p-4">
                   <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-[#2E6B34] text-white">
-                    {brand.logoUrl ? <img src={brand.logoUrl} alt="Pratinjau logo" className="h-full w-full object-contain" /> : <Leaf className="h-7 w-7" />}
+                    {brand.logoUrl && brand.logoUrl.trim() ? <img src={brand.logoUrl} alt="Pratinjau logo" className="h-full w-full object-contain" /> : <Leaf className="h-7 w-7" />}
                   </div>
                   <div>
                     <span className="font-bold block">{brand.name || 'Marsiadapari Hijau'}</span>
@@ -689,26 +987,352 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
           )}
 
 
+          {section === 'ecotheology' && (
+            <section className="space-y-5">
+              {/* Header Card */}
+              <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
+                      <BookOpen className="h-4 w-4" />
+                      Pusat Ekoteologi &amp; Keberlanjutan Alam
+                    </div>
+                    <h2 className="mt-1 text-xl sm:text-2xl font-bold text-gray-900">
+                      Kelola Khazanah Ekoteologi Batak Toba
+                    </h2>
+                    <p className="mt-1 text-xs text-gray-600 leading-relaxed max-w-3xl">
+                      Kelola artikel, renungan teologi penciptaan (Mandatum Creationis Kejadian 2:15, kearifan lokal Marsiadapari, kelestarian Danau Toba). Konten ini tersinkronisasi dan tampil di Beranda jemaat, mahasiswa, &amp; seluruh pengguna.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={resetEcoForm}
+                    className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-xl bg-[#2E6B34] px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#235328] transition"
+                  >
+                    <Plus className="h-4 w-4" /> Tulis Artikel Baru
+                  </button>
+                </div>
+              </div>
+
+              {/* Smart Writer Assistant Card */}
+              <div className="rounded-2xl border-2 border-[#2E6B34]/30 bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 p-4 sm:p-6 shadow-sm">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
+                  <Wand2 className="h-4 w-4" />
+                  Penyusun Naskah Ekoteologi Otomatis
+                </div>
+                <h3 className="mt-1 text-base font-extrabold text-gray-900">
+                  Rancang Refleksi &amp; Bahan Ajar Ekoteologi Berbasis Firman
+                </h3>
+                <p className="mt-1 text-xs text-gray-600 leading-relaxed max-w-2xl">
+                  Gunakan asisten cerdas untuk memilihkan ayat Alkitab, memadukan teologi penciptaan dan falsafah Marsiadapari, serta merumuskan ajakan aksi nyata bagi kelestarian alam Danau Toba.
+                </p>
+
+                {/* Quick Topic Chips */}
+                <div className="mt-3.5">
+                  <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wide mb-1.5">Pilih Topik Cepat:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      'Mandatum Creationis & Menjaga Hutan Toba',
+                      'Marsiadapari Mengatasi Sampah Plastik Danau Toba',
+                      'Mata Air Rura Silindung & Mazmur 104',
+                      'Teologi Tanah Pusaka Batak & Keadilan Iklim',
+                      'Pemberdayaan Pemuda Gereja Menanam Pohon',
+                    ].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setEcoTopicPrompt(chip)}
+                        className="rounded-lg border border-[#2E6B34]/25 bg-white/90 px-2.5 py-1 text-xs font-medium text-[#2E6B34] hover:bg-[#2E6B34] hover:text-white transition active:scale-95 shadow-2xs"
+                      >
+                        + {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2.5 sm:grid-cols-[1fr_auto]">
+                  <input
+                    type="text"
+                    value={ecoTopicPrompt}
+                    onChange={(e) => setEcoTopicPrompt(e.target.value)}
+                    placeholder="Contoh: Merawat Mata Air Rura Silindung dan Kebersihan Danau Toba..."
+                    className="min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3.5 text-sm outline-none focus:border-[#2E6B34] focus:ring-2 focus:ring-[#2E6B34]/20"
+                  />
+                  <button
+                    type="button"
+                    disabled={generatingEco}
+                    onClick={handleGenerateEcoContent}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-5 text-xs font-bold text-white shadow-sm hover:bg-[#245429] disabled:opacity-60 transition active:scale-95 cursor-pointer"
+                  >
+                    {generatingEco ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <span>Menyusun Naskah...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 text-amber-300" />
+                        <span>🌾 Susun Refleksi Otomatis</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {ecoAssistantError && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 p-3 text-xs font-semibold text-red-700">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{ecoAssistantError}</span>
+                  </div>
+                )}
+
+                {ecoAssistantSuccess && (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                    <span>{ecoAssistantSuccess}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Form Tambah / Edit Artikel Ekoteologi */}
+              <form onSubmit={handleSaveEco} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-xs">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                    <Edit3 className="h-4 w-4 text-[#2E6B34]" />
+                    {editingEcoId ? 'Edit Naskah Ekoteologi' : 'Tulis / Sesuaikan Artikel Ekoteologi'}
+                  </h3>
+                  {editingEcoId && (
+                    <button
+                      type="button"
+                      onClick={resetEcoForm}
+                      className="text-xs font-semibold text-gray-500 hover:text-gray-800 underline"
+                    >
+                      Batal Edit (Buat Baru)
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block space-y-1.5 text-xs font-bold text-gray-700 sm:col-span-2">
+                    Judul Artikel Ekoteologi
+                    <input
+                      type="text"
+                      required
+                      value={ecoTitle}
+                      onChange={(e) => setEcoTitle(e.target.value)}
+                      placeholder="Contoh: Mandatum Creationis: Mandat Merawat dan Menjaga Bona Pasogit"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Kategori Bahasan
+                    <select
+                      value={ecoCategory}
+                      onChange={(e) => setEcoCategory(e.target.value as any)}
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    >
+                      <option value="mandatum_creationis">Mandatum Creationis (Kej 2:15)</option>
+                      <option value="marsiadapari_alam">Marsiadapari &amp; Gotong Royong Ciptaan</option>
+                      <option value="danau_toba_lestari">Kelestarian Danau Toba &amp; Ekosistem</option>
+                      <option value="teologi_tanah">Teologi Tanah Pusaka &amp; Hutan</option>
+                      <option value="refleksi_pemuda">Aksi Pemuda &amp; Mahasiswa Kampus</option>
+                    </select>
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Penulis / Pengajar
+                    <input
+                      type="text"
+                      value={ecoAuthor}
+                      onChange={(e) => setEcoAuthor(e.target.value)}
+                      placeholder="Contoh: Pusat Studi Ekoteologi IAKN Tarutung"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Ayat Alkitab Pijakan
+                    <input
+                      type="text"
+                      value={ecoScriptureRef}
+                      onChange={(e) => setEcoScriptureRef(e.target.value)}
+                      placeholder="Contoh: Kejadian 2:15 atau Mazmur 104:10"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="space-y-1.5 text-xs font-bold text-gray-700">
+                    Kearifan Lokal / Falsafah Batak
+                    <input
+                      type="text"
+                      value={ecoBatakWisdom}
+                      onChange={(e) => setEcoBatakWisdom(e.target.value)}
+                      placeholder="Contoh: Marsiadapari mamparbuehon denggan"
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="block space-y-1.5 text-xs font-bold text-gray-700 sm:col-span-2">
+                    Kutipan Bunyi Ayat Alkitab
+                    <textarea
+                      rows={2}
+                      value={ecoScriptureText}
+                      onChange={(e) => setEcoScriptureText(e.target.value)}
+                      placeholder="Tuliskan bunyi firman yang mendasari refleksi..."
+                      className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="block space-y-1.5 text-xs font-bold text-gray-700 sm:col-span-2">
+                    Ringkasan Singkat (Muncul di Beranda)
+                    <textarea
+                      rows={2}
+                      value={ecoSummary}
+                      onChange={(e) => setEcoSummary(e.target.value)}
+                      placeholder="Ringkasan 1-2 kalimat untuk kartu di Beranda..."
+                      className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="block space-y-1.5 text-xs font-bold text-gray-700 sm:col-span-2">
+                    Isi Lengkap Renungan / Bahan Ajar Ekoteologi
+                    <textarea
+                      required
+                      rows={6}
+                      value={ecoContent}
+                      onChange={(e) => setEcoContent(e.target.value)}
+                      placeholder="Tuliskan ulasan teologi penciptaan dan relevansinya bagi kehidupan sehari-hari..."
+                      className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+
+                  <label className="block space-y-1.5 text-xs font-bold text-gray-700 sm:col-span-2">
+                    Ajakan Aksi Nyata (Call to Action)
+                    <input
+                      type="text"
+                      value={ecoActionCall}
+                      onChange={(e) => setEcoActionCall(e.target.value)}
+                      placeholder="Contoh: Kurangi botol plastik sekali pakai dan lakukan gotong royong di tepian Danau Toba."
+                      className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]"
+                    />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-end gap-2.5 pt-2 border-t border-gray-100">
+                  {editingEcoId && (
+                    <button
+                      type="button"
+                      onClick={resetEcoForm}
+                      className="min-h-11 rounded-xl border border-gray-300 px-4 text-xs font-bold text-gray-600 hover:bg-gray-50"
+                    >
+                      Batal
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-6 text-xs font-bold text-white shadow-sm hover:bg-[#245429] transition active:scale-95 cursor-pointer"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>{editingEcoId ? 'Perbarui Artikel' : 'Simpan & Publikasikan ke Beranda'}</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Daftar Artikel Ekoteologi Terbit */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-sm text-gray-900">Daftar Artikel &amp; Renungan Ekoteologi</h3>
+                  <span className="text-xs text-gray-500">Total: {ecotheologyList.length} artikel</span>
+                </div>
+
+                <div className="grid gap-3.5 sm:grid-cols-2">
+                  {ecotheologyList.map((art) => (
+                    <article
+                      key={art.id}
+                      className="flex flex-col justify-between rounded-2xl border border-gray-200 bg-white p-4 transition shadow-xs hover:border-[#2E6B34]/40"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 text-[#2E6B34] border border-emerald-200 px-2.5 py-0.5 text-[10px] font-bold">
+                            <Leaf className="h-3 w-3" />
+                            {art.category.replace(/_/g, ' ')}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-medium">
+                            {art.publishedAt}
+                          </span>
+                        </div>
+
+                        <h4 className="font-bold text-sm text-gray-900 leading-snug">
+                          {art.title}
+                        </h4>
+
+                        {art.scriptureRef && (
+                          <p className="mt-1 text-xs font-bold text-[#2E6B34]">
+                            📖 {art.scriptureRef}
+                          </p>
+                        )}
+
+                        <p className="mt-1.5 text-xs text-gray-600 line-clamp-3 leading-relaxed">
+                          {art.summary || art.content}
+                        </p>
+
+                        {art.batakWisdom && (
+                          <p className="mt-2 text-[11px] font-medium text-amber-900 bg-amber-50/70 rounded-lg p-2 border border-amber-200/50 italic">
+                            🌾 {art.batakWisdom}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-3">
+                        <span className="text-[11px] text-gray-500 truncate max-w-[170px]">
+                          {art.author}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleEditEco(art)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#2E6B34] hover:bg-emerald-50 transition"
+                            title="Edit Artikel"
+                          >
+                            <Edit3 className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEco(art.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 hover:bg-red-50 transition"
+                            title="Hapus Artikel"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
           {section === 'ai' && (
             <section className="space-y-5">
               <div className="max-w-3xl space-y-5 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6">
                 <div>
-                  <h2 className="font-bold">Pengaturan AI</h2>
-                  <p className="mt-1 text-xs leading-5 text-gray-500">Atur API key Gemini, model, deskripsi aplikasi untuk konteks AI, dan instruksi sistem chatbot "Sahabat Ciptaan".</p>
+                  <h2 className="font-bold">Konfigurasi Layanan Cerdas &amp; Otomasi</h2>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Atur kunci akses API, model bahasa, deskripsi aplikasi untuk konteks sistem cerdas, dan instruksi asisten Sahabat Ciptaan.</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
-                    Gemini API Key (lokal)
-                    <input type="password" value={brand.geminiApiKey || ''} onChange={(event) => setBrand({ ...brand, geminiApiKey: event.target.value })} placeholder="AIza..." className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                    Kunci Akses API (Lokal)
+                    <input type="password" value={brand.geminiApiKey || ''} onChange={(event) => setBrand({ ...brand, geminiApiKey: event.target.value })} placeholder="Kunci API..." className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold">
-                    Model Gemini
+                    Model Layanan Cerdas
                     <input value={brand.geminiModel || 'gemini-3.5-flash'} onChange={(event) => setBrand({ ...brand, geminiModel: event.target.value })} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                   <div className="flex items-center gap-3 sm:pt-6">
                     <label className="flex items-center gap-2 text-xs font-bold">
                       <input type="checkbox" checked={brand.showChatbot !== false} onChange={(e)=>setBrand({...brand, showChatbot: e.target.checked})} />
-                      Tampilkan chatbot
+                      Tampilkan konsultasi
                     </label>
                     <label className="flex items-center gap-2 text-xs font-bold">
                       <input type="checkbox" checked={brand.allowGuestChat !== false} onChange={(e)=>setBrand({...brand, allowGuestChat: e.target.checked})} />
@@ -716,11 +1340,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     </label>
                   </div>
                   <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
-                    Deskripsi aplikasi untuk konteks AI
+                    Deskripsi aplikasi untuk konteks layanan cerdas
                     <textarea value={brand.description || ''} onChange={(event) => setBrand({ ...brand, description: event.target.value })} rows={2} className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
-                    Instruksi sistem AI (prompt kustom untuk Sahabat Ciptaan)
+                    Instruksi sistem cerdas (panduan khusus Sahabat Ciptaan)
                     <textarea value={brand.aiSystemPrompt || ''} onChange={(event) => setBrand({ ...brand, aiSystemPrompt: event.target.value })} rows={6} placeholder="Tambahkan pengetahuan, aturan, atau persona khusus..." className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                 </div>
@@ -730,24 +1354,24 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328] transition shadow-xs active:scale-95">
-                    <Save className="h-4 w-4" /> Simpan pengaturan AI
+                    <Save className="h-4 w-4" /> Simpan konfigurasi layanan
                   </button>
 
                   <button
                     type="button"
                     onClick={handleTestAi}
                     disabled={testingAi}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-xs active:scale-95 disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-50 px-4 text-sm font-bold text-emerald-800 hover:bg-emerald-100 transition shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
                   >
                     {testingAi ? (
                       <>
                         <RefreshCw className="h-4 w-4 animate-spin text-emerald-700" />
-                        Sedang Menguji Koneksi AI...
+                        Sedang Menguji Koneksi Layanan...
                       </>
                     ) : (
                       <>
                         <Zap className="h-4 w-4 text-emerald-700" />
-                        Uji Koneksi AI (Test Connection)
+                        Uji Koneksi Layanan Cerdas
                       </>
                     )}
                   </button>
@@ -757,13 +1381,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     type="button"
                     onClick={handleManualTestTrigger}
                     disabled={directTriggerRunning}
-                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-bold text-slate-100 hover:bg-slate-800 transition shadow-xs active:scale-95 disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-4 text-sm font-bold text-slate-100 hover:bg-slate-800 transition shadow-xs active:scale-95 disabled:opacity-50 cursor-pointer"
                     title="Kirim kueri langsung tanpa UI kompleks untuk isolasi konektivitas"
                   >
                     {directTriggerRunning ? (
                       <>
                         <RefreshCw className="h-4 w-4 animate-spin text-amber-400" />
-                        Menembak AI (Triggering)...
+                        Menguji Pemicu Langsung...
                       </>
                     ) : (
                       <>
@@ -780,7 +1404,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-2.5">
                       <span className="flex items-center gap-2 font-bold text-slate-200">
                         <Terminal className="h-4 w-4 text-amber-400" />
-                        Isolated AI Connectivity Output
+                        Diagnostik Konektivitas Sistem
                       </span>
                       <div className="flex items-center gap-2">
                         <span className={`rounded-md px-2 py-0.5 text-[10px] font-bold ${
@@ -793,7 +1417,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                         <button
                           type="button"
                           onClick={() => setDirectTriggerResult(null)}
-                          className="text-slate-400 hover:text-white text-[11px]"
+                          className="text-slate-400 hover:text-white text-[11px] cursor-pointer"
                         >
                           ✕ Tutup
                         </button>
@@ -801,7 +1425,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     </div>
                     <div className="mt-3">
                       <p className="text-[11px] text-slate-400 mb-1">
-                        &gt; Query: "PING TEST: Berikan respon 1 kalimat konfirmasi bahwa AI siap beroperasi."
+                        &gt; Query: "PING TEST: Berikan respon 1 kalimat konfirmasi bahwa sistem cerdas siap beroperasi."
                       </p>
                       <pre className="overflow-x-auto rounded-lg bg-black/60 p-3 text-[11px] text-slate-200 leading-relaxed font-mono whitespace-pre-wrap max-h-60">
                         {directTriggerResult.rawText}
@@ -832,7 +1456,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                         <div>
                           <div className="flex items-center gap-2">
                             <h3 className="text-sm font-extrabold text-gray-900">
-                              {testResult.ok ? 'Koneksi AI Berhasil Terhubung' : 'Koneksi AI Mengalami Kendala'}
+                              {testResult.ok ? 'Koneksi Layanan Berhasil Terhubung' : 'Koneksi Layanan Mengalami Kendala'}
                             </h3>
                             <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
                               testResult.ok ? 'bg-emerald-200 text-emerald-900' : 'bg-red-200 text-red-900'
@@ -849,7 +1473,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                       <button
                         onClick={handleTestAi}
                         disabled={testingAi}
-                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs"
+                        className="inline-flex items-center gap-1 rounded-lg border border-gray-300 bg-white px-2.5 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-2xs cursor-pointer"
                         title="Uji ulang sekarang"
                       >
                         <RefreshCw className={`h-3.5 w-3.5 ${testingAi ? 'animate-spin' : ''}`} />
@@ -966,14 +1590,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                             type="text"
                             value={testCustomPrompt}
                             onChange={(e) => setTestCustomPrompt(e.target.value)}
-                            placeholder="Ketik pertanyaan uji untuk AI..."
+                            placeholder="Ketik pertanyaan uji untuk sistem..."
                             className="flex-1 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs text-gray-800 outline-none focus:border-[#2E6B34]"
                           />
                           <button
                             type="button"
                             onClick={handleTestAi}
                             disabled={testingAi}
-                            className="rounded-lg bg-[#2E6B34] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#235328] disabled:opacity-50"
+                            className="rounded-lg bg-[#2E6B34] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#235328] disabled:opacity-50 cursor-pointer"
                           >
                             Kirim Uji
                           </button>
@@ -981,7 +1605,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
                         <div className="rounded-lg bg-gray-50 border border-gray-200 p-2.5">
                           <span className="text-[11px] font-bold text-gray-500 block mb-1">
-                            Jawaban Sahabat Ciptaan (Gemini):
+                            Jawaban Sahabat Ciptaan:
                           </span>
                           <p className="text-xs text-gray-900 leading-relaxed whitespace-pre-wrap font-medium">
                             {testResult.testOutput.response}
@@ -994,7 +1618,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     {testResult.audit && testResult.audit.length > 0 && (
                       <div className="mt-3 rounded-xl border border-gray-200/90 bg-white/90 p-3">
                         <span className="text-xs font-bold text-gray-700 block mb-2">
-                          Audit Status Model Gemini:
+                          Audit Status Model Bahasa:
                         </span>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                           {testResult.audit.map((aud) => (
@@ -1116,11 +1740,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
                         <p className="mt-3 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{post.caption}</p>
 
-                        {post.imageUrl && (
+                        {post.imageUrl && post.imageUrl.trim() ? (
                           <div className="mt-3 overflow-hidden rounded-xl border border-gray-200 bg-gray-50 max-w-sm">
                             <img src={post.imageUrl} alt="Foto kiriman warga" className="h-48 w-full object-cover" />
                           </div>
-                        )}
+                        ) : null}
 
                         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                           <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -1305,17 +1929,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 </div>
               </div>
 
-              {/* AI Devotion Generator Card */}
+              {/* Smart Devotion Generator Card */}
               <div className="relative overflow-hidden rounded-2xl border-2 border-[#2E6B34]/30 bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
                   <Wand2 className="h-4 w-4 text-[#2E6B34]" />
-                  Pembuat Renungan Cepat dengan AI
+                  Penyusun Renungan Cepat Cerdas
                 </div>
                 <h3 className="mt-1 text-base font-extrabold text-[#1F2A1F]">
-                  Generate Renungan Ekoteologi Harian dalam Hitungan Detik
+                  Susun Renungan Ekoteologi Harian Otomatis
                 </h3>
                 <p className="mt-1 text-xs text-gray-600 leading-relaxed max-w-2xl">
-                  AI akan otomatis memilihkan ayat Alkitab yang tepat, menyusun refleksi ekoteologi kontekstual Batak &amp; Danau Toba, falsafah kearifan lokal, serta ajakan aksi nyata.
+                  Sistem cerdas akan otomatis memilihkan ayat Alkitab yang tepat, menyusun refleksi ekoteologi kontekstual Batak &amp; Danau Toba, falsafah kearifan lokal, serta ajakan aksi nyata.
                 </p>
 
                 {/* Quick Topic Chips */}
@@ -1354,17 +1978,17 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     type="button"
                     disabled={generatingDevotion}
                     onClick={handleGenerateDevotionWithAi}
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-5 text-xs font-bold text-white shadow-sm hover:bg-[#245429] disabled:opacity-60 transition active:scale-95"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-5 text-xs font-bold text-white shadow-sm hover:bg-[#245429] disabled:opacity-60 transition active:scale-95 cursor-pointer"
                   >
                     {generatingDevotion ? (
                       <>
                         <RefreshCw className="h-4 w-4 animate-spin" />
-                        <span>Menyusun Renungan AI...</span>
+                        <span>Menyusun Renungan...</span>
                       </>
                     ) : (
                       <>
                         <Sparkles className="h-4 w-4 text-amber-300" />
-                        <span>Buat dengan AI</span>
+                        <span>Susun Otomatis</span>
                       </>
                     )}
                   </button>

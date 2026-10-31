@@ -1,4 +1,4 @@
-import { ThreadPost, ThreadReply, ChallengeSubmission, AppNotification, User, BrandSettings } from '../types';
+import { ThreadPost, ThreadReply, ChallengeSubmission, AppNotification, User, BrandSettings, EcotheologyArticle } from '../types';
 import { StorageService } from './storageService';
 
 const NOTIFICATIONS_STORAGE_KEY = 'mh_notifications';
@@ -41,10 +41,54 @@ export class SocialSyncService {
         }
       }
 
-      // 1. Sync Threads
-      if (Array.isArray(data.threads) && data.threads.length > 0) {
-        StorageService.saveThreads(data.threads);
-        window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: data.threads }));
+      // 1. Sync Threads (two-way merge & self-healing so user threads are never lost)
+      if (Array.isArray(data.threads)) {
+        const local = StorageService.getThreads();
+        const threadMap = new Map<string, ThreadPost>();
+
+        // Register server threads
+        for (const t of data.threads) {
+          if (t && t.id) threadMap.set(t.id, t);
+        }
+
+        // Preserve any user threads stored locally and merge social state (likes, saves, replies)
+        for (const t of local) {
+          if (t && t.id) {
+            if (!threadMap.has(t.id)) {
+              threadMap.set(t.id, t);
+              // Re-upload to server in background so all other users see it again
+              void this.syncThread(t);
+            } else {
+              const serverThread = threadMap.get(t.id)!;
+
+              // Merge likedBy lists using Set union
+              const serverLikedBy = Array.isArray(serverThread.likedBy) ? serverThread.likedBy : [];
+              const localLikedBy = Array.isArray(t.likedBy) ? t.likedBy : [];
+              const mergedLikedBy = Array.from(new Set([...serverLikedBy, ...localLikedBy]));
+              serverThread.likedBy = mergedLikedBy;
+              serverThread.likes = Math.max(serverThread.likes || 0, t.likes || 0, mergedLikedBy.length);
+
+              // Merge savedBy lists using Set union
+              const serverSavedBy = Array.isArray(serverThread.savedBy) ? serverThread.savedBy : [];
+              const localSavedBy = Array.isArray(t.savedBy) ? t.savedBy : [];
+              serverThread.savedBy = Array.from(new Set([...serverSavedBy, ...localSavedBy]));
+
+              // Merge local replies if any were added offline
+              const serverReplyIds = new Set((serverThread.replies || []).map((r) => r.id));
+              const localUnsyncedReplies = (t.replies || []).filter((r) => !serverReplyIds.has(r.id));
+              if (localUnsyncedReplies.length > 0) {
+                serverThread.replies = [...(serverThread.replies || []), ...localUnsyncedReplies];
+              }
+            }
+          }
+        }
+
+        const mergedThreads = [...threadMap.values()].sort((a, b) => {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        });
+
+        StorageService.saveThreads(mergedThreads);
+        window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: mergedThreads }));
       }
 
       // 2. Sync Submissions for Leaderboard
@@ -67,16 +111,45 @@ export class SocialSyncService {
         window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
       }
 
-      // 3. Sync Cheers
+      // 3. Sync Cheers (two-way merge)
       if (data.cheers && typeof data.cheers === 'object') {
-        localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(data.cheers));
-        window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: data.cheers }));
+        const localCheers = this.getLocalCheers();
+        const mergedCheers = { ...localCheers };
+
+        for (const [memberId, serverCheer] of Object.entries(data.cheers as Record<string, { count: number; users: string[] }>)) {
+          const localItem = mergedCheers[memberId] || { count: 0, users: [] };
+          const mergedUsers = Array.from(new Set([...(localItem.users || []), ...(serverCheer.users || [])]));
+          const mergedCount = Math.max(serverCheer.count || 0, localItem.count || 0, mergedUsers.length);
+          mergedCheers[memberId] = {
+            count: mergedCount,
+            users: mergedUsers,
+          };
+        }
+
+        localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(mergedCheers));
+        window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: mergedCheers }));
       }
 
       // 4. Sync Notifications
       if (Array.isArray(data.notifications)) {
         this.saveLocalNotifications(data.notifications);
         window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: data.notifications }));
+      }
+
+      // 5. Sync Ecotheology Articles
+      if (Array.isArray(data.ecotheology)) {
+        const local = StorageService.getEcotheologyArticles();
+        const map = new Map<string, EcotheologyArticle>();
+        for (const a of data.ecotheology) {
+          if (a && a.id) map.set(a.id, a);
+        }
+        for (const a of local) {
+          if (a && a.id && !map.has(a.id)) {
+            map.set(a.id, a);
+          }
+        }
+        const mergedEco = [...map.values()];
+        StorageService.saveEcotheologyArticles(mergedEco);
       }
     } catch (e) {
       console.warn('[SocialSyncService] Server sync temporarily offline, using local data', e);
@@ -112,6 +185,13 @@ export class SocialSyncService {
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
 
     // 2. Remote sync
+    await this.syncThread(post);
+  }
+
+  /**
+   * Push a thread to the server (used for creation and background re-sync)
+   */
+  static async syncThread(post: ThreadPost): Promise<void> {
     try {
       await fetch('/api/social-sync', {
         method: 'POST',
@@ -119,7 +199,7 @@ export class SocialSyncService {
         body: JSON.stringify({ action: 'create_thread', payload: post }),
       });
     } catch (e) {
-      console.warn('[SocialSyncService] createThread remote error', e);
+      console.warn('[SocialSyncService] syncThread remote error', e);
     }
   }
 
@@ -132,6 +212,8 @@ export class SocialSyncService {
     const updatedThreads = StorageService.getThreads();
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
 
+    const targetThread = updatedThreads.find((t) => t.id === threadId);
+
     // 2. Remote sync
     try {
       const res = await fetch('/api/social-sync', {
@@ -139,18 +221,38 @@ export class SocialSyncService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'like_thread',
-          payload: { threadId, user: { id: user.id, name: user.name } },
+          payload: {
+            threadId,
+            user: { id: user.id, name: user.name },
+            thread: targetThread,
+          },
         }),
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.threads) {
+        if (Array.isArray(data.threads)) {
           StorageService.saveThreads(data.threads);
           window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: data.threads }));
         }
       }
     } catch (e) {
       console.warn('[SocialSyncService] toggleLikeThread remote error', e);
+    }
+  }
+
+  /**
+   * Sync ecotheology articles across devices
+   */
+  static async syncEcotheologyArticles(articles: EcotheologyArticle[]): Promise<void> {
+    StorageService.saveEcotheologyArticles(articles);
+    try {
+      await fetch('/api/social-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_ecotheology', payload: articles }),
+      });
+    } catch (e) {
+      console.warn('[SocialSyncService] syncEcotheologyArticles error', e);
     }
   }
 

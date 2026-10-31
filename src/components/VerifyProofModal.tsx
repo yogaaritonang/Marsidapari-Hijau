@@ -167,7 +167,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                   Foto Bukti Pelaksanaan
                 </label>
 
-                {selectedImage ? (
+                {selectedImage && selectedImage.trim() ? (
                   <div className="relative rounded-2xl overflow-hidden border-2 border-[#2E6B34] aspect-video bg-black/5 flex items-center justify-center">
                     <img
                       src={selectedImage}
@@ -241,7 +241,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                     <Sparkles className="w-5 h-5 animate-spin" />
                   </div>
                   <h4 className="text-xs font-bold text-[#2E6B34] font-poppins">
-                    AI sedang memeriksa bukti gotong royong...
+                    Sistem sedang memeriksa bukti gotong royong...
                   </h4>
                   <p className="text-[11px] text-gray-500">
                     Menganalisis kesesuaian objek dan menghitung estimasi dampak lingkungan
@@ -254,10 +254,10 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                   type="button"
                   disabled={!selectedImage}
                   onClick={handleStartAnalysis}
-                  className="w-full py-3 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-40 transition active:scale-95 shadow-md flex items-center justify-center gap-2"
+                  className="w-full py-3 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-40 transition active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Sparkles className="w-4 h-4 text-[#A8D5A2]" />
-                  <span>Verifikasi Bukti dengan AI</span>
+                  <span>Verifikasi Bukti Otomatis</span>
                 </button>
               )}
             </>
@@ -303,7 +303,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                 </div>
 
                 <div className="text-[11px] opacity-80">
-                  Tingkat Keyakinan AI: <strong>{result.confidence}%</strong>
+                  Tingkat Keyakinan Sistem: <strong>{result.confidence}%</strong>
                 </div>
               </div>
 
@@ -353,7 +353,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
               )}
 
               <p className="text-[10px] text-gray-500 text-center italic">
-                *AI Verifikator adalah alat bantu pendukung. Keputusan akhir dapat ditinjau oleh pimpinan komunitas atau dosen IAKN.
+                *Pemeriksa Citra Digital adalah alat bantu pendukung. Keputusan akhir dapat ditinjau oleh pimpinan komunitas atau dosen IAKN.
               </p>
 
               <div className="flex gap-2">

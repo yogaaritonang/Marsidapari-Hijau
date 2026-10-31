@@ -747,7 +747,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
                 <strong>2. Penyimpanan Terenkripsi di Sisi Klien:</strong> Data Anda disimpan secara aman di browser/perangkat Anda sendiri menggunakan enkripsi lokal.
               </p>
               <p>
-                <strong>3. Pengolahan Bukti AI:</strong> Foto bukti dikompresi di browser Anda sebelum dikirim ke AI Verifikator untuk penilaian. Foto tidak disimpan permanen di server publik.
+                <strong>3. Pengolahan Bukti Foto:</strong> Foto bukti dikompresi di browser Anda sebelum diperiksa oleh sistem verifikasi citra digital untuk penilaian. Foto tidak disimpan permanen di server publik.
               </p>
               <p>
                 <strong>4. Perlindungan Wajah Orang Lain:</strong> Pengguna dihimbau untuk fokus memotret objek aksi (tumbler, pohon, sampah terpilah) dan tidak menyertakan wajah orang lain tanpa izin.

@@ -65,7 +65,7 @@ export const LiturgyPage: React.FC<LiturgyPageProps> = ({ user }) => {
           Liturgi &amp; Doa Ekologis
         </span>
         <h2 className="text-lg font-bold font-poppins text-[#1F2A1F]">
-          Doa &amp; Liturgi Ciptaan AI
+          Doa &amp; Liturgi Ciptaan
         </h2>
         <p className="text-xs text-gray-600 mt-0.5">
           Susun liturgi Minggu Ciptaan, doa syukur panen, atau doa singkat bernuansa teologi Batak

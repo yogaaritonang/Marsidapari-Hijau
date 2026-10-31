@@ -8,6 +8,7 @@ import { FloatingChatbot } from './components/FloatingChatbot';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { OnboardingModal } from './components/OnboardingModal';
 import { VerifyProofModal } from './components/VerifyProofModal';
+import { LaunchScreen } from './components/LaunchScreen';
 import { AuthService } from './services/authService';
 import { SharedDataService } from './services/sharedDataService';
 import { SocialSyncService } from './services/socialSyncService';
@@ -590,7 +591,11 @@ export default function App() {
           />
         )}
 
+        {/* Customizable Launch / Splash Screen */}
+        <LaunchScreen />
+
       </div>
     </div>
   );
 }
+

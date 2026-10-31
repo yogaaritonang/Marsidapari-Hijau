@@ -118,7 +118,7 @@ export class AIService {
         return {
           ready: false,
           status: 'error',
-          message: 'AI Bermasalah',
+          message: 'Layanan Terputus',
           model: validation.effectiveModel,
           errorDetails: `Integritas Kunci API: ${validation.issues.join('; ')}`,
           lastChecked: now,
@@ -133,7 +133,7 @@ export class AIService {
           model: validation.effectiveModel,
           systemPrompt: brand.aiSystemPrompt?.trim() || undefined,
           appDescription: brand.description?.trim() || undefined,
-          testPrompt: 'Tes kesiapan koneksi AI.',
+          testPrompt: 'Tes kesiapan koneksi layanan.',
         }),
       });
 
@@ -142,18 +142,18 @@ export class AIService {
         return {
           ready: true,
           status: 'ready',
-          message: 'AI Siap',
+          message: 'Layanan Siap',
           model: data.diagnostics?.modelResolved || validation.effectiveModel,
           latencyMs: data.diagnostics?.latencyMs,
           lastChecked: now,
         };
       }
 
-      const errorMessage = data?.error?.message || data?.error || 'AI tidak merespons pengujian.';
+      const errorMessage = data?.error?.message || data?.error || 'Layanan tidak merespons pengujian.';
       return {
         ready: false,
         status: 'error',
-        message: 'AI Bermasalah',
+        message: 'Layanan Terputus',
         model: validation.effectiveModel,
         errorDetails: errorMessage,
         lastChecked: now,
@@ -162,7 +162,7 @@ export class AIService {
       return {
         ready: false,
         status: 'error',
-        message: 'AI Bermasalah',
+        message: 'Layanan Terputus',
         errorDetails: err instanceof Error ? err.message : 'Koneksi ke backend gagal.',
         lastChecked: now,
       };
@@ -200,8 +200,8 @@ export class AIService {
     } catch (error) {
       throw new Error(
         error instanceof Error
-          ? 'Tidak dapat terhubung ke layanan verifikasi AI. Periksa koneksi internet dan coba lagi.'
-          : 'Layanan verifikasi AI tidak dapat dijangkau. Coba lagi nanti.',
+          ? 'Tidak dapat terhubung ke layanan verifikasi. Periksa koneksi internet dan coba lagi.'
+          : 'Layanan verifikasi tidak dapat dijangkau. Coba lagi nanti.',
       );
     }
 
@@ -212,11 +212,11 @@ export class AIService {
     if (!response.ok) {
       const message = payload && 'error' in payload && payload.error
         ? payload.error
-        : 'Verifikasi AI gagal memeriksa gambar. Silakan coba lagi.';
+        : 'Sistem verifikasi gagal memeriksa gambar. Silakan coba lagi.';
       throw new Error(message);
     }
     if (!payload || !('verdict' in payload)) {
-      throw new Error('Layanan AI mengirim hasil yang tidak valid. Foto belum diverifikasi.');
+      throw new Error('Sistem verifikasi mengirim hasil yang tidak valid. Foto belum diverifikasi.');
     }
     return { data: payload, isFallback: false };
   }
@@ -234,7 +234,7 @@ export class AIService {
       throw new Error(`Integritas Kunci API tidak valid: ${validation.issues.join('; ')}`);
     }
     if (validation.promptStatus === 'invalid_format' || validation.promptStatus === 'too_long') {
-      throw new Error(`Format Instruksi Sistem AI tidak valid: ${validation.issues.join('; ')}`);
+      throw new Error(`Format instruksi sistem tidak valid: ${validation.issues.join('; ')}`);
     }
 
     let response: Response;
@@ -253,14 +253,14 @@ export class AIService {
         }),
       });
     } catch {
-      throw new Error('Tidak dapat terhubung ke chatbot AI. Periksa koneksi internet lalu coba lagi.');
+      throw new Error('Tidak dapat terhubung ke Sahabat Ciptaan. Periksa koneksi internet lalu coba lagi.');
     }
 
     const payload = await response.json().catch(() => null) as { reply?: string; error?: string } | null;
     if (!response.ok) {
-      throw new Error(payload?.error || 'Chatbot AI gagal menjawab. Silakan coba lagi.');
+      throw new Error(payload?.error || 'Sahabat Ciptaan gagal menjawab. Silakan coba lagi.');
     }
-    if (!payload?.reply) throw new Error('Chatbot AI mengirim jawaban kosong. Silakan coba lagi.');
+    if (!payload?.reply) throw new Error('Sahabat Ciptaan mengirim jawaban kosong. Silakan coba lagi.');
     return { reply: payload.reply, isFallback: false };
   }
 

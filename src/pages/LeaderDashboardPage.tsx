@@ -146,23 +146,29 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
                   <div>
                     <h4 className="text-xs font-bold text-gray-900">{sub.challengeTitle}</h4>
                     <span className="text-[10px] text-gray-600 block">
-                      Pengunggah: <strong>{sub.userName}</strong> &bull; Skor AI: {sub.confidence}%
+                      Pengunggah: <strong>{sub.userName}</strong> &bull; Skor Sistem: {sub.confidence}%
                     </span>
                   </div>
                   <span className="text-xs font-bold text-[#2E6B34]">+{sub.awardedPoints} Poin</span>
                 </div>
 
                 <div className="flex gap-2.5">
-                  <img
-                    src={sub.imageThumbnail}
-                    alt="Bukti foto"
-                    className="w-16 h-16 rounded-xl object-cover border border-gray-300 shrink-0"
-                  />
+                  {sub.imageThumbnail && sub.imageThumbnail.trim() ? (
+                    <img
+                      src={sub.imageThumbnail}
+                      alt="Bukti foto"
+                      className="w-16 h-16 rounded-xl object-cover border border-gray-300 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-emerald-100/80 border border-emerald-200/80 flex items-center justify-center text-[#2E6B34] shrink-0">
+                      <Trees className="w-7 h-7" />
+                    </div>
+                  )}
                   <div className="text-[11px] text-gray-700 space-y-1">
                     <p className="bg-white p-2 rounded-lg border border-gray-200">
                       Catatan: "{sub.userNotes || 'Tanpa catatan'}"
                     </p>
-                    <p className="text-gray-500">Analisis AI: {sub.alasan}</p>
+                    <p className="text-gray-500">Analisis Sistem: {sub.alasan}</p>
                   </div>
                 </div>
 

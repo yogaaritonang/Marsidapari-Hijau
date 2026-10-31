@@ -236,7 +236,7 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({
               </div>
 
               <div className="p-2.5 bg-[#A8D5A2]/25 rounded-xl border border-[#2E6B34]/20 text-[#2E6B34] font-medium">
-                Poin yang Diperoleh: <strong>+{activeDetail.points} Poin</strong> jika foto terverifikasi valid oleh AI (confidence &ge; 75%).
+                Poin yang Diperoleh: <strong>+{activeDetail.points} Poin</strong> jika foto terverifikasi valid oleh sistem (keyakinan &ge; 75%).
               </div>
             </div>
 

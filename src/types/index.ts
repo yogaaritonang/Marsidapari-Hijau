@@ -1,5 +1,33 @@
 export type UserRole = 'anggota' | 'pemimpin' | 'admin';
 
+export interface LaunchScreenSettings {
+  enabled: boolean;
+  title: string;
+  subtitle: string;
+  verseText: string;
+  verseRef: string;
+  logoUrl?: string;
+  bgGradient?: string;
+  durationMs?: number;
+  durationSeconds?: number;
+}
+
+export interface EcotheologyArticle {
+  id: string;
+  title: string;
+  category: 'mandatum_creationis' | 'marsiadapari_alam' | 'danau_toba_lestari' | 'teologi_tanah' | 'refleksi_pemuda' | 'kearifan_lokal' | 'danau_toba' | 'keberlanjutan_alam' | string;
+  summary: string;
+  content: string;
+  scriptureRef: string;
+  scriptureText: string;
+  batakWisdom: string;
+  coverImage?: string;
+  author: string;
+  publishedAt: string;
+  actionCall?: string;
+  isFeatured?: boolean;
+}
+
 export interface BrandSettings {
   name: string;
   logoUrl: string;
@@ -20,7 +48,9 @@ export interface BrandSettings {
   aiSystemPrompt?: string;
   geminiApiKey?: string;
   geminiModel?: string;
+  launchScreen?: LaunchScreenSettings;
 }
+
 
 export interface UserPreferences {
   fontSize: 'normal' | 'besar';

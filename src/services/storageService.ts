@@ -11,6 +11,7 @@ import {
   BrandSettings,
   ThreadPost,
   ThreadReply,
+  EcotheologyArticle,
 } from '../types';
 import {
   SEED_COMMUNITIES,
@@ -19,6 +20,7 @@ import {
   SEED_LOCATIONS,
   SEED_EVENTS,
   SEED_THREADS,
+  SEED_ECOTHEOLOGY,
 } from '../data/seedData';
 import { POINT_BADGES } from '../data/badges';
 import { UserService } from './userService';
@@ -66,6 +68,7 @@ const STORAGE_KEYS = {
   ONBOARDED: 'mh_onboarded',
   BRAND: 'mh_brand',
   THREADS: 'mh_threads',
+  ECOTHEOLOGY: 'mh_ecotheology',
 };
 
 function awardPoints(user: User, points: number): string[] {
@@ -88,7 +91,7 @@ function notifyBadgeUnlocks(userId: string, badgeIds: string[]): void {
   }));
 }
 
-type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports' | 'threads';
+type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports' | 'threads' | 'ecotheology';
 
 function notifySharedDataChange(collection: SharedCollection, values: unknown[]): void {
   window.dispatchEvent(new CustomEvent('mh-shared-data-change', {
@@ -112,6 +115,16 @@ const DEFAULT_BRAND: BrandSettings = {
   aiSystemPrompt: '',
   geminiApiKey: '',
   geminiModel: 'gemini-3.5-flash',
+  launchScreen: {
+    enabled: true,
+    title: 'Marsiadapari Hijau',
+    subtitle: 'Gerakan Ekoteologi & Keberlanjutan Alam Toba',
+    verseText: 'TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.',
+    verseRef: 'Kejadian 2:15',
+    logoUrl: '',
+    bgGradient: 'from-emerald-950 via-[#1B3F23] to-[#0D2413]',
+    durationMs: 2500,
+  },
 };
 
 export const DEFAULT_USER: User = {
@@ -552,16 +565,43 @@ export class StorageService {
     const list = this.getThreads();
     const updated = list.map((thread) => {
       if (thread.id !== threadId) return thread;
-      const likedBy = thread.likedBy || [];
+      const likedBy = Array.isArray(thread.likedBy) ? thread.likedBy : [];
       const hasLiked = likedBy.includes(userId);
       const newLikedBy = hasLiked ? likedBy.filter((id) => id !== userId) : [...likedBy, userId];
       return {
         ...thread,
-        likes: hasLiked ? Math.max(0, thread.likes - 1) : thread.likes + 1,
+        likes: newLikedBy.length,
         likedBy: newLikedBy,
       };
     });
     this.saveThreads(updated);
+  }
+
+  static getEcotheologyArticles(): EcotheologyArticle[] {
+    return this.getItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, SEED_ECOTHEOLOGY);
+  }
+
+  static saveEcotheologyArticles(articles: EcotheologyArticle[]): void {
+    this.setItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, articles);
+    window.dispatchEvent(new CustomEvent('mh-ecotheology-updated', { detail: articles }));
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'ecotheology' } }));
+  }
+
+  static saveEcotheologyArticle(article: EcotheologyArticle): void {
+    const list = this.getEcotheologyArticles();
+    const idx = list.findIndex((a) => a.id === article.id);
+    if (idx >= 0) {
+      list[idx] = article;
+    } else {
+      list.unshift(article);
+    }
+    this.saveEcotheologyArticles(list);
+  }
+
+  static deleteEcotheologyArticle(id: string): void {
+    const list = this.getEcotheologyArticles();
+    const updated = list.filter((a) => a.id !== id);
+    this.saveEcotheologyArticles(updated);
   }
 
   static addThreadReply(threadId: string, reply: ThreadReply): void {
@@ -622,6 +662,11 @@ export class StorageService {
       case 'threads':
         this.setItem<ThreadPost[]>(STORAGE_KEYS.THREADS, data as ThreadPost[]);
         window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'threads' } }));
+        break;
+      case 'ecotheology':
+        this.setItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, data as EcotheologyArticle[]);
+        window.dispatchEvent(new CustomEvent('mh-ecotheology-updated', { detail: data }));
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'ecotheology' } }));
         break;
     }
   }

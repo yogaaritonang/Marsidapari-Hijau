@@ -16,8 +16,11 @@ import {
   ScrollText,
   Trophy,
   Medal,
+  Leaf,
+  X,
+  Compass,
 } from 'lucide-react';
-import { User, Challenge, ChallengeSubmission } from '../types';
+import { User, Challenge, ChallengeSubmission, EcotheologyArticle } from '../types';
 import { StorageService } from '../services/storageService';
 import { BatakGorgaBorder } from '../components/BatakPattern';
 
@@ -40,6 +43,12 @@ export const HomePage: React.FC<HomePageProps> = ({
   );
   const [waterToast, setWaterToast] = useState<string | null>(null);
   const [, setDataVersion] = useState(0);
+
+  // Ecotheology Articles state
+  const [ecotheologyArticles, setEcotheologyArticles] = useState<EcotheologyArticle[]>(() =>
+    StorageService.getEcotheologyArticles()
+  );
+  const [selectedArticle, setSelectedArticle] = useState<EcotheologyArticle | null>(null);
 
   // Dynamic User GPS Location State
   const [userLocation, setUserLocation] = useState<string>(() => {
@@ -112,6 +121,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
     const handleUpdate = () => {
       setDataVersion((v) => v + 1);
+      setEcotheologyArticles(StorageService.getEcotheologyArticles());
       if (user.id !== 'guest-preview') {
         setGarden(StorageService.getGardenState());
       }
@@ -119,11 +129,13 @@ export const HomePage: React.FC<HomePageProps> = ({
     window.addEventListener('mh-data-updated', handleUpdate);
     window.addEventListener('mh-brand-updated', handleUpdate);
     window.addEventListener('mh-shared-data-change', handleUpdate);
+    window.addEventListener('mh-ecotheology-updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
     return () => {
       window.removeEventListener('mh-data-updated', handleUpdate);
       window.removeEventListener('mh-brand-updated', handleUpdate);
       window.removeEventListener('mh-shared-data-change', handleUpdate);
+      window.removeEventListener('mh-ecotheology-updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
     };
   }, [user.id]);
@@ -290,7 +302,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               <Camera className="w-5 h-5" />
             </div>
             <span className="text-[11px] font-bold text-gray-800 leading-tight">
-              Pindai AI
+              Pindai Cerdas
             </span>
           </button>
 
@@ -319,6 +331,80 @@ export const HomePage: React.FC<HomePageProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Ekoteologi & Keberlanjutan Alam Section */}
+      <div className="space-y-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#7A5230] font-poppins">
+                Ekoteologi &amp; Keberlanjutan Alam
+              </h3>
+            </div>
+            <p className="text-[11px] text-gray-600 mt-0.5">
+              Menghayati Firman Tuhan &amp; kearifan Batak Toba untuk kelestarian ciptaan
+            </p>
+          </div>
+          <span className="text-[11px] font-bold text-[#2E6B34] bg-[#A8D5A2]/30 px-2.5 py-0.5 rounded-full border border-emerald-200">
+            {ecotheologyArticles.length} Wawasan
+          </span>
+        </div>
+
+        {/* Responsive Grid Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {ecotheologyArticles.map((article) => {
+            const categoryLabels: Record<string, { label: string; color: string }> = {
+              mandatum_creationis: { label: 'Mandat Penciptaan', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+              kearifan_lokal: { label: 'Kearifan Marsiadapari', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+              danau_toba: { label: 'Konservasi Danau Toba', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+              keberlanjutan_alam: { label: 'Keberlanjutan Alam', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+            };
+            const catInfo = categoryLabels[article.category] || { label: 'Ekoteologi', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+
+            return (
+              <article
+                key={article.id}
+                onClick={() => setSelectedArticle(article)}
+                className="group relative cursor-pointer rounded-3xl bg-white border border-[#2E6B34]/15 hover:border-[#2E6B34] p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catInfo.color}`}>
+                      {catInfo.label}
+                    </span>
+                    {article.scriptureRef && (
+                      <span className="text-[10px] font-bold text-[#2E6B34] bg-[#FAF6EC] px-2 py-0.5 rounded-md border border-[#2E6B34]/20 flex items-center gap-1 shrink-0">
+                        <BookOpen className="w-3 h-3 text-[#2E6B34]" />
+                        {article.scriptureRef}
+                      </span>
+                    )}
+                  </div>
+
+                  <h4 className="text-sm font-bold text-[#1F2A1F] font-poppins leading-snug group-hover:text-[#2E6B34] transition-colors line-clamp-2">
+                    {article.title}
+                  </h4>
+
+                  <p className="text-xs text-gray-600 mt-1.5 line-clamp-3 leading-relaxed">
+                    {article.summary}
+                  </p>
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-[10px] text-[#7A5230] italic truncate max-w-[200px] font-medium">
+                    "{article.batakWisdom.split(':')[0]}"
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-[#2E6B34] group-hover:underline">
+                    Baca Wawasan
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+
 
       {/* Virtual Garden & Community Forest Snapshot */}
       <div className="px-4 sm:px-6 lg:px-8">
@@ -543,11 +629,17 @@ export const HomePage: React.FC<HomePageProps> = ({
               key={sub.id}
               className="p-3 rounded-2xl bg-white border border-gray-200/90 shadow-xs flex items-start gap-3"
             >
-              <img
-                src={sub.imageThumbnail}
-                alt={sub.challengeTitle}
-                className="w-12 h-12 rounded-xl object-cover shrink-0 border border-gray-200"
-              />
+              {sub.imageThumbnail && sub.imageThumbnail.trim() ? (
+                <img
+                  src={sub.imageThumbnail}
+                  alt={sub.challengeTitle}
+                  className="w-12 h-12 rounded-xl object-cover shrink-0 border border-gray-200"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-emerald-100/80 border border-emerald-200/80 flex items-center justify-center text-[#2E6B34] shrink-0">
+                  <Trees className="w-6 h-6" />
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-bold text-gray-900 truncate">
@@ -579,6 +671,129 @@ export const HomePage: React.FC<HomePageProps> = ({
           Bergotong royong tanpa pamrih merawat Danau Toba dan Bona Pasogit
         </p>
       </div>
+
+      {/* Ecotheology Article Reader Modal */}
+      {selectedArticle && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 overflow-y-auto"
+          onClick={() => setSelectedArticle(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-2xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/30 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Header */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#2E6B34] via-[#24592A] to-[#173F1C] text-white flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-[#A8D5A2]/25 flex items-center justify-center text-[#A8D5A2]">
+                  <Leaf className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#A8D5A2] uppercase tracking-wider">
+                    Refleksi Ekoteologi &amp; Kearifan Batak
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold font-poppins line-clamp-1">
+                    {selectedArticle.title}
+                  </h3>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedArticle(null)}
+                className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                title="Tutup Wawasan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 text-[#1F2A1F]">
+              {/* Scripture Banner */}
+              {selectedArticle.scriptureRef && (
+                <div className="rounded-2xl bg-white border border-[#2E6B34]/20 p-4 shadow-2xs">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2E6B34] uppercase tracking-wide mb-1">
+                    <BookOpen className="w-4 h-4 text-[#2E6B34]" />
+                    <span>Nats Firman: {selectedArticle.scriptureRef}</span>
+                  </div>
+                  {selectedArticle.scriptureText && (
+                    <blockquote className="text-xs sm:text-sm italic text-gray-700 font-serif leading-relaxed mt-1 pl-3 border-l-2 border-[#2E6B34]/40">
+                      "{selectedArticle.scriptureText}"
+                    </blockquote>
+                  )}
+                </div>
+              )}
+
+              {/* Title & Summary */}
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold font-poppins text-[#1F2A1F] leading-snug">
+                  {selectedArticle.title}
+                </h2>
+                <p className="text-xs text-gray-500 mt-1">
+                  Oleh: <strong className="text-gray-700">{selectedArticle.author}</strong> &bull; {selectedArticle.publishedAt}
+                </p>
+              </div>
+
+              {/* Full Article Content */}
+              <div className="text-xs sm:text-sm text-gray-800 leading-relaxed space-y-3 whitespace-pre-line font-normal">
+                {selectedArticle.content}
+              </div>
+
+              {/* Batak Wisdom Card */}
+              {selectedArticle.batakWisdom && (
+                <div className="rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200/80 p-4">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#7A5230] uppercase tracking-wider mb-1">
+                    <Compass className="w-4 h-4 text-[#7A5230]" />
+                    <span>Falsafah &amp; Umpasa Batak Toba</span>
+                  </div>
+                  <p className="text-xs sm:text-sm text-amber-950 font-semibold italic">
+                    "{selectedArticle.batakWisdom}"
+                  </p>
+                </div>
+              )}
+
+              {/* Action Call Banner */}
+              {selectedArticle.actionCall && (
+                <div className="rounded-2xl bg-emerald-50 border border-emerald-200 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider block">
+                      Aksi Nyata Marsiadapari Pekan Ini:
+                    </span>
+                    <p className="text-xs sm:text-sm text-emerald-950 font-medium mt-0.5">
+                      {selectedArticle.actionCall}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedArticle(null);
+                      onNavigateTab('challenges');
+                    }}
+                    className="touch-target shrink-0 inline-flex items-center gap-1.5 bg-[#2E6B34] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#235328] transition active:scale-95 shadow-xs"
+                  >
+                    <span>Ambil Tantangan Aksi</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3 sm:p-4 bg-white border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+              <span className="text-[11px] italic">
+                Horas ma di hita, lestari alam Toba!
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedArticle(null)}
+                className="px-4 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

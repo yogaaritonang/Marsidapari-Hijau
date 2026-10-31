@@ -249,7 +249,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
 
   const renderAvatarContent = (member: LeaderboardMember) => {
     const avatarUrl = getAvatarUrl(member);
-    return avatarUrl
+    return avatarUrl && avatarUrl.trim()
       ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
       : getInitials(member.isAnonymous && member.id !== user.id ? 'Sahabat Ciptaan' : member.name);
   };

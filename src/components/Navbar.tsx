@@ -99,7 +99,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             }}
           >
             <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2E6B34] via-[#24592A] to-[#173F1C] flex items-center justify-center text-white shadow-md shadow-[#2E6B34]/25 group-hover:scale-105 transition-transform duration-200">
-              {brand.logoUrl ? (
+              {brand.logoUrl && brand.logoUrl.trim() ? (
                 <img src={brand.logoUrl} alt="" className="h-full w-full rounded-2xl object-contain p-0.5" />
               ) : (
                 <Leaf className="w-5 h-5 text-[#A8D5A2]" />

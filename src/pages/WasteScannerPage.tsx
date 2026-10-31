@@ -81,7 +81,7 @@ export const WasteScannerPage: React.FC<WasteScannerPageProps> = ({ onOpenMap, i
           Pilah &amp; Daur Ulang
         </span>
         <h2 className="text-lg font-bold font-poppins text-[#1F2A1F]">
-          Pemindai Sampah AI
+          Pemindai Sampah Cerdas
         </h2>
         <p className="text-xs text-gray-600 mt-0.5">
           Potret sampah untuk mengenali jenis dan lokasi bank sampah terdekat di Tarutung
@@ -90,7 +90,7 @@ export const WasteScannerPage: React.FC<WasteScannerPageProps> = ({ onOpenMap, i
 
       {/* Camera / Upload Box */}
       <div className="space-y-3">
-        {image ? (
+        {image && image.trim() ? (
           <div className="relative rounded-3xl overflow-hidden border-2 border-[#2E6B34] aspect-video bg-black/5 flex items-center justify-center shadow-sm">
             <img src={image} alt="Sampah Terpindai" className="w-full h-full object-cover" />
             <button
@@ -158,7 +158,7 @@ export const WasteScannerPage: React.FC<WasteScannerPageProps> = ({ onOpenMap, i
             <Sparkles className="w-6 h-6 animate-spin" />
           </div>
           <h4 className="text-sm font-bold text-[#2E6B34] font-poppins">
-            AI sedang mengenali kategori sampah...
+            Sistem cerdas sedang mengenali kategori sampah...
           </h4>
           <p className="text-xs text-gray-500">
             Mengidentifikasi material dan mencari petunjuk daur ulang Danau Toba
