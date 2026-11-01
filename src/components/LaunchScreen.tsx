@@ -87,7 +87,7 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
         >
           {/* Subtle Batak Gorga Top Border */}
           <div className="w-full opacity-35">
-            <BatakGorgaBorder height={8} />
+            <BatakGorgaBorder className="h-2 w-full" />
           </div>
 
           {/* Ambient Glowing Orbs */}
@@ -175,7 +175,7 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
             </motion.button>
 
             <div className="mt-4 w-full opacity-35">
-              <BatakGorgaBorder height={8} />
+              <BatakGorgaBorder className="h-2 w-full" />
             </div>
           </div>
         </motion.div>
