@@ -28,21 +28,14 @@ import { UserService } from './userService';
 const CIPHER_KEY = 'marsiadapari-hijau-iakn-toba-2026';
 
 function encryptData(raw: string): string {
-  try {
-    let result = '';
-    for (let i = 0; i < raw.length; i++) {
-      const charCode = raw.charCodeAt(i) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length);
-      result += String.fromCharCode(charCode);
-    }
-    return 'enc_' + btoa(encodeURIComponent(result));
-  } catch {
-    return raw;
-  }
+  // Store raw JSON directly to prevent base64 logo and image data corruption
+  return raw;
 }
 
 function decryptData(cipher: string): string {
+  if (!cipher) return cipher;
+  if (!cipher.startsWith('enc_')) return cipher;
   try {
-    if (!cipher.startsWith('enc_')) return cipher;
     const decoded = decodeURIComponent(atob(cipher.slice(4)));
     let result = '';
     for (let i = 0; i < decoded.length; i++) {
@@ -253,11 +246,31 @@ export class StorageService {
   }
 
   static getBrandSettings(): BrandSettings {
-    return this.getItem<BrandSettings>(STORAGE_KEYS.BRAND, DEFAULT_BRAND);
+    const brand = this.getItem<BrandSettings>(STORAGE_KEYS.BRAND, DEFAULT_BRAND);
+    // If brand is missing logoUrl but backup has it, restore from backup
+    if (!brand.logoUrl) {
+      try {
+        const backupRaw = localStorage.getItem('mh_brand_backup');
+        if (backupRaw) {
+          const parsed = JSON.parse(backupRaw) as BrandSettings;
+          if (parsed && parsed.logoUrl) {
+            brand.logoUrl = parsed.logoUrl;
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    return brand;
   }
 
   static saveBrandSettings(settings: BrandSettings): void {
     this.setItem<BrandSettings>(STORAGE_KEYS.BRAND, settings);
+    try {
+      localStorage.setItem('mh_brand_backup', JSON.stringify(settings));
+    } catch {
+      // ignore
+    }
     notifySharedDataChange('brand', [{ id: 'global', ...settings }]);
     window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: settings }));
   }
@@ -547,7 +560,8 @@ export class StorageService {
   }
 
   static getThreads(): ThreadPost[] {
-    return this.getItem<ThreadPost[]>(STORAGE_KEYS.THREADS, SEED_THREADS);
+    const list = this.getItem<ThreadPost[]>(STORAGE_KEYS.THREADS, []);
+    return Array.isArray(list) ? list.filter((t) => t && t.id && !t.id.startsWith('th-seed-')) : [];
   }
 
   static saveThreads(threads: ThreadPost[]): void {

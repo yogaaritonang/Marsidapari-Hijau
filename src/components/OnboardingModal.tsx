@@ -231,18 +231,30 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   Periksa email Anda
                 </h2>
                 <p className="mt-3 text-sm leading-6 text-gray-600">{message}</p>
-                <p className="mt-3 text-xs leading-5 text-gray-500">
-                  Klik tautan konfirmasi di email untuk menyelesaikan pendaftaran dan masuk ke aplikasi.
-                </p>
+                <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50/80 p-3.5 text-left text-xs leading-5 text-emerald-900">
+                  <p className="font-semibold">💡 Panduan Aktivasi:</p>
+                  <p className="mt-1">
+                    Buka email dan klik tautan konfirmasi. Jika tautan sudah dibuka, akun Anda langsung aktif dan dapat digunakan untuk masuk kapan saja.
+                  </p>
+                </div>
                 {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-                <button
-                  type="button"
-                  onClick={() => switchMode('login')}
-                  className="mt-7 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-bold text-[#2E6B34] hover:bg-[#EAF3E6]"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  {portal === 'leader' ? 'Kembali ke portal pemimpin' : 'Kembali ke masuk'}
-                </button>
+                <div className="mt-6 flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={() => switchMode('login')}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B]"
+                  >
+                    Sudah Konfirmasi? Masuk Sekarang
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold text-gray-500 hover:text-[#2E6B34]"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Ganti data atau kembali
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="mx-auto flex w-full max-w-md flex-1 flex-col">

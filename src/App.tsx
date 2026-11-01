@@ -9,6 +9,7 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { OnboardingModal } from './components/OnboardingModal';
 import { VerifyProofModal } from './components/VerifyProofModal';
 import { LaunchScreen } from './components/LaunchScreen';
+import { CheckCircle2, Mail } from 'lucide-react';
 import { AuthService } from './services/authService';
 import { SharedDataService } from './services/sharedDataService';
 import { SocialSyncService } from './services/socialSyncService';
@@ -72,6 +73,10 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('home');
   const [verifyChallenge, setVerifyChallenge] = useState<Challenge | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [emailConfirmationNotice, setEmailConfirmationNotice] = useState<{
+    type: 'success' | 'info' | 'error';
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const handleSyncStatus = (event: Event) => {
@@ -110,21 +115,96 @@ export default function App() {
   useEffect(() => {
     const syncBrandInfo = () => {
       const brand = StorageService.getBrandSettings();
-      if (brand.name) {
-        document.title = `${brand.name} - ${brand.tagline || 'Ekoteologi Kristen Danau Toba'}`;
-      }
-      if (brand.logoUrl) {
-        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
-        if (link) {
-          link.href = brand.logoUrl;
+      const appName = brand.name || 'Marsiadapari Hijau';
+      const tagline = brand.tagline || 'Ekoteologi Kristen Danau Toba';
+      document.title = `${appName} - ${tagline}`;
+
+      const rawLogo = brand.logoUrl && brand.logoUrl.trim() ? brand.logoUrl.trim() : '/api/app-icon';
+      const cacheBuster = Date.now();
+      // Use rawLogo directly if it is a data URI, otherwise append cache buster timestamp
+      const iconHref = rawLogo.startsWith('data:')
+        ? rawLogo
+        : `${rawLogo}${rawLogo.includes('?') ? '&' : '?'}t=${cacheBuster}`;
+
+      // Helper to dynamically find or create <link> elements
+      const updateOrCreateLink = (
+        rel: string,
+        href: string,
+        type?: string,
+        sizes?: string
+      ) => {
+        let existing = document.querySelector(`link[rel='${rel}']`) as HTMLLinkElement | null;
+        if (!existing) {
+          existing = document.createElement('link');
+          existing.rel = rel;
+          document.head.appendChild(existing);
         }
+        existing.href = href;
+        if (type) existing.type = type;
+        if (sizes) existing.setAttribute('sizes', sizes);
+      };
+
+      // 1. Update/create Apple Touch Icon for iOS Safari and Mobile Home Screen
+      updateOrCreateLink('apple-touch-icon', iconHref, 'image/png', '180x180');
+      updateOrCreateLink('apple-touch-icon-precomposed', iconHref, 'image/png', '180x180');
+
+      // 2. Update/create favicon & high-res icons for Android Chrome & Desktop tabs
+      updateOrCreateLink('icon', iconHref, 'image/png', '192x192');
+      updateOrCreateLink('shortcut icon', iconHref);
+
+      // Also ensure all existing icon tags in the DOM receive the updated href
+      document.querySelectorAll<HTMLLinkElement>("link[rel*='icon']").forEach((link) => {
+        link.href = iconHref;
+      });
+
+      // Helper to dynamically find or create <meta> elements
+      const updateOrCreateMeta = (attrName: 'name' | 'property', attrValue: string, contentValue: string) => {
+        let meta = document.querySelector(`meta[${attrName}='${attrValue}']`);
+        if (!meta) {
+          meta = document.createElement('meta');
+          meta.setAttribute(attrName, attrValue);
+          document.head.appendChild(meta);
+        }
+        meta.setAttribute('content', contentValue);
+      };
+
+      // 3. Update mobile app titles & theme colors
+      updateOrCreateMeta('name', 'apple-mobile-web-app-title', appName);
+      updateOrCreateMeta('name', 'application-name', appName);
+      if (brand.primaryColor) {
+        updateOrCreateMeta('name', 'theme-color', brand.primaryColor);
+      }
+      updateOrCreateMeta('property', 'og:image', iconHref);
+      updateOrCreateMeta('name', 'twitter:image', iconHref);
+
+      // 4. Update manifest link with cache buster so mobile browsers re-fetch the dynamic manifest
+      let manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement | null;
+      if (!manifestLink) {
+        manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        document.head.appendChild(manifestLink);
+      }
+      manifestLink.href = `/manifest.webmanifest?t=${cacheBuster}`;
+    };
+
+    syncBrandInfo();
+
+    const handleSharedData = (e: Event) => {
+      const detail = (e as CustomEvent<{ collection?: string }>).detail;
+      if (detail && detail.collection === 'brand') {
+        syncBrandInfo();
       }
     };
-    syncBrandInfo();
+
     window.addEventListener('mh-brand-updated', syncBrandInfo);
+    window.addEventListener('mh-shared-data-change', handleSharedData);
+    window.addEventListener('mh-data-updated', handleSharedData);
     window.addEventListener('storage', syncBrandInfo);
+
     return () => {
       window.removeEventListener('mh-brand-updated', syncBrandInfo);
+      window.removeEventListener('mh-shared-data-change', handleSharedData);
+      window.removeEventListener('mh-data-updated', handleSharedData);
       window.removeEventListener('storage', syncBrandInfo);
     };
   }, []);
@@ -135,6 +215,18 @@ export default function App() {
     const restoreAuthentication = async () => {
       try {
         const confirmedUser = await AuthService.completeEmailConfirmation();
+        const notice = AuthService.consumeConfirmationNotice();
+        if (notice && !cancelled) {
+          setEmailConfirmationNotice({
+            type: notice.status === 'confirmed' ? 'success' : notice.status === 'already_verified' ? 'info' : 'error',
+            message: notice.message,
+          });
+          if (!confirmedUser) {
+            setIsAuthModalOpen(true);
+            setAuthMode('login');
+          }
+        }
+
         const authUser = confirmedUser || await AuthService.getCurrentUser();
         if (cancelled) return;
 
@@ -498,6 +590,38 @@ export default function App() {
           onNavigateTab={setCurrentTab}
           onOpenAuth={openAuthentication}
         />
+
+        {/* Email Confirmation Notice Banner */}
+        {emailConfirmationNotice && (
+          <div className="mx-auto my-3 flex w-full max-w-[1120px] items-center justify-between gap-3 rounded-2xl border border-[#2E6B34]/30 bg-white/90 p-4 shadow-sm backdrop-blur">
+            <div className="flex items-center gap-3 min-w-0">
+              {emailConfirmationNotice.type === 'success' ? (
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-[#2E6B34]">
+                  <CheckCircle2 className="h-5 w-5" />
+                </span>
+              ) : (
+                <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <Mail className="h-5 w-5" />
+                </span>
+              )}
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-bold text-[#1F2A1F]">
+                  {emailConfirmationNotice.type === 'success' ? 'Konfirmasi Email Berhasil' : 'Pemberitahuan Akun'}
+                </p>
+                <p className="text-xs text-gray-600 truncate sm:whitespace-normal">
+                  {emailConfirmationNotice.message}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setEmailConfirmationNotice(null)}
+              className="flex-shrink-0 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-600 hover:bg-gray-100"
+            >
+              Tutup
+            </button>
+          </div>
+        )}
 
         {/* Sub-navigation bar when in auxiliary views */}
         {!['home', 'threads', 'challenges', 'garden', 'community', 'profile'].includes(currentTab) && (

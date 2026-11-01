@@ -30,8 +30,15 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
       setBrand(StorageService.getBrandSettings());
     };
     const handlePreview = (e: Event) => {
-      const customBrand = (e as CustomEvent<BrandSettings>)?.detail;
-      if (customBrand) setBrand(customBrand);
+      const detail = (e as CustomEvent<any>)?.detail;
+      const latestBrand = StorageService.getBrandSettings();
+      if (detail && detail.title !== undefined) {
+        setBrand({ ...latestBrand, launchScreen: detail });
+      } else if (detail) {
+        setBrand({ ...latestBrand, ...detail });
+      } else {
+        setBrand(latestBrand);
+      }
       setIsVisible(true);
     };
 
@@ -43,15 +50,15 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
     };
   }, []);
 
-  const launchConfig = brand.launchScreen || {
-    enabled: true,
-    title: brand.name || 'Marsiadapari Hijau',
-    subtitle: brand.tagline || 'Gerakan Ekoteologi & Keberlanjutan Alam Toba',
-    verseText: 'TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.',
-    verseRef: 'Kejadian 2:15',
-    logoUrl: brand.logoUrl || '',
-    bgGradient: 'from-emerald-950 via-[#1B3F23] to-[#0D2413]',
-    durationMs: 2600,
+  const launchConfig = {
+    enabled: brand.launchScreen?.enabled !== false,
+    title: brand.launchScreen?.title || brand.name || 'Marsiadapari Hijau',
+    subtitle: brand.launchScreen?.subtitle || brand.tagline || 'Gerakan Ekoteologi & Keberlanjutan Alam Toba',
+    verseText: brand.launchScreen?.verseText || 'TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.',
+    verseRef: brand.launchScreen?.verseRef || 'Kejadian 2:15',
+    logoUrl: brand.launchScreen?.logoUrl || brand.logoUrl || '',
+    bgGradient: brand.launchScreen?.bgGradient || 'from-emerald-950 via-[#1B3F23] to-[#0D2413]',
+    durationMs: (brand.launchScreen?.durationSeconds ? brand.launchScreen.durationSeconds * 1000 : undefined) || brand.launchScreen?.durationMs || 2600,
   };
 
   useEffect(() => {

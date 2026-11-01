@@ -112,9 +112,11 @@ function ensureDirectoryExists(dir: string) {
 }
 
 function loadPersistedStore(): SocialStore {
+  ensureDirectoryExists(DATA_DIR);
+
   const defaultStore: SocialStore = {
     brand: null,
-    threads: [...SEED_THREADS],
+    threads: [], // No dummy thread posts - only real user posts!
     submissions: [...INITIAL_COMMUNITY_SUBMISSIONS],
     cheers: {},
     notifications: [],
@@ -127,34 +129,18 @@ function loadPersistedStore(): SocialStore {
         const raw = fs.readFileSync(filePath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed && typeof parsed === 'object') {
-          const storedThreads: ThreadPost[] = Array.isArray(parsed.threads) ? parsed.threads : [];
+          // Strictly filter out any legacy dummy seed threads
+          const storedThreads: ThreadPost[] = Array.isArray(parsed.threads)
+            ? parsed.threads.filter((t: ThreadPost) => t && t.id && !t.id.startsWith('th-seed-'))
+            : [];
           const storedSubs: ChallengeSubmission[] = Array.isArray(parsed.submissions) ? parsed.submissions : [];
           const storedEco: EcotheologyArticle[] = Array.isArray(parsed.ecotheology) ? parsed.ecotheology : [];
 
-          // Merge seed threads with stored threads
           const threadMap = new Map<string, ThreadPost>();
-          for (const t of defaultStore.threads) {
+          for (const t of storedThreads) {
             if (t && t.id) threadMap.set(t.id, t);
           }
-          for (const t of storedThreads) {
-            if (t && t.id) {
-              const existing = threadMap.get(t.id);
-              if (existing) {
-                const mergedLikedBy = Array.from(new Set([...(existing.likedBy || []), ...(t.likedBy || [])]));
-                threadMap.set(t.id, {
-                  ...existing,
-                  ...t,
-                  likedBy: mergedLikedBy,
-                  likes: Math.max(existing.likes || 0, t.likes || 0, mergedLikedBy.length),
-                  savedBy: Array.from(new Set([...(existing.savedBy || []), ...(t.savedBy || [])])),
-                });
-              } else {
-                threadMap.set(t.id, t);
-              }
-            }
-          }
 
-          // Merge seed submissions with stored submissions
           const subMap = new Map<string, ChallengeSubmission>();
           for (const s of defaultStore.submissions) {
             if (s && s.id) subMap.set(s.id, s);
@@ -163,7 +149,6 @@ function loadPersistedStore(): SocialStore {
             if (s && s.id) subMap.set(s.id, s);
           }
 
-          // Merge ecotheology
           const ecoMap = new Map<string, EcotheologyArticle>();
           for (const e of defaultStore.ecotheology) {
             if (e && e.id) ecoMap.set(e.id, e);
@@ -192,23 +177,33 @@ function loadPersistedStore(): SocialStore {
 
 let store: SocialStore = loadPersistedStore();
 
-async function persistStore(): Promise<void> {
+export function getSocialBrand(): BrandSettings | null {
+  return store.brand;
+}
+
+function persistStoreSync(): void {
   try {
     ensureDirectoryExists(DATA_DIR);
+    // Ensure no dummy seed threads are ever written
+    store.threads = store.threads.filter((t) => t && t.id && !t.id.startsWith('th-seed-'));
     const serialized = JSON.stringify(store, null, 2);
     try {
-      await fs.promises.writeFile(PRIMARY_STORE_PATH, serialized, 'utf-8');
-    } catch {
-      // primary write error, continue to backup
+      fs.writeFileSync(PRIMARY_STORE_PATH, serialized, 'utf-8');
+    } catch (primaryErr) {
+      console.warn('[social-sync] Primary store write warning:', primaryErr);
     }
     try {
-      await fs.promises.writeFile(BACKUP_STORE_PATH, serialized, 'utf-8');
+      fs.writeFileSync(BACKUP_STORE_PATH, serialized, 'utf-8');
     } catch {
-      // backup error
+      // backup write ignore
     }
   } catch (err) {
     console.error('[social-sync] Error persisting store to disk:', err);
   }
+}
+
+async function persistStore(): Promise<void> {
+  persistStoreSync();
 }
 
 export default async function socialSyncHandler(req: Request, res: Response) {
@@ -290,6 +285,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
 
             // Trigger notification to thread owner if it's not the same user
             if (thread.userId && thread.userId !== likingUser.id) {
+              const previewText = (thread.caption || (thread as any).content || '').slice(0, 45);
               const notif: AppNotification = {
                 id: `notif-like-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                 recipientUserId: thread.userId,
@@ -298,7 +294,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
                 type: 'thread_like',
                 targetId: thread.id,
                 title: 'Menyukai Utas Anda',
-                message: `${likingUser.name || 'Seorang pengguna'} menyukai utas Anda: "${thread.caption.slice(0, 45)}${thread.caption.length > 45 ? '...' : ''}"`,
+                message: `${likingUser.name || 'Seorang pengguna'} menyukai utas Anda: "${previewText}${previewText.length >= 45 ? '...' : ''}"`,
                 createdAt: new Date().toISOString(),
                 read: false,
               };
@@ -354,6 +350,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
 
           // Trigger notification to thread owner if someone else commented
           if (thread.userId && thread.userId !== reply.userId) {
+            const previewText = (reply.content || '').slice(0, 50);
             const notif: AppNotification = {
               id: `notif-rep-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
               recipientUserId: thread.userId,
@@ -362,7 +359,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
               type: 'thread_reply',
               targetId: thread.id,
               title: 'Membalas Utas Anda',
-              message: `${reply.userName || 'Seorang pengguna'} mengomentari: "${reply.content.slice(0, 50)}${reply.content.length > 50 ? '...' : ''}"`,
+              message: `${reply.userName || 'Seorang pengguna'} mengomentari: "${previewText}${previewText.length >= 50 ? '...' : ''}"`,
               createdAt: new Date().toISOString(),
               read: false,
             };

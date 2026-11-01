@@ -19,6 +19,23 @@ function isValidInvitation(code: string): boolean {
   return timingSafeEqual(Buffer.from(code), Buffer.from(expected));
 }
 
+function resolvePublicOrigin(req: Request): string {
+  const envUrl = process.env.APP_URL || process.env.VITE_APP_URL;
+  if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+    return envUrl.replace(/\/+$/, '');
+  }
+  const fwdProto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'https';
+  const fwdHost = (req.headers['x-forwarded-host'] as string) || req.headers.host;
+  if (fwdHost && !fwdHost.includes('localhost') && !fwdHost.includes('127.0.0.1')) {
+    return `${fwdProto}://${fwdHost}`;
+  }
+  const origin = req.headers.origin;
+  if (origin && !origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+    return origin.replace(/\/+$/, '');
+  }
+  return envUrl ? envUrl.replace(/\/+$/, '') : (fwdHost ? `${fwdProto}://${fwdHost}` : 'http://localhost:3000');
+}
+
 export default async function leaderRegisterHandler(req: Request, res: Response) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -66,7 +83,16 @@ export default async function leaderRegisterHandler(req: Request, res: Response)
   }
 
   const organizationId = `org-${randomUUID()}`;
-  const redirectUrl = process.env.LEADER_AUTH_REDIRECT_URL;
+  const envLeaderRedirect = process.env.LEADER_AUTH_REDIRECT_URL;
+  let redirectUrl: string | undefined;
+
+  if (envLeaderRedirect && !envLeaderRedirect.includes('localhost') && !envLeaderRedirect.includes('127.0.0.1')) {
+    redirectUrl = envLeaderRedirect;
+  } else {
+    const publicOrigin = resolvePublicOrigin(req);
+    redirectUrl = `${publicOrigin}/pemimpin/auth/confirm`;
+  }
+
   const signupUrl = new URL(`${supabaseUrl}/auth/v1/signup`);
   if (redirectUrl) signupUrl.searchParams.set('redirect_to', redirectUrl);
   try {

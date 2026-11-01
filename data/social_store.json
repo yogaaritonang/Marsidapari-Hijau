@@ -1,0 +1,179 @@
+{
+  "brand": null,
+  "threads": [],
+  "submissions": [
+    {
+      "id": "sub-seed-1",
+      "userId": "u-naomi",
+      "userName": "Naomi Siregar",
+      "isAnonymous": false,
+      "challengeId": "chal-tumbler",
+      "challengeTitle": "Gunakan Tumbler & Kurangi Botol Plastik",
+      "category": "harian",
+      "submittedAt": "2026-11-01T04:14:13.587Z",
+      "verdict": "valid",
+      "confidence": 95,
+      "userNotes": "Membawa tumbler sendiri saat perkuliahan di IAKN Tarutung",
+      "imageThumbnail": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"%232E6B34\" rx=\"20\"/><path d=\"M48 30h24v12H48zM44 44h32v52a6 6 0 0 1-6 6H50a6 6 0 0 1-6-6V44z\" fill=\"%23FAF6EC\"/><path d=\"M52 56h16v24H52z\" fill=\"%232E6B34\" opacity=\"0.3\"/></svg>",
+      "imageHash": "hash-naomi-tumbler-1",
+      "yang_terlihat": "Botol minum tumbler pribadi yang digunakan saat beraktivitas",
+      "alasan": "Sesuai dengan kriteria tantangan pengurangan sampah plastik",
+      "saran": "Terus pertahankan kebiasaan membawa tumbler setiap hari",
+      "impact": {
+        "wasteKg": 0.8,
+        "trees": 0,
+        "waterLiters": 20,
+        "electricityKwh": 0
+      },
+      "awardedPoints": 40
+    },
+    {
+      "id": "sub-seed-2",
+      "userId": "u-daniel",
+      "userName": "Daniel Sitompul",
+      "isAnonymous": false,
+      "challengeId": "chal-tanam-pohon",
+      "challengeTitle": "Tanam & Rawat 1 Pohon Endemik",
+      "category": "danau_toba",
+      "submittedAt": "2026-10-31T08:14:13.588Z",
+      "verdict": "valid",
+      "confidence": 92,
+      "userNotes": "Menanam bibit pohon alpukat di pekarangan gereja HKBP",
+      "imageThumbnail": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"%23235328\" rx=\"20\"/><path d=\"M60 25c-15 0-25 14-20 28 4 10 12 15 15 20v24h10V73c3-5 11-10 15-20 5-14-5-28-20-28z\" fill=\"%237A5230\"/><circle cx=\"60\" cy=\"45\" r=\"22\" fill=\"%23A8D5A2\"/></svg>",
+      "imageHash": "hash-daniel-tree-1",
+      "yang_terlihat": "Penanaman bibit pohon di pekarangan dengan tanah gembur",
+      "alasan": "Tindakan penghijauan nyata terverifikasi",
+      "saran": "Pastikan penyiraman rutin selama 3 bulan pertama",
+      "impact": {
+        "wasteKg": 0,
+        "trees": 2,
+        "waterLiters": 0,
+        "electricityKwh": 0
+      },
+      "awardedPoints": 50
+    },
+    {
+      "id": "sub-seed-3",
+      "userId": "u-johannes",
+      "userName": "Johannes Hutabarat",
+      "isAnonymous": false,
+      "challengeId": "chal-pilah-sampah",
+      "challengeTitle": "Pilah Sampah Organik & Anorganik",
+      "category": "harian",
+      "submittedAt": "2026-10-31T20:14:13.588Z",
+      "verdict": "valid",
+      "confidence": 88,
+      "userNotes": "Memilah sampah plastik dan kardus untuk bank sampah",
+      "imageThumbnail": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"%231E5429\" rx=\"20\"/><rect x=\"35\" y=\"45\" width=\"22\" height=\"45\" rx=\"4\" fill=\"%23FAF6EC\"/><rect x=\"63\" y=\"45\" width=\"22\" height=\"45\" rx=\"4\" fill=\"%23A8D5A2\"/><path d=\"M30 38h60v5H30z\" fill=\"%23FAF6EC\"/></svg>",
+      "imageHash": "hash-johannes-sort-1",
+      "yang_terlihat": "Wadah terpisah untuk sampah plastik dan kertas",
+      "alasan": "Pemilahan sampah sesuai standar daur ulang",
+      "saran": "Dapat disalurkan ke bank sampah komunitas terdekat",
+      "impact": {
+        "wasteKg": 3.5,
+        "trees": 0,
+        "waterLiters": 0,
+        "electricityKwh": 0
+      },
+      "awardedPoints": 30
+    },
+    {
+      "id": "sub-seed-4",
+      "userId": "u-ruth",
+      "userName": "Ruth Simanjuntak",
+      "isAnonymous": false,
+      "challengeId": "chal-komunitas-iakn",
+      "challengeTitle": "Gotong Royong Kampus Asri IAKN Tarutung",
+      "category": "komunitas",
+      "submittedAt": "2026-10-30T08:14:13.588Z",
+      "verdict": "valid",
+      "confidence": 96,
+      "userNotes": "Aksi marsiadapari bersama pemuda membersihkan selokan",
+      "imageThumbnail": "data:image/svg+xml;utf8,<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"120\" height=\"120\" viewBox=\"0 0 120 120\"><rect width=\"120\" height=\"120\" fill=\"%232E6B34\" rx=\"20\"/><circle cx=\"45\" cy=\"45\" r=\"14\" fill=\"%23FAF6EC\"/><circle cx=\"75\" cy=\"45\" r=\"14\" fill=\"%23FAF6EC\"/><path d=\"M30 85c0-12 10-18 20-18h20c10 0 20 6 20 18z\" fill=\"%23A8D5A2\"/></svg>",
+      "imageHash": "hash-ruth-gotong-royong-1",
+      "yang_terlihat": "Kerja bakti gotong royong pembersihan selokan dan lingkungan",
+      "alasan": "Aktivitas aksi marsiadapari hijau komunitas terdokumentasi jelas",
+      "saran": "Sangat menginspirasi lingkungan sekitar",
+      "impact": {
+        "wasteKg": 8,
+        "trees": 1,
+        "waterLiters": 40,
+        "electricityKwh": 0
+      },
+      "awardedPoints": 70
+    }
+  ],
+  "cheers": {},
+  "notifications": [
+    {
+      "id": "notif-like-1793521013792-o1ln",
+      "recipientUserId": "u-real-test",
+      "senderUserId": "u-andrews",
+      "senderName": "Andrews Sutaryadi",
+      "type": "thread_like",
+      "targetId": "th-real-test-1",
+      "title": "Menyukai Utas Anda",
+      "message": "Andrews Sutaryadi menyukai utas Anda: \"Aksi gotong royong membersihkan pantai Lumban...\"",
+      "createdAt": "2026-11-01T08:16:53.792Z",
+      "read": false
+    }
+  ],
+  "ecotheology": [
+    {
+      "id": "eco-1",
+      "title": "Mandatum Creationis di Tanah Batak: Panggilan Mengusahakan dan Memelihara",
+      "category": "mandatum_creationis",
+      "summary": "Memahami panggilan Kejadian 2:15 dalam terang iman Kristen: manusia ditempatkan bukan untuk mengeksploitasi, melainkan sebagai hamba dan pelindung taman kehidupan ciptaan Allah.",
+      "content": "Dalam Kejadian 2:15 tertulis: \"TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.\" Kata Ibrani 'Abad' (mengusahakan/melayani) dan 'Shamar' (menjaga/melindungi) adalah inti dari apa yang disebut para teolog sebagai Mandatum Creationis (Mandat Penciptaan).\n\nBagi masyarakat Batak yang hidup di sekitar lembah Silindung dan perairan Danau Toba, tanah dan air bukanlah sekadar komoditas ekonomi. Alam adalah panggung kemuliaan Allah di mana berkat dan kelangsungan generasi dilimpahkan. Ketika kita merusak hutan, menebang pohon secara serampangan, atau membuang sampah ke sungai-sungai yang bermuara ke Danau Toba, kita sedang mencederai mandat asali yang dipercayakan Sang Khalik kepada kita.\n\nPanggilan kita hari ini adalah menghidupkan kembali etika penatalayanan (stewardship). Setiap pohon yang kita tanam, setiap botol plastik yang kita tolak, dan setiap gotong royong pembersihan lingkungan adalah wujud ibadah nyata yang berkenan di hadapan Allah.",
+      "scriptureRef": "Kejadian 2:15",
+      "scriptureText": "TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.",
+      "batakWisdom": "Sisolisoli tubu ni sihala, molo denggan roham tu tano, tano pe denggan rohana tu ho: Kebaikan kita kepada tanah akan membuahkan kelimpahan bagi hidup kita.",
+      "author": "Civitas Akademika IAKN Tarutung",
+      "publishedAt": "2026-10-25",
+      "actionCall": "Tanam satu pohon buah atau tanaman pelindung di halaman gereja atau rumah Anda pekan ini.",
+      "isFeatured": true
+    },
+    {
+      "id": "eco-2",
+      "title": "Marsiadapari: Falsafah Gotong Royong Leluhur untuk Keselamatan Danau Toba",
+      "category": "kearifan_lokal",
+      "summary": "Bagaimana kearifan lokal Batak Toba \"Marsiadapari\" (gotong royong tanpa pamrih) bertransformasi menjadi kekuatan ekoteologis untuk menyelamatkan ekosistem Danau Toba.",
+      "content": "Falsafah Marsiadapari berakar mendalam dalam sejarah suku Batak. Pada masa bercocok tanam tradisional di bona pasogit, warga bergotong royong secara bergantian mengolah sawah, menanam padi, dan menuai panen tanpa mengharapkan upah materiil, melainkan dengan ikatan persaudaraan dan rasa tanggung jawab bersama (Siadapari).\n\nKetika diperhadapkan pada krisis ekologis abad ke-21—pencemaran air Danau Toba, masalah sampah plastik, dan erosi perbukitan—semangat Marsiadapari menemukan panggilan barunya: \"Marsiadapari Hijau\".\n\nKearifan lokal ini berdialog harmonis dengan panggilan kasih Kristen (Galatia 6:2: \"Bertolong-tolonganlah menanggung bebanmu!\"). Menyelamatkan Danau Toba tidak dapat dilakukan sendirian oleh pemerintah atau satu institusi. Diperlukan gerakan bersama seluruh jemaat, mahasiswa, pemuda, dan tetangga untuk saling menopang membersihkan lingkungan dan memulihkan bumi ciptaan.",
+      "scriptureRef": "Galatia 6:2",
+      "scriptureText": "Bertolong-tolonganlah menanggung bebanmu! Demikianlah kamu memenuhi hukum Kristus.",
+      "batakWisdom": "Tampakna do rantosna, rim ni tahi do gogona: Kebersamaan adalah kekuatan, kesatuan tekad membuahkan keberhasilan.",
+      "author": "Pdt. Dr. Robinson Simatupang & Tim Ekoteologi",
+      "publishedAt": "2026-10-26",
+      "actionCall": "Ajak minimal 3 sahabat atau anggota keluarga untuk aksi kerja bakti pembersihan saluran air lingkungan.",
+      "isFeatured": true
+    },
+    {
+      "id": "eco-3",
+      "title": "Ekoteologi Salib: Rekonsiliasi Kristus dengan Segala Sesuatu di Bumi",
+      "category": "keberlanjutan_alam",
+      "summary": "Karya keselamatan Kristus tidak hanya terbatas pada jiwa manusia, tetapi merangkul pemulihan seluruh semesta ciptaan (Kosmos).",
+      "content": "Rasul Paulus dalam surat Kolose 1:19-20 menuliskan kabar sukacita kosmik: \"Karena seluruh kepenuhan Allah berkenan diam di dalam Dia, dan oleh Dialah Ia memperdamaikan segala sesuatu dengan diri-Nya, baik yang ada di bumi, maupun yang ada di sorga, sesudah Ia mengadakan pendamaian oleh darah salib Kristus.\"\n\nTeologi Kristen yang utuh tidak memisahkan penyelamatan manusia dari kepedulian terhadap ciptaan. Di kayu salib, Kristus mendamaikan hubungan yang retak: manusia dengan Allah, manusia dengan sesama, dan manusia dengan alam semesta.\n\nSebagai orang-orang yang telah ditebus oleh anugerah, gaya hidup kita seharusnya memancarkan pendamaian itu, bukan eksploitasi yang merusak. Memilah sampah, menghemat pemakaian energi listrik, mengurangi jejak karbon, dan melindungi satwa endemik Danau Toba adalah ekspresi iman dari orang-orang yang menghidupi keselamatan sejati.",
+      "scriptureRef": "Kolose 1:19-20",
+      "scriptureText": "Dan oleh Dialah Ia memperdamaikan segala sesuatu dengan diri-Nya, baik yang ada di bumi, maupun yang ada di sorga...",
+      "batakWisdom": "Jolo tinallik rimbang asa tinallik torop, jolo nidilat bibir asa nidok hata: Renungkanlah keselamatan ciptaan sebelum bertindak sembarangan.",
+      "author": "Lembaga Pengabdian Masyarakat IAKN",
+      "publishedAt": "2026-10-27",
+      "actionCall": "Lakukan evaluasi jejak sampah rumah tangga Anda dan ganti kantong plastik sekali pakai dengan tas belanja ramah lingkungan.",
+      "isFeatured": true
+    },
+    {
+      "id": "eco-4",
+      "title": "Menjaga Mata Air Silindung: Teologi Air Bersih dan Keberlanjutan Ekosistem",
+      "category": "danau_toba",
+      "summary": "Air sebagai anugerah kehidupan ilahi dalam Mazmur 104 dan kewajiban moral jemaat menjaga kejernihan sungai Sigeaon serta hulu mata air.",
+      "content": "Lembah Rura Silindung dan kawasan Danau Toba dikaruniai ratusan hulu mata air jernih dan sumber air panas alami seperti di Sipoholon. Air adalah simbol Roh Kudus, pembersihan dosa, dan penopang utama sawah terasering masyarakat.\n\nDalam Mazmur 104:10 dikatakan: \"Engkau yang melepas mata-mata air ke dalam lembah-lembah, mengalir di antara gunung-gunung, memberi minum segala binatang di padang.\" Air adalah hak seluruh ciptaan yang diberikan Tuhan secara cuma-cuma.\n\nKetika limbah rumah tangga, deterjen kimia berbahaya, atau sampah anorganik dibuang langsung ke selokan dan Sungai Sigeaon, kita sedang meracuni anugerah kehidupan itu. Teologi air mengajak kita memperlakukan setiap tetes air dengan hormat: membatasi pemakaian deterjen berlebih, memelihara pohon peneduh di sekitar daerah resapan air, dan menjaga kemurnian aliran sungai.",
+      "scriptureRef": "Mazmur 104:10-11",
+      "scriptureText": "Engkau yang melepas mata-mata air ke dalam lembah-lembah, mengalir di antara gunung-gunung, memberi minum segala binatang...",
+      "batakWisdom": "Aek godang tu aek laut, dos ni roha sibaen na saut: Aliran air membawa berkat, persatuan hati menjaga kelestariannya.",
+      "author": "Komunitas Peduli Danau Toba & Lembah Silindung",
+      "publishedAt": "2026-10-28",
+      "actionCall": "Gunakan air secukupnya saat mencuci dan pastikan saluran air di sekitar rumah bebas dari sumbatan sampah plastik.",
+      "isFeatured": false
+    }
+  ]
+}

@@ -25,9 +25,36 @@ const SESSION_KEY = 'mh_auth_session';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '');
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+export interface EmailConfirmationNotice {
+  status: 'confirmed' | 'already_verified' | 'error';
+  message: string;
+}
+
+let pendingNotice: EmailConfirmationNotice | null = null;
+
 export class AuthService {
   static isConfigured(): boolean {
     return Boolean(supabaseUrl && supabaseAnonKey);
+  }
+
+  static getPublicOrigin(): string {
+    if (typeof window !== 'undefined' && window.location.origin) {
+      const origin = window.location.origin;
+      if (!origin.includes('localhost') && !origin.includes('127.0.0.1')) {
+        return origin;
+      }
+    }
+    const envUrl = import.meta.env.VITE_APP_URL;
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      return envUrl.replace(/\/+$/, '');
+    }
+    return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+  }
+
+  static consumeConfirmationNotice(): EmailConfirmationNotice | null {
+    const notice = pendingNotice;
+    pendingNotice = null;
+    return notice;
   }
 
   static async signUp(
@@ -35,7 +62,8 @@ export class AuthService {
     password: string,
     metadata: Record<string, unknown>,
   ): Promise<void> {
-    const redirectTo = encodeURIComponent(window.location.origin);
+    const origin = this.getPublicOrigin();
+    const redirectTo = encodeURIComponent(`${origin}/auth/confirm`);
     await this.request<AuthResponse>(
       `/signup?redirect_to=${redirectTo}`,
       {
@@ -107,36 +135,159 @@ export class AuthService {
   }
 
   static async completeEmailConfirmation(): Promise<AuthUser | null> {
-    const hash = window.location.hash;
-    if (!hash) return null;
+    if (typeof window === 'undefined') return null;
 
-    const params = new URLSearchParams(hash.slice(1));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
-    const expiresIn = Number(params.get('expires_in'));
-    const errorDescription = params.get('error_description');
+    const hash = window.location.hash ? window.location.hash.slice(1) : '';
+    const hashParams = new URLSearchParams(hash);
+    const searchParams = new URLSearchParams(window.location.search);
 
-    if (errorDescription) {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      throw new Error(decodeURIComponent(errorDescription.replace(/\+/g, ' ')));
+    const errorCode = hashParams.get('error_code') || searchParams.get('error_code');
+    const errorDescription = hashParams.get('error_description') || searchParams.get('error_description') || hashParams.get('error') || searchParams.get('error');
+    const emailConfirmedParam = searchParams.get('email_confirmed');
+
+    // 1. Handle error cases gracefully (e.g. 404 from expired or already clicked link)
+    if (errorCode === '404' || (errorDescription && /invalid|expired|404|already/i.test(errorDescription))) {
+      this.cleanAuthUrlParams();
+      pendingNotice = {
+        status: 'already_verified',
+        message: 'Tautan konfirmasi sudah digunakan atau akun Anda telah aktif. Silakan masuk dengan email dan kata sandi Anda.',
+      };
+      return null;
     }
 
-    if (!accessToken || !refreshToken) return null;
+    if (errorDescription) {
+      this.cleanAuthUrlParams();
+      pendingNotice = {
+        status: 'error',
+        message: decodeURIComponent(errorDescription.replace(/\+/g, ' ')),
+      };
+      return null;
+    }
 
-    this.storeSession({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_at: Date.now() + (Number.isFinite(expiresIn) ? expiresIn : 3600) * 1000,
-    });
+    // 2. Handle server redirect queries
+    if (emailConfirmedParam === 'already_verified') {
+      this.cleanAuthUrlParams();
+      pendingNotice = {
+        status: 'already_verified',
+        message: 'Tautan konfirmasi sudah digunakan atau akun Anda telah aktif. Silakan masuk dengan email dan kata sandi Anda.',
+      };
+      return null;
+    }
 
+    // 3. Extract tokens from hash or search
+    const accessToken = hashParams.get('access_token') || searchParams.get('access_token');
+    const refreshToken = hashParams.get('refresh_token') || searchParams.get('refresh_token');
+    const expiresIn = Number(hashParams.get('expires_in') || searchParams.get('expires_in'));
+
+    if (accessToken && refreshToken) {
+      this.storeSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expires_at: Date.now() + (Number.isFinite(expiresIn) ? expiresIn : 3600) * 1000,
+      });
+
+      try {
+        const user = await this.request<AuthUser>('/user', undefined, accessToken);
+        this.cleanAuthUrlParams();
+        pendingNotice = {
+          status: 'confirmed',
+          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif dan siap digunakan.',
+        };
+        return user;
+      } catch (error) {
+        this.clearSession();
+        this.cleanAuthUrlParams();
+        console.warn('Session check after confirmation token failed:', error);
+        pendingNotice = {
+          status: 'already_verified',
+          message: 'Email berhasil dikonfirmasi. Silakan masuk dengan email dan kata sandi Anda.',
+        };
+        return null;
+      }
+    }
+
+    // 4. Handle client-side token_hash verification if landed directly on client
+    const tokenHash = searchParams.get('token_hash') || searchParams.get('token');
+    const type = searchParams.get('type') || 'signup';
+    if (tokenHash) {
+      try {
+        const response = await this.request<AuthResponse>(
+          `/verify?token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(type)}`,
+        );
+        const user = this.saveSession(response);
+        this.cleanAuthUrlParams();
+        pendingNotice = {
+          status: 'confirmed',
+          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
+        };
+        return user;
+      } catch (verifyError) {
+        this.cleanAuthUrlParams();
+        console.warn('Client token_hash verification fallback:', verifyError);
+        pendingNotice = {
+          status: 'already_verified',
+          message: 'Tautan konfirmasi sudah digunakan atau akun telah aktif. Silakan masuk dengan email dan kata sandi.',
+        };
+        return null;
+      }
+    }
+
+    // 5. Handle PKCE code
+    const code = searchParams.get('code');
+    if (code) {
+      try {
+        const response = await this.request<AuthResponse>(
+          '/token?grant_type=pkce',
+          { auth_code: code },
+        );
+        const user = this.saveSession(response);
+        this.cleanAuthUrlParams();
+        pendingNotice = {
+          status: 'confirmed',
+          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
+        };
+        return user;
+      } catch (codeError) {
+        this.cleanAuthUrlParams();
+        console.warn('PKCE exchange fallback:', codeError);
+        pendingNotice = {
+          status: 'already_verified',
+          message: 'Tautan konfirmasi sudah digunakan atau akun telah aktif. Silakan masuk.',
+        };
+        return null;
+      }
+    }
+
+    // 6. Handle ?email_confirmed=true without tokens
+    if (emailConfirmedParam === 'true') {
+      this.cleanAuthUrlParams();
+      pendingNotice = {
+        status: 'confirmed',
+        message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif. Silakan masuk.',
+      };
+      return null;
+    }
+
+    return null;
+  }
+
+  private static cleanAuthUrlParams(): void {
+    if (typeof window === 'undefined') return;
     try {
-      const user = await this.request<AuthUser>('/user', undefined, accessToken);
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      return user;
-    } catch (error) {
-      this.clearSession();
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      throw error;
+      const url = new URL(window.location.href);
+      url.searchParams.delete('token_hash');
+      url.searchParams.delete('token');
+      url.searchParams.delete('type');
+      url.searchParams.delete('code');
+      url.searchParams.delete('error');
+      url.searchParams.delete('error_code');
+      url.searchParams.delete('error_description');
+      url.searchParams.delete('email_confirmed');
+      const nextSearch = url.searchParams.toString();
+      const finalUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}`;
+      window.history.replaceState(null, '', finalUrl);
+    } catch {
+      window.history.replaceState(null, '', window.location.pathname);
     }
   }
 

@@ -43,11 +43,16 @@ export class SocialSyncService {
 
       // 1. Sync Threads (two-way merge & self-healing so user threads are never lost)
       if (Array.isArray(data.threads)) {
-        const local = StorageService.getThreads();
+        const serverPosts = (data.threads as ThreadPost[]).filter(
+          (t) => t && t.id && !t.id.startsWith('th-seed-')
+        );
+        const local = StorageService.getThreads().filter(
+          (t) => t && t.id && !t.id.startsWith('th-seed-')
+        );
         const threadMap = new Map<string, ThreadPost>();
 
-        // Register server threads
-        for (const t of data.threads) {
+        // Register clean server threads
+        for (const t of serverPosts) {
           if (t && t.id) threadMap.set(t.id, t);
         }
 
@@ -61,14 +66,17 @@ export class SocialSyncService {
             } else {
               const serverThread = threadMap.get(t.id)!;
 
-              // Merge likedBy lists using Set union
+              // Synchronize likedBy list
               const serverLikedBy = Array.isArray(serverThread.likedBy) ? serverThread.likedBy : [];
               const localLikedBy = Array.isArray(t.likedBy) ? t.likedBy : [];
-              const mergedLikedBy = Array.from(new Set([...serverLikedBy, ...localLikedBy]));
-              serverThread.likedBy = mergedLikedBy;
-              serverThread.likes = Math.max(serverThread.likes || 0, t.likes || 0, mergedLikedBy.length);
+              let finalLikedBy = serverLikedBy;
+              if (user?.id && localLikedBy.includes(user.id) && !serverLikedBy.includes(user.id)) {
+                finalLikedBy = [...serverLikedBy, user.id];
+              }
+              serverThread.likedBy = finalLikedBy;
+              serverThread.likes = finalLikedBy.length;
 
-              // Merge savedBy lists using Set union
+              // Merge savedBy lists
               const serverSavedBy = Array.isArray(serverThread.savedBy) ? serverThread.savedBy : [];
               const localSavedBy = Array.isArray(t.savedBy) ? t.savedBy : [];
               serverThread.savedBy = Array.from(new Set([...serverSavedBy, ...localSavedBy]));
@@ -231,8 +239,9 @@ export class SocialSyncService {
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data.threads)) {
-          StorageService.saveThreads(data.threads);
-          window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: data.threads }));
+          const clean = data.threads.filter((t: ThreadPost) => t && t.id && !t.id.startsWith('th-seed-'));
+          StorageService.saveThreads(clean);
+          window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: clean }));
         }
       }
     } catch (e) {
