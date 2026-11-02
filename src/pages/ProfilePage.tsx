@@ -58,7 +58,19 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [emailError, setEmailError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
-  const communities = StorageService.getCommunities();
+  const [communities, setCommunities] = useState<Community[]>(() => StorageService.getCommunities());
+
+  useEffect(() => {
+    const handleCommunitiesUpdate = () => {
+      setCommunities(StorageService.getCommunities());
+    };
+    window.addEventListener('mh-data-updated', handleCommunitiesUpdate);
+    window.addEventListener('mh-shared-data-change', handleCommunitiesUpdate);
+    return () => {
+      window.removeEventListener('mh-data-updated', handleCommunitiesUpdate);
+      window.removeEventListener('mh-shared-data-change', handleCommunitiesUpdate);
+    };
+  }, []);
   const impact = StorageService.getUserImpact(user);
   const earnedBadges = POINT_BADGES.filter((badge) => user.points >= badge.requiredPoints);
   const nextBadge = POINT_BADGES.find((badge) => user.points < badge.requiredPoints);

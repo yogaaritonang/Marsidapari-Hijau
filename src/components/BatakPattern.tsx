@@ -107,7 +107,7 @@ export const BatakUlosHeaderParallax: React.FC<{
   className?: string;
 }> = ({ scrollY = 0, tintColor, className = '' }) => {
   // Parallax subtle vertical offset
-  const parallaxY = Math.min(24, Math.max(-12, scrollY * 0.08));
+  const parallaxY = Math.min(20, Math.max(-10, scrollY * 0.06));
 
   return (
     <div
@@ -115,11 +115,13 @@ export const BatakUlosHeaderParallax: React.FC<{
       style={{
         transform: `translateY(${parallaxY}px)`,
       }}
+      role="presentation"
+      aria-hidden="true"
     >
-      <div className="relative h-12 sm:h-14 w-full rounded-2xl overflow-hidden border border-amber-800/25 dark:border-amber-500/20 shadow-xs bg-[#1F1010]/30 backdrop-blur-xs transition-all duration-300 group-hover:scale-[1.015] group-hover:opacity-95 opacity-80">
+      <div className="relative h-11 sm:h-13 w-full rounded-2xl overflow-hidden border border-amber-800/25 dark:border-amber-500/20 shadow-xs bg-[#1F1010]/30 backdrop-blur-xs transition-all duration-300 group-hover:scale-[1.015] group-hover:opacity-95 opacity-80">
         {/* Semi-transparent Ulos pattern background */}
         <div
-          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-70 dark:opacity-60"
+          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-75 dark:opacity-65"
           style={{
             backgroundImage: "url('/assets/ulos-ribbon.jpg')",
             backgroundPosition: 'center',
@@ -138,17 +140,6 @@ export const BatakUlosHeaderParallax: React.FC<{
         {/* Soft edge masking and gradient overlay so text/content above/below stays pristine */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6EC]/90 via-transparent to-[#FAF6EC]/90 dark:from-[#0F1710]/90 dark:via-transparent dark:to-[#0F1710]/90 pointer-events-none" />
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-transparent pointer-events-none" />
-
-        {/* Gentle Cultural Greeting Watermark */}
-        <div className="absolute inset-0 flex items-center justify-between px-4 text-[10px] font-bold text-amber-900/80 dark:text-amber-200/80 pointer-events-none">
-          <span className="flex items-center gap-1.5 uppercase tracking-widest text-[9px]">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            Tenun Ulos Budaya Batak
-          </span>
-          <span className="italic font-serif text-[10px] tracking-wide opacity-80 hidden sm:inline">
-            "Marsiadapari mamparbuehon denggan"
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -156,24 +147,48 @@ export const BatakUlosHeaderParallax: React.FC<{
 
 /**
  * Elemen kain Ulos di bagian paling bawah halaman (Footer)
- * dengan rumbai-rumbai menghadap ke atas, efek hover scale & opacity, dan pewarnaan dinamis.
+ * Dibuat langsung dengan motif tenun khas Batak dan rumbai-rumbai tenun geometris menghadap ke atas,
+ * dengan efek hover scale & opacity, pewarnaan dinamis komunitas, tanpa menggunakan foto rumbai mentah.
  */
 export const BatakUlosFooter: React.FC<{
   tintColor?: string;
   className?: string;
 }> = ({ tintColor, className = '' }) => {
   return (
-    <footer className={`relative w-full overflow-hidden pt-8 pb-4 text-center group cursor-default select-none ${className}`}>
-      <div className="mx-auto max-w-xl px-4">
-        {/* Container with hover scale & opacity */}
-        <div className="relative overflow-hidden rounded-t-3xl border-t-2 border-x border-amber-700/30 dark:border-amber-500/20 bg-gradient-to-b from-transparent via-[#1A0B0B]/40 to-[#1A0B0B]/90 shadow-xl transition-all duration-500 transform group-hover:scale-[1.02] group-hover:opacity-100 opacity-90">
+    <footer className={`relative w-full overflow-hidden pt-6 pb-2 text-center group cursor-default select-none ${className}`}>
+      <div className="mx-auto max-w-2xl px-4">
+        {/* Upward-pointing woven fringe / rumbai decorative tassels */}
+        <div className="w-full flex justify-center items-end overflow-hidden h-6 opacity-85 transition-opacity group-hover:opacity-100 mb-[-1px] pointer-events-none" aria-hidden="true">
+          <svg className="w-full max-w-lg h-6 text-amber-700/80 dark:text-amber-500/80" viewBox="0 0 600 24" preserveAspectRatio="none" fill="currentColor">
+            {/* Repeated woven fringe tassels pointing upward */}
+            {Array.from({ length: 30 }).map((_, idx) => {
+              const x = idx * 20;
+              const height = idx % 2 === 0 ? 20 : 16;
+              const y = 24 - height;
+              return (
+                <g key={idx}>
+                  <line x1={x + 3} y1={24} x2={x + 3} y2={y + 2} stroke="#B45309" strokeWidth="1.2" strokeLinecap="round" />
+                  <line x1={x + 7} y1={24} x2={x + 7} y2={y} stroke="#D97706" strokeWidth="1.2" strokeLinecap="round" />
+                  <line x1={x + 11} y1={24} x2={x + 11} y2={y + 3} stroke="#92400E" strokeWidth="1.2" strokeLinecap="round" />
+                  <circle cx={x + 7} cy={y + 1} r="1.5" fill="#FCD34D" />
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+
+        {/* Container with hover scale & opacity - rich Batak woven motif */}
+        <div className="relative overflow-hidden rounded-t-2xl sm:rounded-t-3xl border-t-2 border-x border-amber-700/40 dark:border-amber-500/30 bg-[#160B0B] shadow-xl transition-all duration-500 transform group-hover:scale-[1.015] group-hover:opacity-100 opacity-95">
           
-          {/* Ulos image with fringes facing UPWARDS */}
-          <div className="relative h-32 sm:h-40 w-full overflow-hidden">
-            <img
-              src="/assets/ulos-footer-rumbai-up.png"
-              alt="Kain Tenun Ulos Batak dengan rumbai-rumbai menghadap ke atas"
-              className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105"
+          {/* Ulos Woven Tapestry Body (Distinct from header: includes geometric Gorga chevron weave) */}
+          <div className="relative h-20 sm:h-24 w-full overflow-hidden">
+            <div
+              className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105 opacity-85"
+              style={{
+                backgroundImage: "url('/assets/ulos-banner-horizontal.jpg')",
+                backgroundPosition: 'center',
+                backgroundSize: 'cover',
+              }}
             />
 
             {/* Dynamic Community / Brand Color Tint */}
@@ -184,16 +199,17 @@ export const BatakUlosFooter: React.FC<{
               />
             )}
 
-            {/* Subtle Gradient Overlays */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#140808] via-transparent to-transparent pointer-events-none" />
+            {/* Gradient Masking */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#160B0B] via-[#160B0B]/40 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#160B0B]/80 via-transparent to-[#160B0B]/80 pointer-events-none" />
           </div>
 
           {/* Cultural Footer Caption */}
-          <div className="relative -mt-6 pb-3 px-3">
-            <span className="inline-block text-[10px] sm:text-xs font-bold text-amber-200 bg-black/75 px-3 py-1 rounded-full backdrop-blur-xs border border-amber-500/40 shadow-md">
+          <div className="relative -mt-6 pb-4 px-4 bg-gradient-to-b from-transparent to-[#160B0B]">
+            <span className="inline-block text-[10px] sm:text-xs font-bold text-amber-200 bg-black/80 px-3.5 py-1 rounded-full backdrop-blur-xs border border-amber-500/40 shadow-md">
               Kain Ulos Batak Toba • Merawat Bumi Ciptaan Tuhan
             </span>
-            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 font-medium">
+            <p className="text-[10px] text-amber-100/70 dark:text-gray-300 mt-2 font-medium">
               "Si pogos so marripu, si mamora so marhaha maranggi" — Bersatu merawat Danau Toba
             </p>
           </div>

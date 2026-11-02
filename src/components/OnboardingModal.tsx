@@ -51,8 +51,26 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(initialError ?? null);
 
-  const communities = StorageService.getCommunities();
+  const [brand, setBrand] = useState(() => StorageService.getBrandSettings());
+  const [communities, setCommunities] = useState<Community[]>(() => StorageService.getCommunities());
   const cleanEmail = email.trim().toLowerCase();
+
+  React.useEffect(() => {
+    const handleCommunitiesUpdate = () => {
+      setCommunities(StorageService.getCommunities());
+    };
+    const handleBrandUpdate = () => {
+      setBrand(StorageService.getBrandSettings());
+    };
+    window.addEventListener('mh-data-updated', handleCommunitiesUpdate);
+    window.addEventListener('mh-shared-data-change', handleCommunitiesUpdate);
+    window.addEventListener('mh-brand-updated', handleBrandUpdate);
+    return () => {
+      window.removeEventListener('mh-data-updated', handleCommunitiesUpdate);
+      window.removeEventListener('mh-shared-data-change', handleCommunitiesUpdate);
+      window.removeEventListener('mh-brand-updated', handleBrandUpdate);
+    };
+  }, []);
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -158,14 +176,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#17251a]/70 p-3 backdrop-blur-sm sm:items-center sm:p-6">
       <section
         aria-labelledby="auth-heading"
-        className="relative my-3 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 bg-[#FAF6EC] shadow-[0_30px_100px_rgba(15,35,18,0.35)] sm:my-auto"
+        className="relative my-3 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 dark:border-white/10 bg-[#FAF6EC] dark:bg-[#121B14] text-[#1F2A1F] dark:text-[#E8EFE8] shadow-[0_30px_100px_rgba(15,35,18,0.35)] sm:my-auto"
       >
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Tutup formulir akun"
-            className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-gray-600 shadow-sm transition hover:bg-white hover:text-[#2E6B34] sm:right-4 sm:top-4"
+            className="absolute right-3 top-3 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 dark:bg-black/60 text-gray-600 dark:text-gray-300 shadow-sm transition hover:bg-white dark:hover:bg-black hover:text-[#2E6B34] sm:right-4 sm:top-4 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -177,11 +195,21 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             <div className="absolute bottom-20 right-6 h-48 w-48 rounded-full bg-[#A8D5A2]/10 blur-2xl" />
 
             <div className="relative z-10 flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
-                <Leaf className="h-6 w-6 text-[#B9E0A9]" />
-              </span>
+              {brand.logoUrl && brand.logoUrl.trim() ? (
+                <div className="flex h-12 items-center justify-center shrink-0">
+                  <img
+                    src={brand.logoUrl}
+                    alt={brand.name || 'Logo'}
+                    className="max-h-12 max-w-16 object-contain drop-shadow-md"
+                  />
+                </div>
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
+                  <Leaf className="h-6 w-6 text-[#B9E0A9]" />
+                </span>
+              )}
               <div>
-                <p className="font-poppins text-sm font-bold tracking-wide">Marsiadapari</p>
+                <p className="font-poppins text-sm font-bold tracking-wide">{brand.name || 'Marsiadapari'}</p>
                 <p className="text-xs text-white/65">Hijau · Danau Toba</p>
               </div>
             </div>
@@ -213,12 +241,22 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
           <div className="flex min-w-0 flex-col p-4 sm:p-8 lg:p-10">
             <div className="mb-7 flex items-center gap-3 md:hidden">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E6B34] text-white">
-                <Leaf className="h-5 w-5 text-[#B9E0A9]" />
-              </span>
+              {brand.logoUrl && brand.logoUrl.trim() ? (
+                <div className="flex h-11 items-center justify-center shrink-0">
+                  <img
+                    src={brand.logoUrl}
+                    alt={brand.name || 'Logo'}
+                    className="max-h-11 max-w-14 object-contain drop-shadow-sm"
+                  />
+                </div>
+              ) : (
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2E6B34] text-white">
+                  <Leaf className="h-5 w-5 text-[#B9E0A9]" />
+                </span>
+              )}
               <div>
-                <p className="font-poppins text-sm font-bold text-[#1F2A1F]">Marsiadapari Hijau</p>
-                <p className="text-xs text-gray-500">Aksi kecil, dampak agung</p>
+                <p className="font-poppins text-sm font-bold text-[#1F2A1F] dark:text-[#E8EFE8]">{brand.name || 'Marsiadapari Hijau'}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Aksi kecil, dampak agung</p>
               </div>
             </div>
 

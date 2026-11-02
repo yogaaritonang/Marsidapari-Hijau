@@ -51,6 +51,9 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [selectedArticle, setSelectedArticle] = useState<EcotheologyArticle | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [brand, setBrand] = useState(() => StorageService.getBrandSettings());
+  const [totalCommunityTrees, setTotalCommunityTrees] = useState(() =>
+    StorageService.getCommunityTotalTrees(user.communityId)
+  );
 
   useEffect(() => {
     const onScroll = () => {
@@ -64,9 +67,19 @@ export const HomePage: React.FC<HomePageProps> = ({
     const onBrandUpdate = () => {
       setBrand(StorageService.getBrandSettings());
     };
+    const onDataUpdate = () => {
+      setTotalCommunityTrees(StorageService.getCommunityTotalTrees(user.communityId));
+      setChallenges(StorageService.getChallenges());
+    };
     window.addEventListener('mh-brand-updated', onBrandUpdate);
-    return () => window.removeEventListener('mh-brand-updated', onBrandUpdate);
-  }, []);
+    window.addEventListener('mh-data-updated', onDataUpdate);
+    window.addEventListener('mh-shared-data-change', onDataUpdate);
+    return () => {
+      window.removeEventListener('mh-brand-updated', onBrandUpdate);
+      window.removeEventListener('mh-data-updated', onDataUpdate);
+      window.removeEventListener('mh-shared-data-change', onDataUpdate);
+    };
+  }, [user.communityId]);
 
   // Dynamic User GPS Location State
   const [userLocation, setUserLocation] = useState<string>(() => {
@@ -210,10 +223,10 @@ export const HomePage: React.FC<HomePageProps> = ({
             <h1 className="mt-0.5 font-poppins text-lg sm:text-2xl font-extrabold text-[#1F2A1F] leading-snug">
               Horas, {user.name}! 🌿
             </h1>
-            <p className="text-[11px] sm:text-xs text-gray-600 mt-0.5 truncate">
+            <p className="text-[11px] sm:text-xs text-gray-600 dark:text-gray-300 mt-0.5 truncate">
               {user.id === 'guest-preview'
                 ? 'Jelajahi gerakan merawat ciptaan bersama.'
-                : <>Komunitas: <strong className="text-[#2E6B34]">{user.communityName}</strong></>}
+                : <>Komunitas: <strong className="text-[#2E6B34] dark:text-emerald-400">{user.communityName || (StorageService.getCommunities().find(c => c.id === user.communityId)?.name) || 'Komunitas Marsiadapari Hijau'}</strong></>}
             </p>
           </div>
 
@@ -537,13 +550,13 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           )}
 
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
-            <span className="text-gray-600 text-[11px]">
-              🌲 Hutan Komunitas: <strong>—</strong> pohon tercatat
+          <div className="pt-2 border-t border-gray-100 dark:border-white/10 flex items-center justify-between text-xs">
+            <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+              🌲 Hutan Komunitas: <strong className="text-emerald-700 dark:text-emerald-300 font-extrabold">{totalCommunityTrees}</strong> pohon tercatat
             </span>
             <button
               onClick={() => onNavigateTab('garden')}
-              className="text-[#2E6B34] font-bold flex items-center gap-0.5 hover:underline text-[11px]"
+              className="text-[#2E6B34] dark:text-emerald-400 font-bold flex items-center gap-0.5 hover:underline text-[11px]"
             >
               <span>Lihat Kebun</span>
               <ChevronRight className="w-3.5 h-3.5" />

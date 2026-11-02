@@ -751,14 +751,26 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <textarea value={brand.description || ''} onChange={(event) => setBrand({ ...brand, description: event.target.value })} rows={2} className="w-full rounded-xl border border-gray-300 p-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                   </label>
                   <label className="block space-y-1.5 text-xs font-bold sm:col-span-2">
-                    Upload logo (PNG/JPG/JPEG/WebP/GIF) atau pakai URL/data URL
+                    Upload logo (PNG/JPG/JPEG/WebP/GIF) transparan atau pakai URL/data URL
                     <input type="file" accept="image/*" onChange={async (e) => {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+                      // If PNG under 1.5MB, preserve raw transparent data URL directly
+                      if (isPng && file.size < 1500000) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          const result = typeof reader.result === 'string' ? reader.result : '';
+                          setBrand({ ...brand, logoUrl: result });
+                          notify('Logo PNG transparan berhasil dimuat tanpa background.');
+                        };
+                        reader.readAsDataURL(file);
+                        return;
+                      }
                       try {
-                        const compressed = await compressImage(file, 256, 256, 0.85);
+                        const compressed = await compressImage(file, 256, 256, 0.9);
                         setBrand({ ...brand, logoUrl: compressed.dataUrl });
-                        notify('Gambar logo dikompresi & disiapkan.');
+                        notify('Gambar logo siap dengan transparansi terjaga.');
                       } catch {
                         const reader = new FileReader();
                         reader.onload = () => {
@@ -970,12 +982,16 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 rounded-xl bg-[#F3F6F1] p-4">
-                  <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl bg-[#2E6B34] text-white">
-                    {brand.logoUrl && brand.logoUrl.trim() ? <img src={brand.logoUrl} alt="Pratinjau logo" className="h-full w-full object-contain" /> : <Leaf className="h-7 w-7" />}
+                <div className="flex items-center gap-3 rounded-xl bg-white border border-gray-200 p-4">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50/70 p-1">
+                    {brand.logoUrl && brand.logoUrl.trim() ? (
+                      <img src={brand.logoUrl} alt="Pratinjau logo" className="max-h-full max-w-full object-contain drop-shadow-xs" />
+                    ) : (
+                      <Leaf className="h-7 w-7 text-[#2E6B34]" />
+                    )}
                   </div>
                   <div>
-                    <span className="font-bold block">{brand.name || 'Marsiadapari Hijau'}</span>
+                    <span className="font-bold block text-gray-900">{brand.name || 'Marsiadapari Hijau'}</span>
                     <span className="text-xs text-gray-600">{brand.tagline || ''}</span>
                   </div>
                 </div>

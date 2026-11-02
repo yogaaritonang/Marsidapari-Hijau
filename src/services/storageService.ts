@@ -276,19 +276,62 @@ export class StorageService {
   }
 
   static getCommunities(): Community[] {
-    return this.getItem<Community[]>(STORAGE_KEYS.COMMUNITIES, SEED_COMMUNITIES)
-      .filter((community) => !['iakn-tarutung', 'hkbp-pearaja', 'gkpi-tarutung', 'pemuda-silindung'].includes(community.id));
+    const list = this.getItem<Community[]>(STORAGE_KEYS.COMMUNITIES, SEED_COMMUNITIES);
+    if (!list || list.length === 0) {
+      this.saveCommunities(SEED_COMMUNITIES);
+      return SEED_COMMUNITIES;
+    }
+    // Ensure all seed communities exist in the list
+    let updated = false;
+    const merged = [...list];
+    for (const seed of SEED_COMMUNITIES) {
+      if (!merged.some((c) => c.id === seed.id)) {
+        merged.push(seed);
+        updated = true;
+      }
+    }
+    if (updated) {
+      this.saveCommunities(merged);
+    }
+    return merged;
   }
 
   static saveCommunities(communities: Community[]): void {
     this.setItem<Community[]>(STORAGE_KEYS.COMMUNITIES, communities);
     notifySharedDataChange('communities', communities);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities', values: communities } }));
   }
 
   static addCommunity(community: Community): void {
     const list = this.getCommunities();
-    list.push(community);
+    const existingIndex = list.findIndex((c) => c.id === community.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...community };
+    } else {
+      list.push(community);
+    }
     this.saveCommunities(list);
+  }
+
+  /**
+   * Menghitung total pohon tertanam secara dinamis untuk komunitas pengguna atau seluruh gerakan
+   * Tersinkronisasi dengan aksi/challenge yang telah diselesaikan dan diverifikasi.
+   */
+  static getCommunityTotalTrees(communityId?: string): number {
+    const comms = this.getCommunities();
+    const targetComm = comms.find((c) => c.id === communityId) || comms[0];
+
+    // Hitung pohon tambahan dari submission aksi yang berstatus valid
+    const subs = this.getSubmissions().filter((s) => s.verdict === 'valid');
+    let extraTrees = 0;
+    for (const sub of subs) {
+      if (sub.impact && sub.impact.trees > 0) {
+        extraTrees += sub.impact.trees;
+      }
+    }
+
+    const baseline = targetComm?.treesPlanted || 120;
+    return baseline + extraTrees;
   }
 
   static getDevotions(): Devotion[] {
@@ -441,6 +484,19 @@ export class StorageService {
           notifyBadgeUnlocks(user.id, newlyUnlocked);
         }
         this.addGardenExp(sub.awardedPoints);
+
+        // Synchronize community points, actionCount, and treesPlanted
+        const communities = this.getCommunities();
+        const userComm = communities.find((c) => c.id === user.communityId) || communities[0];
+        if (userComm) {
+          userComm.totalPoints += sub.awardedPoints;
+          userComm.actionCount += 1;
+          if (sub.impact && sub.impact.trees > 0) {
+            userComm.treesPlanted += sub.impact.trees;
+          }
+          this.saveCommunities(communities);
+        }
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
       }
     }
   }
@@ -518,13 +574,30 @@ export class StorageService {
   }
 
   static getEvents(): GreenEvent[] {
-    return this.getItem<GreenEvent[]>(STORAGE_KEYS.EVENTS, [])
-      .filter((event) => !['evt-1', 'evt-2', 'evt-3'].includes(event.id));
+    const list = this.getItem<GreenEvent[]>(STORAGE_KEYS.EVENTS, SEED_EVENTS);
+    if (!list || list.length === 0) {
+      this.saveEvents(SEED_EVENTS);
+      return SEED_EVENTS;
+    }
+    // Ensure all seed events exist
+    let updated = false;
+    const merged = [...list];
+    for (const seed of SEED_EVENTS) {
+      if (!merged.some((e) => e.id === seed.id)) {
+        merged.push(seed);
+        updated = true;
+      }
+    }
+    if (updated) {
+      this.saveEvents(merged);
+    }
+    return merged;
   }
 
   static saveEvents(events: GreenEvent[]): void {
     this.setItem<GreenEvent[]>(STORAGE_KEYS.EVENTS, events);
     notifySharedDataChange('events', events);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'events', values: events } }));
   }
 
   static toggleEventRegistration(eventId: string): void {
@@ -533,7 +606,7 @@ export class StorageService {
     if (evt) {
       evt.isRegistered = !evt.isRegistered;
       evt.registeredCount += evt.isRegistered ? 1 : -1;
-      this.setItem(STORAGE_KEYS.EVENTS, events);
+      this.saveEvents(events);
     }
   }
 
@@ -544,8 +617,24 @@ export class StorageService {
   }
 
   static getMapLocations(): MapMarkerLocation[] {
-    return this.getItem<MapMarkerLocation[]>(STORAGE_KEYS.LOCATIONS, [])
-      .filter((location) => !/^loc-[1-6]$/.test(location.id));
+    const list = this.getItem<MapMarkerLocation[]>(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS);
+    if (!list || list.length === 0) {
+      this.saveMapLocations(SEED_LOCATIONS);
+      return SEED_LOCATIONS;
+    }
+    // Ensure seed locations exist
+    let updated = false;
+    const merged = [...list];
+    for (const seed of SEED_LOCATIONS) {
+      if (!merged.some((l) => l.id === seed.id)) {
+        merged.push(seed);
+        updated = true;
+      }
+    }
+    if (updated) {
+      this.saveMapLocations(merged);
+    }
+    return merged;
   }
 
   static addMapLocation(loc: MapMarkerLocation): void {
@@ -557,6 +646,7 @@ export class StorageService {
   static saveMapLocations(locations: MapMarkerLocation[]): void {
     this.setItem(STORAGE_KEYS.LOCATIONS, locations);
     notifySharedDataChange('locations', locations);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'locations', values: locations } }));
   }
 
   static getThreads(): ThreadPost[] {

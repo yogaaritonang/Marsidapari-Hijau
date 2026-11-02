@@ -11,8 +11,19 @@ export async function compressImage(
   quality = 0.75
 ): Promise<{ dataUrl: string; hash: string }> {
   return new Promise((resolve, reject) => {
+    const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+    const isSvg = file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg');
+    const isTransparent = isPng || isSvg || file.type === 'image/webp';
+
     const reader = new FileReader();
     reader.onload = (e) => {
+      // If SVG, preserve raw data URI with full transparency
+      if (isSvg) {
+        const dataUrl = e.target?.result as string;
+        resolve({ dataUrl, hash: 'svg-' + Date.now().toString(36) });
+        return;
+      }
+
       const img = new Image();
       img.onload = () => {
         let width = img.width;
@@ -39,8 +50,13 @@ export async function compressImage(
           return;
         }
 
+        // Clear canvas with full transparent alpha
+        ctx.clearRect(0, 0, width, height);
         ctx.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+        // Preserve PNG format to keep alpha transparency completely intact
+        const outputMime = isTransparent ? 'image/png' : 'image/jpeg';
+        const dataUrl = canvas.toDataURL(outputMime, isTransparent ? undefined : quality);
         const hash = generatePerceptualHash(img);
 
         resolve({ dataUrl, hash });

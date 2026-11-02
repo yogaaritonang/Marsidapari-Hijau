@@ -176,18 +176,35 @@ export const AmbientAudioPlayer: React.FC<AmbientAudioPlayerProps> = ({ tintColo
   }, []);
 
   return (
-    <aside aria-label="Pemutar Suara Alam Danau Toba" className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end">
+    <aside
+      aria-label="Pemutar Suara Alam Danau Toba"
+      className={`fixed bottom-20 md:bottom-24 right-0 z-40 flex flex-col items-end transition-transform duration-300 ease-out group ${
+        showControls
+          ? 'translate-x-0'
+          : 'translate-x-[calc(100%-2.75rem)] hover:translate-x-0 active:translate-x-0 focus-within:translate-x-0'
+      }`}
+    >
       {/* Expanded Controls Popover */}
       {showControls && (
-        <div className="mb-2 w-64 rounded-2xl border border-emerald-500/30 bg-[#FAF6EC]/95 dark:bg-[#111C13]/95 p-3.5 shadow-2xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 text-[#1F2A1F] dark:text-[#E6EFE6]">
+        <div className="mr-3 mb-2 w-64 rounded-2xl border border-emerald-500/30 bg-[#FAF6EC]/95 dark:bg-[#111C13]/95 p-3.5 shadow-2xl backdrop-blur-md transition-all animate-in fade-in slide-in-from-bottom-2 text-[#1F2A1F] dark:text-[#E6EFE6]">
           <div className="flex items-center justify-between pb-2 border-b border-gray-200/80 dark:border-white/10">
             <div className="flex items-center gap-1.5">
               <Waves className="w-4 h-4 text-[#2E6B34] dark:text-emerald-400" />
               <span className="text-xs font-bold font-poppins">Suara Alam Toba</span>
             </div>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isPlaying ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-400'}`}>
-              {isPlaying ? 'Memutar' : 'Jeda'}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${isPlaying ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-400'}`}>
+                {isPlaying ? 'Memutar' : 'Jeda'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowControls(false)}
+                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-0.5 text-xs"
+                title="Tutup pengaturan"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           <p className="text-[11px] text-gray-600 dark:text-gray-400 my-2 leading-relaxed">
@@ -232,17 +249,17 @@ export const AmbientAudioPlayer: React.FC<AmbientAudioPlayerProps> = ({ tintColo
         </div>
       )}
 
-      {/* Floating Toggle Button */}
-      <div className="flex items-center gap-1.5">
+      {/* Docked Slide-in Toggle Tab on Screen Edge */}
+      <div className="flex items-center shadow-lg">
         <button
           type="button"
           onClick={() => setShowControls(!showControls)}
-          className={`group flex items-center gap-2 py-2 px-3 sm:px-3.5 rounded-full border shadow-lg backdrop-blur-md transition-all duration-300 cursor-pointer ${
+          className={`flex items-center gap-2 py-2 px-3 rounded-l-2xl border-l-2 border-y border-r-0 shadow-lg backdrop-blur-md transition-all duration-300 cursor-pointer ${
             isPlaying
               ? 'bg-[#2E6B34] border-emerald-400 text-white shadow-emerald-950/30'
-              : 'bg-white/90 dark:bg-[#142217]/90 border-gray-300 dark:border-white/15 text-gray-700 dark:text-gray-200 hover:border-[#2E6B34]'
+              : 'bg-white/95 dark:bg-[#142217]/95 border-emerald-600/40 dark:border-white/20 text-gray-800 dark:text-gray-200 hover:border-[#2E6B34]'
           }`}
-          title={isPlaying ? 'Suara Alam Danau Toba aktif (Klik untuk pengaturan)' : 'Nyalakan Suara Alam Danau Toba'}
+          title={isPlaying ? 'Suara Alam Danau Toba aktif (Klik untuk pengaturan)' : 'Nyalakan Suara Alam Danau Toba (Geser untuk membuka)'}
         >
           {isPlaying ? (
             <div className="flex items-center gap-1.5">
@@ -250,13 +267,13 @@ export const AmbientAudioPlayer: React.FC<AmbientAudioPlayerProps> = ({ tintColo
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-200"></span>
               </span>
-              <Volume2 className="w-4 h-4 animate-pulse" />
-              <span className="text-[11px] font-bold hidden sm:inline">Alam Toba</span>
+              <Volume2 className="w-4 h-4 animate-pulse shrink-0" />
+              <span className="text-[11px] font-bold pr-1 whitespace-nowrap">Suara Alam</span>
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
-              <VolumeX className="w-4 h-4 opacity-70 group-hover:opacity-100" />
-              <span className="text-[11px] font-bold opacity-80 group-hover:opacity-100 hidden sm:inline">Alam Toba</span>
+              <VolumeX className="w-4 h-4 text-emerald-700 dark:text-emerald-400 shrink-0" />
+              <span className="text-[11px] font-bold text-gray-700 dark:text-gray-200 pr-1 whitespace-nowrap">Suara Alam</span>
             </div>
           )}
         </button>
