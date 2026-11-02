@@ -30,6 +30,8 @@ import { LeaderDashboardPage } from './pages/LeaderDashboardPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { ThreadsPage } from './pages/ThreadsPage';
+import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
+import confetti from 'canvas-confetti';
 
 type AppPortal = 'user' | 'leader' | 'admin';
 type SharedSyncState = 'connecting' | 'synced' | 'error' | 'offline';
@@ -103,10 +105,34 @@ export default function App() {
     };
   }, []);
 
+  // Sync Dark Mode theme class to <html> and <body>
+  useEffect(() => {
+    const isDark = Boolean(user.preferences?.darkMode);
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      document.body.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.body.classList.remove('dark');
+    }
+  }, [user.preferences?.darkMode]);
+
   useEffect(() => {
     const handleBadgeUnlocks = (event: Event) => {
       const detail = (event as CustomEvent<{ userId: string }>).detail;
-      if (detail?.userId === user.id) setUser(StorageService.getUser());
+      if (detail?.userId === user.id) {
+        setUser(StorageService.getUser());
+        try {
+          confetti({
+            particleCount: 110,
+            spread: 85,
+            origin: { y: 0.5 },
+            colors: ['#2E6B34', '#A8D5A2', '#F59E0B', '#FBBF24', '#10B981'],
+          });
+        } catch {
+          // ignore
+        }
+      }
     };
     window.addEventListener('mh-badges-unlocked', handleBadgeUnlocks);
     return () => window.removeEventListener('mh-badges-unlocked', handleBadgeUnlocks);
@@ -717,6 +743,9 @@ export default function App() {
 
         {/* Customizable Launch / Splash Screen */}
         <LaunchScreen />
+
+        {/* Ambient Lake Toba Nature Soundscape Player */}
+        <AmbientAudioPlayer tintColor={StorageService.getBrandSettings().primaryColor} />
 
       </div>
     </div>

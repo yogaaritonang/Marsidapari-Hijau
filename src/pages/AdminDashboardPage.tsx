@@ -979,6 +979,29 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <span className="text-xs text-gray-600">{brand.tagline || ''}</span>
                   </div>
                 </div>
+
+                {/* Cultural Batak Ulos Accent Showcase */}
+                <div className="rounded-2xl border border-amber-900/20 bg-gradient-to-br from-[#1C0D0D] to-[#2D1616] p-4 text-[#FAF6EC] space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+                      Ornamen Tenun Ulos Batak Terpasang
+                    </span>
+                    <span className="text-[10px] text-amber-200/80 bg-amber-950/80 px-2 py-0.5 rounded-full border border-amber-800/40">
+                      Budaya Toba
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-100/80 leading-relaxed">
+                    Kain tenun ulos khas Batak tampil elegan sebagai pita pemanis di bagian bawah navigasi utama, layar pembuka (launch screen), dan kartu wawasan ekoteologi di beranda tanpa mengganggu background aplikasi.
+                  </p>
+                  <div className="pt-1">
+                    <img
+                      src="/assets/ulos-ribbon.jpg"
+                      alt="Pita Ulos Batak"
+                      className="w-full h-3.5 object-cover rounded-md border border-amber-600/30 shadow-xs"
+                    />
+                  </div>
+                </div>
+
                 <button onClick={saveBrand} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white hover:bg-[#235328]">
                   <Save className="h-4 w-4" /> Simpan semua pengaturan identitas
                 </button>

@@ -17,6 +17,8 @@ import {
   Save,
   Share2,
   LogOut,
+  Moon,
+  Sun,
 } from 'lucide-react';
 import { User } from '../types';
 import { StorageService } from '../services/storageService';
@@ -585,9 +587,35 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
 
       {/* Preferences Section */}
       <div className="rounded-3xl bg-white border border-gray-200/90 p-4 shadow-xs space-y-3 text-xs">
-        <h4 className="font-bold text-[#7A5230] uppercase tracking-wider text-[10px]">
+        <h4 className="font-bold text-[#7A5230] dark:text-emerald-400 uppercase tracking-wider text-[10px]">
           Pengaturan Tampilan &amp; Notifikasi
         </h4>
+
+        {/* Dark Mode Toggle */}
+        <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-white/10">
+          <div className="flex items-center gap-2 text-gray-800 dark:text-gray-100">
+            {preferences.darkMode ? (
+              <Moon className="w-4 h-4 text-emerald-400" />
+            ) : (
+              <Sun className="w-4 h-4 text-amber-500" />
+            )}
+            <div>
+              <span className="font-bold block">Mode Gelap (Dark Mode)</span>
+              <span className="text-[10px] text-gray-500 dark:text-gray-400">
+                Tema malam hutan Danau Toba yang nyaman di mata
+              </span>
+            </div>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={Boolean(preferences.darkMode)}
+              onChange={() => handleTogglePref('darkMode')}
+              className="sr-only peer"
+            />
+            <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2E6B34]"></div>
+          </label>
+        </div>
 
         {/* Font size toggle (Normal / Besar) */}
         <div className="flex items-center justify-between py-1">

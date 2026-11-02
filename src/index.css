@@ -10,17 +10,89 @@
     --color-dark: #1F2A1F;
   }
 
+  html.dark {
+    --color-cream: #0D160E;
+    --color-dark: #E6EFE6;
+    color-scheme: dark;
+  }
+
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background-color: var(--color-cream);
     color: var(--color-dark);
     font-size: 16px;
     -webkit-tap-highlight-color: transparent;
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  html.dark body {
+    background-color: #0D160E;
+    color: #E6EFE6;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
   }
+}
+
+/* Comprehensive Dark Mode Theme Rules */
+html.dark .app-container {
+  background-color: #0D160E;
+  color: #E6EFE6;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+}
+
+html.dark .bg-white {
+  background-color: #142217 !important;
+  border-color: rgba(74, 222, 128, 0.15) !important;
+  color: #E6EFE6 !important;
+}
+
+html.dark .bg-white\/90,
+html.dark .bg-white\/80,
+html.dark .bg-white\/60,
+html.dark .bg-white\/50 {
+  background-color: rgba(20, 34, 23, 0.88) !important;
+  border-color: rgba(74, 222, 128, 0.15) !important;
+}
+
+html.dark .bg-\[\#FAF6EC\] {
+  background-color: #0D160E !important;
+}
+
+html.dark .text-gray-900,
+html.dark .text-gray-800,
+html.dark .text-\[\#1F2A1F\] {
+  color: #E6EFE6 !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: #B5C6B7 !important;
+}
+
+html.dark .text-gray-500 {
+  color: #8CA08E !important;
+}
+
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-gray-100 {
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-gray-100 {
+  background-color: #1A2C1E !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+html.dark textarea,
+html.dark select {
+  background-color: #17271B !important;
+  color: #E6EFE6 !important;
+  border-color: rgba(74, 222, 128, 0.25) !important;
 }
 
 /* Batak Gorga subtle decorative border & motifs */

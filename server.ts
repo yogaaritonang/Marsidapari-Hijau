@@ -278,6 +278,9 @@ async function startServer() {
 
   const httpServer = http.createServer(app);
 
+  // Serve static assets from public folder with correct MIME types
+  app.use(express.static(path.resolve(__dirname, 'public')));
+
   if (!isProd) {
     // Mount Vite dev server in middleware mode with HMR disabled
     const { createServer: createViteServer } = await import('vite');

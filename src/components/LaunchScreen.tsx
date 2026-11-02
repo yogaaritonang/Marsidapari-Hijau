@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Leaf, Sparkles, BookOpen, ChevronRight } from 'lucide-react';
 import { BrandSettings } from '../types';
 import { StorageService } from '../services/storageService';
-import { BatakGorgaBorder } from './BatakPattern';
+import { BatakGorgaBorder, BatakUlosRibbon } from './BatakPattern';
 
 interface LaunchScreenProps {
   forceShow?: boolean;
@@ -92,9 +92,9 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
           onClick={handleDismiss}
           className="fixed inset-0 z-[100] flex flex-col justify-between overflow-hidden bg-gradient-to-b from-[#0F2A15] via-[#173F1F] to-[#0A1D0E] text-white cursor-pointer select-none"
         >
-          {/* Subtle Batak Gorga Top Border */}
-          <div className="w-full opacity-35">
-            <BatakGorgaBorder className="h-2 w-full" />
+          {/* Authentic Batak Ulos Ribbon Top Border */}
+          <div className="w-full shadow-md z-20">
+            <BatakUlosRibbon heightClass="h-2" className="opacity-95" tintColor={brand.primaryColor} interactive={true} />
           </div>
 
           {/* Ambient Glowing Orbs */}
@@ -110,15 +110,15 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
               transition={{ duration: 0.6, type: 'spring', damping: 18 }}
               className="relative mb-6"
             >
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-3xl bg-gradient-to-br from-emerald-600 via-[#2E6B34] to-[#14421A] p-1.5 shadow-2xl shadow-emerald-950/80 border-2 border-emerald-400/30 flex items-center justify-center">
+              <div className="w-24 h-24 sm:w-28 sm:h-28 flex items-center justify-center">
                 {logoSrc && logoSrc.trim() ? (
                   <img
                     src={logoSrc}
                     alt={launchConfig.title}
-                    className="w-full h-full object-contain rounded-2xl"
+                    className="max-w-full max-h-full object-contain drop-shadow-2xl"
                   />
                 ) : (
-                  <div className="w-full h-full rounded-2xl bg-emerald-900/40 flex items-center justify-center">
+                  <div className="w-full h-full rounded-3xl bg-emerald-900/40 border-2 border-emerald-400/30 flex items-center justify-center">
                     <Leaf className="w-12 h-12 text-[#A8D5A2] drop-shadow-md" />
                   </div>
                 )}
@@ -181,8 +181,8 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
               <ChevronRight className="w-3.5 h-3.5" />
             </motion.button>
 
-            <div className="mt-4 w-full opacity-35">
-              <BatakGorgaBorder className="h-2 w-full" />
+            <div className="mt-4 w-full shadow-md z-20">
+              <BatakUlosRibbon heightClass="h-2" className="opacity-95" tintColor={brand.primaryColor} interactive={true} />
             </div>
           </div>
         </motion.div>

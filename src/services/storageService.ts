@@ -592,7 +592,14 @@ export class StorageService {
   }
 
   static getEcotheologyArticles(): EcotheologyArticle[] {
-    return this.getItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, SEED_ECOTHEOLOGY);
+    const list = this.getItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, SEED_ECOTHEOLOGY);
+    // Ensure newly added seed articles like eco-ulos-1 are seamlessly included
+    const ulosSeed = SEED_ECOTHEOLOGY.find((a) => a.id === 'eco-ulos-1');
+    if (ulosSeed && !list.some((a) => a.id === 'eco-ulos-1')) {
+      list.unshift(ulosSeed);
+      this.setItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, list);
+    }
+    return list;
   }
 
   static saveEcotheologyArticles(articles: EcotheologyArticle[]): void {

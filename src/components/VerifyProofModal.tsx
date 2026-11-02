@@ -20,6 +20,7 @@ import { StorageService } from '../services/storageService';
 import { AIService } from '../services/aiService';
 import { ShareService } from '../services/shareService';
 import { SocialSyncService } from '../services/socialSyncService';
+import confetti from 'canvas-confetti';
 
 interface VerifyProofModalProps {
   challenge: Challenge;
@@ -118,6 +119,36 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
       void SocialSyncService.syncSubmission(submission);
       setResult(submission);
       onSuccess(submission);
+
+      // Trigger Confetti Celebration & Popping Fireworks
+      if (finalVerdict === 'valid') {
+        try {
+          confetti({
+            particleCount: 90,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#2E6B34', '#A8D5A2', '#F59E0B', '#10B981', '#E11D48'],
+          });
+
+          // Dynamic popping fireworks burst
+          let burstCount = 0;
+          const burstInterval = window.setInterval(() => {
+            burstCount++;
+            confetti({
+              particleCount: 35,
+              angle: 60 + Math.random() * 60,
+              spread: 60,
+              origin: { x: Math.random() * 0.8 + 0.1, y: Math.random() * 0.4 + 0.2 },
+              colors: ['#2E6B34', '#A8D5A2', '#F59E0B', '#38BDF8', '#EC4899'],
+            });
+            if (burstCount >= 3) {
+              window.clearInterval(burstInterval);
+            }
+          }, 240);
+        } catch {
+          // Graceful fallback if canvas is restricted
+        }
+      }
     } catch (error) {
       setAnalysisError(
         error instanceof Error

@@ -7,6 +7,7 @@ import { ShareAchievementModal } from './ShareAchievementModal';
 import { NotificationsModal } from './NotificationsModal';
 import { SocialSyncService } from '../services/socialSyncService';
 import { getRankTitle } from '../services/shareService';
+import { BatakUlosRibbon } from './BatakPattern';
 
 interface NavbarProps {
   user: User;
@@ -85,7 +86,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-[#FAF6EC]/92 backdrop-blur-xl border-b border-[#2E6B34]/15 shadow-xs transition-all">
+      <header className="sticky top-0 z-40 bg-[#FAF6EC]/92 dark:bg-[#0F1710]/95 backdrop-blur-xl border-b border-[#2E6B34]/15 dark:border-white/10 shadow-xs transition-all">
         <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5 lg:px-8">
           {/* Logo, Dynamic Brand & Greeting */}
           <div
@@ -98,39 +99,51 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
               if (event.key === 'Enter' || event.key === ' ') onNavigateTab('home');
             }}
           >
-            <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2E6B34] via-[#24592A] to-[#173F1C] flex items-center justify-center text-white shadow-md shadow-[#2E6B34]/25 group-hover:scale-105 transition-transform duration-200">
-              {brand.logoUrl && brand.logoUrl.trim() ? (
-                <img src={brand.logoUrl} alt="" className="h-full w-full rounded-2xl object-contain p-0.5" />
-              ) : (
+            {/* If admin uploaded a logo, show only the logo with NO background box */}
+            {brand.logoUrl && brand.logoUrl.trim() ? (
+              <div className="relative h-10 w-10 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform duration-200">
+                <img
+                  src={brand.logoUrl}
+                  alt={brand.name || 'Logo'}
+                  className="max-h-10 max-w-10 object-contain drop-shadow-sm"
+                />
+                {/* Subtle active status dot */}
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                </span>
+              </div>
+            ) : (
+              <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2E6B34] via-[#24592A] to-[#173F1C] flex items-center justify-center text-white shadow-md shadow-[#2E6B34]/25 group-hover:scale-105 transition-transform duration-200 shrink-0">
                 <Leaf className="w-5 h-5 text-[#A8D5A2]" />
-              )}
-              {/* Subtle active status dot */}
-              <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-[#FAF6EC]"></span>
-              </span>
-            </div>
+                {/* Subtle active status dot */}
+                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0F1710]"></span>
+                </span>
+              </div>
+            )}
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-sm tracking-tight text-[#1F2A1F] font-poppins sm:text-base truncate group-hover:text-[#2E6B34] transition-colors">
+                <span className="font-bold text-sm tracking-tight text-[#1F2A1F] dark:text-[#E6EFE6] font-poppins sm:text-base truncate group-hover:text-[#2E6B34] dark:group-hover:text-emerald-400 transition-colors">
                   {brand.name || 'Marsiadapari Hijau'}
                 </span>
                 {!isGuest && (
-                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-[#2E6B34] bg-emerald-100/70 border border-emerald-300/60 px-2 py-0.5 rounded-full">
+                  <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-[#2E6B34] dark:text-emerald-300 bg-emerald-100/70 dark:bg-emerald-950/70 border border-emerald-300/60 dark:border-emerald-700/60 px-2 py-0.5 rounded-full">
                     {rank}
                   </span>
                 )}
               </div>
               
               {/* Dynamic time-aware subtitle */}
-              <div className="flex items-center gap-1.5 text-[11px] font-medium leading-none text-[#7A5230] mt-0.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-medium leading-none text-[#7A5230] dark:text-emerald-300/80 mt-0.5">
                 <span className="flex items-center gap-1">
                   {greeting.icon === 'morning' && <Sunrise className="w-3 h-3 text-amber-500" />}
                   {greeting.icon === 'noon' && <Sun className="w-3 h-3 text-amber-500" />}
                   {greeting.icon === 'afternoon' && <CloudSun className="w-3 h-3 text-orange-400" />}
                   {greeting.icon === 'night' && <Moon className="w-3 h-3 text-indigo-400" />}
-                  <span className="font-semibold text-gray-700">
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
                     {isGuest ? `${greeting.text}!` : `${greeting.text}, ${firstName}!`}
                   </span>
                 </span>
@@ -188,6 +201,8 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
         <div className="relative h-[2px] w-full overflow-hidden bg-transparent">
           <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#2E6B34]/40 via-emerald-500/50 to-transparent" />
         </div>
+        {/* Authentic Batak Ulos Ribbon Border Accent with Community Tint & Hover */}
+        <BatakUlosRibbon heightClass="h-1.5" className="opacity-95" tintColor={brand.primaryColor} interactive={true} />
       </header>
 
       {/* Share Achievement Modal */}

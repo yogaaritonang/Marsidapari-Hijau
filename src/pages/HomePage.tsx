@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { User, Challenge, ChallengeSubmission, EcotheologyArticle } from '../types';
 import { StorageService } from '../services/storageService';
-import { BatakGorgaBorder } from '../components/BatakPattern';
+import { BatakGorgaBorder, BatakUlosRibbon, BatakUlosBadge, BatakUlosHeaderParallax, BatakUlosFooter } from '../components/BatakPattern';
 
 interface HomePageProps {
   user: User;
@@ -49,6 +49,24 @@ export const HomePage: React.FC<HomePageProps> = ({
     StorageService.getEcotheologyArticles()
   );
   const [selectedArticle, setSelectedArticle] = useState<EcotheologyArticle | null>(null);
+  const [scrollY, setScrollY] = useState(0);
+  const [brand, setBrand] = useState(() => StorageService.getBrandSettings());
+
+  useEffect(() => {
+    const onScroll = () => {
+      setScrollY(window.scrollY || window.pageYOffset || 0);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onBrandUpdate = () => {
+      setBrand(StorageService.getBrandSettings());
+    };
+    window.addEventListener('mh-brand-updated', onBrandUpdate);
+    return () => window.removeEventListener('mh-brand-updated', onBrandUpdate);
+  }, []);
 
   // Dynamic User GPS Location State
   const [userLocation, setUserLocation] = useState<string>(() => {
@@ -140,7 +158,6 @@ export const HomePage: React.FC<HomePageProps> = ({
     };
   }, [user.id]);
 
-  const brand = StorageService.getBrandSettings();
   const devotions = StorageService.getDevotions();
   const todayDevotion = StorageService.getTodayDevotion();
   const challenges = StorageService.getChallenges();
@@ -163,9 +180,14 @@ export const HomePage: React.FC<HomePageProps> = ({
   const hasActiveStreak = !isGuest && user.streakDays > 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 pb-28 pt-3 sm:space-y-5 sm:pt-4 md:pb-28 md:pt-6">
+    <div className="mx-auto w-full max-w-6xl space-y-4 pb-28 pt-2 sm:space-y-5 sm:pt-3 md:pb-28 md:pt-5">
+      {/* Aesthetic Semi-Transparent Ulos Parallax Header Decoration */}
+      <div className="px-4 sm:px-6 lg:px-8">
+        <BatakUlosHeaderParallax scrollY={scrollY} tintColor={brand.primaryColor} />
+      </div>
+
       {/* Horas Greeting Header */}
-      <div className="px-4 pt-2 sm:px-6 lg:px-8">
+      <div className="px-4 pt-1 sm:px-6 lg:px-8">
         <div className="flex items-start sm:items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5 flex-wrap mb-1">
@@ -240,6 +262,11 @@ export const HomePage: React.FC<HomePageProps> = ({
       {todayDevotion && (
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#2E6B34] to-[#1E4A23] p-4 text-white shadow-lg shadow-[#2E6B34]/20 sm:p-6">
+            {/* Top authentic Ulos trim */}
+            <div className="absolute top-0 inset-x-0">
+              <BatakUlosRibbon heightClass="h-1" className="opacity-75" />
+            </div>
+
             {/* Background Sprout pattern */}
             <div className="absolute -right-4 -bottom-6 w-28 h-28 opacity-10 pointer-events-none">
               <Trees className="w-full h-full text-white" />
@@ -349,6 +376,66 @@ export const HomePage: React.FC<HomePageProps> = ({
           <span className="text-[11px] font-bold text-[#2E6B34] bg-[#A8D5A2]/30 px-2.5 py-0.5 rounded-full border border-emerald-200">
             {ecotheologyArticles.length} Wawasan
           </span>
+        </div>
+
+        {/* Featured Kearifan Ulos & Ekoteologi Card */}
+        <div
+          onClick={() => {
+            const ulosArticle = ecotheologyArticles.find((a) => a.id === 'eco-ulos-1') || ecotheologyArticles[0];
+            if (ulosArticle) setSelectedArticle(ulosArticle);
+          }}
+          className="group relative cursor-pointer overflow-hidden rounded-3xl bg-gradient-to-br from-[#1C0D0D] via-[#2D1616] to-[#140808] text-[#FAF6EC] shadow-md border border-amber-900/40 transition-all duration-300 hover:shadow-xl hover:border-amber-600/60"
+        >
+          {/* Top authentic Ulos ribbon with Community Tint & Hover */}
+          <BatakUlosRibbon heightClass="h-2" className="opacity-95" tintColor={brand.primaryColor} interactive={true} />
+
+          <div className="relative flex flex-col sm:flex-row items-center justify-between p-4 sm:p-5 gap-4">
+            {/* Left Content */}
+            <div className="relative z-10 flex-1 space-y-1.5 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <BatakUlosBadge label="Kearifan Ulos &amp; Ekoteologi" />
+                <span className="text-[10px] text-amber-300/90 font-medium bg-amber-950/70 px-2 py-0.5 rounded-full border border-amber-700/40">
+                  Tenun Warisan Batak
+                </span>
+              </div>
+
+              <h4 className="text-sm sm:text-base font-bold font-poppins text-amber-100 group-hover:text-amber-200 transition-colors leading-snug">
+                Filosofi Ulos: Menghangatkan &amp; Merawat Seluruh Ciptaan
+              </h4>
+
+              <p className="text-[11px] sm:text-xs text-amber-100/80 leading-relaxed line-clamp-2">
+                Sebagaimana kain ulos menghangatkan raga (<em>las ni roha</em>), panggilan iman Kristen mengajak kita &ldquo;mangulosi&rdquo; Danau Toba—menjaga kejernihan air Silindung dan merawat kelestarian bumi ciptaan Allah.
+              </p>
+
+              <div className="pt-1 flex items-center gap-3">
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-300 group-hover:translate-x-1 transition-transform">
+                  <span>Pelajari Filosofi Ulos</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </span>
+                <span className="text-[10px] text-amber-300/60 italic hidden sm:inline">
+                  Mazmur 104:1-2
+                </span>
+              </div>
+            </div>
+
+            {/* Right: Authentic Woven Ulos Fabric Showcase Thumbnail */}
+            <div className="relative shrink-0 w-full sm:w-44 h-24 sm:h-28 rounded-2xl overflow-hidden border border-amber-600/40 shadow-inner group-hover:scale-102 transition-transform duration-300">
+              <img
+                src="/assets/ulos-batak-woven.jpg"
+                alt="Tenun Ulos Batak Tradisional"
+                className="w-full h-full object-cover object-center"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute bottom-1 inset-x-1 text-center">
+                <span className="text-[9px] font-bold text-amber-200 bg-black/75 px-1.5 py-0.5 rounded backdrop-blur-xs">
+                  Motif Tradisional Batak
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom authentic Ulos ribbon with Community Tint & Hover */}
+          <BatakUlosRibbon heightClass="h-1.5" className="opacity-90" tintColor={brand.primaryColor} interactive={true} />
         </div>
 
         {/* Responsive Grid Cards */}
@@ -661,16 +748,8 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
-      {/* Footer Cultural Quote */}
-      <div className="px-6 text-center pt-2">
-        <BatakGorgaBorder className="opacity-40" />
-        <p className="text-[11px] text-[#7A5230] italic font-medium mt-1">
-          "Si pogos so marripu, si mamora so marhaha maranggi"
-        </p>
-        <p className="text-[10px] text-gray-600 mt-0.5">
-          Bergotong royong tanpa pamrih merawat Danau Toba dan Bona Pasogit
-        </p>
-      </div>
+      {/* Authentic Batak Ulos Footer with Upward Fringes & Interactive Hover */}
+      <BatakUlosFooter tintColor={brand.primaryColor} className="pt-4" />
 
       {/* Ecotheology Article Reader Modal */}
       {selectedArticle && (
@@ -734,6 +813,26 @@ export const HomePage: React.FC<HomePageProps> = ({
                   Oleh: <strong className="text-gray-700">{selectedArticle.author}</strong> &bull; {selectedArticle.publishedAt}
                 </p>
               </div>
+
+              {/* Authentic Woven Ulos Illustration */}
+              {(selectedArticle.id === 'eco-ulos-1' || selectedArticle.title.toLowerCase().includes('ulos')) && (
+                <div className="rounded-2xl overflow-hidden border border-amber-900/30 shadow-md">
+                  <BatakUlosRibbon heightClass="h-1.5" />
+                  <div className="relative max-h-60 overflow-hidden bg-[#1A0B0B]">
+                    <img
+                      src="/assets/ulos-batak-woven.jpg"
+                      alt="Tenun Ulos Batak Tradisional"
+                      className="w-full h-full object-cover object-center"
+                    />
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent p-2.5 text-center">
+                      <p className="text-[11px] font-bold text-amber-200">
+                        Tenun Ulos Batak Tradisional — Lambang Kasih, Kehangatan, dan Mandat Merawat Bumi
+                      </p>
+                    </div>
+                  </div>
+                  <BatakUlosRibbon heightClass="h-1.5" />
+                </div>
+              )}
 
               {/* Full Article Content */}
               <div className="text-xs sm:text-sm text-gray-800 leading-relaxed space-y-3 whitespace-pre-line font-normal">
