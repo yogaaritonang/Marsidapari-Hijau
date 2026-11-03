@@ -209,19 +209,24 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
       activeUser?.role === 'anggota' &&
       (baseline.has(key) ||
         !isRecord(value) ||
-        value.category !== 'bank_sampah' ||
+        !['bank_sampah', 'tanam_pohon', 'bersih_danau', 'mata_air'].includes(String(value.category)) ||
         value.approvalStatus !== 'pending' ||
-        value.submittedBy !== activeUser.id)
+        (value.submittedBy && value.submittedBy !== activeUser.id))
     ) continue;
+
+    const recordOwnerId =
+      collection === 'reports'
+        ? (activeUser?.id || null)
+        : collection === 'locations' && isRecord(value) && typeof value.submittedBy === 'string'
+        ? value.submittedBy
+        : collection === 'threads'
+        ? (activeUser?.id || null)
+        : null;
 
     changes.push({
       collection,
       record_id: id,
-      owner_id: collection === 'reports' && activeUser?.role === 'anggota'
-        ? activeUser.id
-        : collection === 'locations' && isRecord(value) && typeof value.submittedBy === 'string'
-        ? value.submittedBy
-        : null,
+      owner_id: recordOwnerId,
       organization_id: recordOrganization(collection),
       payload: recordPayload(collection, value),
     });
@@ -242,17 +247,26 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
   }
 
   if (changes.length === 0) return;
-  await request('mh_records?on_conflict=collection,record_id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify(changes),
-  });
-  for (const change of changes) {
-    const key = makeKey(collection, change.record_id);
-    baseline.set(
-      key,
-      snapshotValue(collection, current.get(change.record_id) ?? change.payload),
-    );
+  try {
+    await request('mh_records?on_conflict=collection,record_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(changes),
+    });
+    for (const change of changes) {
+      const key = makeKey(collection, change.record_id);
+      baseline.set(
+        key,
+        snapshotValue(collection, current.get(change.record_id) ?? change.payload),
+      );
+    }
+  } catch (err) {
+    console.warn(`[SharedDataService] pushChanges skipped or limited by RLS for ${collection}:`, err);
+    // Do not throw if local data is preserved and user lacks permission to write system-wide table
+    if (activeUser?.role !== 'admin') {
+      return;
+    }
+    throw err;
   }
 }
 
@@ -265,8 +279,10 @@ async function handleLocalChange(event: Event) {
       emitStatus('synced');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Sinkronisasi database gagal.';
-      emitStatus('error', message);
-      console.error(message);
+      if (activeUser?.role === 'admin') {
+        emitStatus('error', message);
+      }
+      console.warn('[SharedDataService] Database sync notice:', message);
     }
   });
   await queue;

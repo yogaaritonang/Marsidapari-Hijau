@@ -12,7 +12,7 @@ import {
   UserRound,
   X,
 } from 'lucide-react';
-import { User } from '../types';
+import { User, Community } from '../types';
 import { StorageService } from '../services/storageService';
 import { AuthService } from '../services/authService';
 
@@ -325,15 +325,15 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 </div>
 
                 {stage === 'form' && portal !== 'admin' && (
-                  <div className="mb-6 grid grid-cols-2 rounded-2xl bg-[#EDE9DC] p-1">
+                  <div className="mb-6 grid grid-cols-2 rounded-2xl bg-[#EDE9DC] dark:bg-white/10 p-1">
                     <button
                       type="button"
                       aria-pressed={mode === 'register'}
                       onClick={() => switchMode('register')}
                       className={`min-h-11 rounded-xl text-sm font-bold transition ${
                         mode === 'register'
-                          ? 'bg-white text-[#2E6B34] shadow-sm'
-                          : 'text-gray-500 hover:text-[#1F2A1F]'
+                          ? 'bg-white dark:bg-[#1E2E20] text-[#2E6B34] dark:text-emerald-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-[#1F2A1F] dark:hover:text-white'
                       }`}
                     >
                       {portal === 'leader' ? 'Daftar Pemimpin' : 'Daftar'}
@@ -344,8 +344,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       onClick={() => switchMode('login')}
                       className={`min-h-11 rounded-xl text-sm font-bold transition ${
                         mode === 'login'
-                          ? 'bg-white text-[#2E6B34] shadow-sm'
-                          : 'text-gray-500 hover:text-[#1F2A1F]'
+                          ? 'bg-white dark:bg-[#1E2E20] text-[#2E6B34] dark:text-emerald-400 shadow-sm'
+                          : 'text-gray-500 dark:text-gray-400 hover:text-[#1F2A1F] dark:hover:text-white'
                       }`}
                     >
                       {portal === 'leader' ? 'Masuk Pemimpin' : 'Masuk'}

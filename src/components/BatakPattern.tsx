@@ -155,22 +155,47 @@ export const BatakUlosFooter: React.FC<{
   className?: string;
 }> = ({ tintColor, className = '' }) => {
   return (
-    <footer className={`relative w-full overflow-hidden pt-6 pb-2 text-center group cursor-default select-none ${className}`}>
-      <div className="mx-auto max-w-2xl px-4">
-        {/* Upward-pointing woven fringe / rumbai decorative tassels */}
-        <div className="w-full flex justify-center items-end overflow-hidden h-6 opacity-85 transition-opacity group-hover:opacity-100 mb-[-1px] pointer-events-none" aria-hidden="true">
-          <svg className="w-full max-w-lg h-6 text-amber-700/80 dark:text-amber-500/80" viewBox="0 0 600 24" preserveAspectRatio="none" fill="currentColor">
-            {/* Repeated woven fringe tassels pointing upward */}
-            {Array.from({ length: 30 }).map((_, idx) => {
-              const x = idx * 20;
-              const height = idx % 2 === 0 ? 20 : 16;
-              const y = 24 - height;
+    <footer className={`relative w-full overflow-hidden pt-2 pb-0 mb-0 text-center group cursor-default select-none ${className}`}>
+      <div className="w-full px-0 sm:px-4 max-w-4xl mx-auto">
+        {/* Upward-pointing woven fringe / rumbai decorative tassels: authentic elongated serpentine undulation */}
+        <div className="w-full flex justify-center items-end overflow-hidden h-12 sm:h-14 opacity-90 transition-opacity group-hover:opacity-100 mb-[-1px] pointer-events-none" aria-hidden="true">
+          <svg className="w-full max-w-2xl h-12 sm:h-14 text-amber-700/80 dark:text-amber-500/80" viewBox="0 0 640 56" preserveAspectRatio="none" fill="none">
+            {/* Repeated undulating woven fringe tassels pointing upward */}
+            {Array.from({ length: 32 }).map((_, idx) => {
+              const x = idx * 20 + 10;
+              const sway = idx % 2 === 0 ? 8 : -8;
+              const midSway = idx % 2 === 0 ? -5 : 5;
+              const height = idx % 3 === 0 ? 50 : idx % 3 === 1 ? 44 : 53;
+              const tipY = 56 - height;
               return (
                 <g key={idx}>
-                  <line x1={x + 3} y1={24} x2={x + 3} y2={y + 2} stroke="#B45309" strokeWidth="1.2" strokeLinecap="round" />
-                  <line x1={x + 7} y1={24} x2={x + 7} y2={y} stroke="#D97706" strokeWidth="1.2" strokeLinecap="round" />
-                  <line x1={x + 11} y1={24} x2={x + 11} y2={y + 3} stroke="#92400E" strokeWidth="1.2" strokeLinecap="round" />
-                  <circle cx={x + 7} cy={y + 1} r="1.5" fill="#FCD34D" />
+                  {/* Subtle shadow thread */}
+                  <path
+                    d={`M ${x} 56 C ${x + sway * 1.2} 40, ${x + midSway * 1.1} 22, ${x + sway * 0.5} ${tipY}`}
+                    stroke="rgba(0,0,0,0.5)"
+                    strokeWidth="2.8"
+                    strokeLinecap="round"
+                  />
+                  {/* Primary authentic hand-spun yarn strand */}
+                  <path
+                    d={`M ${x} 56 C ${x + sway} 40, ${x + midSway} 22, ${x + sway * 0.5} ${tipY}`}
+                    stroke={idx % 2 === 0 ? '#B45309' : '#D97706'}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                  {/* Secondary undulating twisted thread for braided texture */}
+                  <path
+                    d={`M ${x - 1.5} 56 C ${x - 1.5 + midSway * 0.8} 42, ${x - 1.5 + sway * 0.9} 24, ${x - 1.5 + sway * 0.3} ${tipY + 2}`}
+                    stroke={idx % 3 === 0 ? '#92400E' : idx % 3 === 1 ? '#F59E0B' : '#78350F'}
+                    strokeWidth="1.4"
+                    strokeLinecap="round"
+                  />
+                  {/* Traditional bead knot */}
+                  <circle cx={x + sway * 0.5} cy={tipY + 2} r="2.2" fill="#FCD34D" stroke="#78350F" strokeWidth="0.8" />
+                  {/* Delicate tufted fringe hair extending past knot */}
+                  <line x1={x + sway * 0.5 - 1.2} y1={tipY + 1} x2={x + sway * 0.5 - 2.8} y2={tipY - 4} stroke="#FDE68A" strokeWidth="1" strokeLinecap="round" />
+                  <line x1={x + sway * 0.5 + 1.2} y1={tipY + 1} x2={x + sway * 0.5 + 2.8} y2={tipY - 4.5} stroke="#F59E0B" strokeWidth="1" strokeLinecap="round" />
+                  <line x1={x + sway * 0.5} y1={tipY} x2={x + sway * 0.5} y2={tipY - 5} stroke="#FEF08A" strokeWidth="0.8" strokeLinecap="round" />
                 </g>
               );
             })}
@@ -178,12 +203,12 @@ export const BatakUlosFooter: React.FC<{
         </div>
 
         {/* Container with hover scale & opacity - rich Batak woven motif */}
-        <div className="relative overflow-hidden rounded-t-2xl sm:rounded-t-3xl border-t-2 border-x border-amber-700/40 dark:border-amber-500/30 bg-[#160B0B] shadow-xl transition-all duration-500 transform group-hover:scale-[1.015] group-hover:opacity-100 opacity-95">
+        <div className="relative overflow-hidden rounded-t-2xl sm:rounded-t-3xl border-t-2 border-x border-amber-700/50 dark:border-amber-500/40 bg-[#140808] shadow-2xl transition-all duration-500 transform group-hover:scale-[1.01] group-hover:opacity-100 opacity-95">
           
-          {/* Ulos Woven Tapestry Body (Distinct from header: includes geometric Gorga chevron weave) */}
-          <div className="relative h-20 sm:h-24 w-full overflow-hidden">
+          {/* Ulos Woven Tapestry Body */}
+          <div className="relative h-24 sm:h-32 w-full overflow-hidden">
             <div
-              className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105 opacity-85"
+              className="w-full h-full bg-cover bg-center transition-transform duration-700 group-hover:scale-105 opacity-90"
               style={{
                 backgroundImage: "url('/assets/ulos-banner-horizontal.jpg')",
                 backgroundPosition: 'center',
@@ -200,16 +225,16 @@ export const BatakUlosFooter: React.FC<{
             )}
 
             {/* Gradient Masking */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#160B0B] via-[#160B0B]/40 to-transparent pointer-events-none" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#160B0B]/80 via-transparent to-[#160B0B]/80 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#140808] via-[#140808]/30 to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#140808]/85 via-transparent to-[#140808]/85 pointer-events-none" />
           </div>
 
-          {/* Cultural Footer Caption */}
-          <div className="relative -mt-6 pb-4 px-4 bg-gradient-to-b from-transparent to-[#160B0B]">
-            <span className="inline-block text-[10px] sm:text-xs font-bold text-amber-200 bg-black/80 px-3.5 py-1 rounded-full backdrop-blur-xs border border-amber-500/40 shadow-md">
+          {/* Cultural Footer Caption - flush to bottom, padding for bottom mobile nav */}
+          <div className="relative -mt-8 pb-20 sm:pb-6 pt-2 px-4 bg-gradient-to-b from-transparent via-[#140808]/95 to-[#140808]">
+            <span className="inline-block text-[10px] sm:text-xs font-bold text-amber-200 bg-black/85 px-3.5 py-1 rounded-full backdrop-blur-xs border border-amber-500/40 shadow-md">
               Kain Ulos Batak Toba • Merawat Bumi Ciptaan Tuhan
             </span>
-            <p className="text-[10px] text-amber-100/70 dark:text-gray-300 mt-2 font-medium">
+            <p className="text-[10px] text-amber-100/70 dark:text-gray-300 mt-1.5 font-medium">
               "Si pogos so marripu, si mamora so marhaha maranggi" — Bersatu merawat Danau Toba
             </p>
           </div>

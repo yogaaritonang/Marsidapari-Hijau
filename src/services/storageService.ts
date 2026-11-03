@@ -455,15 +455,16 @@ export class StorageService {
       this.addGardenExp(sub.awardedPoints);
 
       const communities = this.getCommunities();
-      const userComm = communities.find((c) => c.id === user.communityId);
+      const userComm = communities.find((c) => c.id === user.communityId || c.name === user.communityName) || communities[0];
       if (userComm) {
         userComm.totalPoints += sub.awardedPoints;
         userComm.actionCount += 1;
-        if (sub.impact.trees > 0) {
+        if (sub.impact && sub.impact.trees > 0) {
           userComm.treesPlanted += sub.impact.trees;
         }
         this.saveCommunities(communities);
       }
+      window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
     }
   }
 

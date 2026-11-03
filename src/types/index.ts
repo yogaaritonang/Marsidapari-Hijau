@@ -85,8 +85,10 @@ export interface Community {
   totalPoints: number;
   treesPlanted: number;
   treeTarget: number;
+  targetTrees?: number;
   actionCount: number;
   actionTarget: number;
+  targetActions?: number;
   description: string;
 }
 
@@ -173,6 +175,8 @@ export interface EnvironmentalReport {
   reportedBy: string;
   reportedAt: string;
   photoUrl?: string;
+  adminNotes?: string;
+  userId?: string;
 }
 
 export interface GreenEvent {
@@ -187,6 +191,7 @@ export interface GreenEvent {
   registeredCount: number;
   isRegistered: boolean;
   qrCode: string;
+  targetCommunity?: string;
 }
 
 export interface MapMarkerLocation {
@@ -239,7 +244,7 @@ export interface ThreadPost {
   status?: 'aktif' | 'ditindaklanjuti' | 'selesai';
 }
 
-export type NotificationType = 'thread_like' | 'thread_reply' | 'thread_save' | 'leaderboard_cheer';
+export type NotificationType = 'thread_like' | 'thread_reply' | 'thread_save' | 'leaderboard_cheer' | 'event_created' | 'report_status';
 
 export interface AppNotification {
   id: string;

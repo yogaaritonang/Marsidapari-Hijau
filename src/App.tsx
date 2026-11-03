@@ -31,6 +31,7 @@ import { ProfilePage } from './pages/ProfilePage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { ThreadsPage } from './pages/ThreadsPage';
 import { AmbientAudioPlayer } from './components/AmbientAudioPlayer';
+import { WelcomeTourModal } from './components/WelcomeTourModal';
 import confetti from 'canvas-confetti';
 
 type AppPortal = 'user' | 'leader' | 'admin';
@@ -79,15 +80,46 @@ export default function App() {
     type: 'success' | 'info' | 'error';
     message: string;
   } | null>(null);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   useEffect(() => {
+    // Check if user is opening for first time
+    const hasSeenTour = localStorage.getItem('mh_welcome_tour_seen');
+    if (!hasSeenTour) {
+      const timer = setTimeout(() => {
+        setIsTourOpen(true);
+        localStorage.setItem('mh_welcome_tour_seen', 'true');
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleOpenTour = () => setIsTourOpen(true);
+    window.addEventListener('mh-open-tour', handleOpenTour);
+    return () => window.removeEventListener('mh-open-tour', handleOpenTour);
+  }, []);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
     const handleSyncStatus = (event: Event) => {
       const detail = (event as CustomEvent<{ state: SharedSyncState; message?: string }>).detail;
       setSharedSyncState(detail.state);
       setSharedSyncMessage(detail.message || null);
+
+      if (detail.state === 'error' && detail.message) {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(() => {
+          setSharedSyncMessage(null);
+          setSharedSyncState('synced');
+        }, 5000);
+      }
     };
     window.addEventListener('mh-shared-sync-status', handleSyncStatus);
-    return () => window.removeEventListener('mh-shared-sync-status', handleSyncStatus);
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('mh-shared-sync-status', handleSyncStatus);
+    };
   }, []);
 
   useEffect(() => {
@@ -295,8 +327,14 @@ export default function App() {
             });
         }
         else if (!cancelled) {
-          setUser(DEFAULT_USER);
-          setIsOnboarded(false);
+          const localUser = StorageService.getUser();
+          if (localUser && localUser.id && localUser.id !== 'guest-preview') {
+            setUser(localUser);
+            setIsOnboarded(true);
+          } else {
+            setUser(DEFAULT_USER);
+            setIsOnboarded(false);
+          }
           setSharedSyncState('synced');
         }
       } catch (error) {
@@ -746,6 +784,13 @@ export default function App() {
 
         {/* Ambient Lake Toba Nature Soundscape Player */}
         <AmbientAudioPlayer tintColor={StorageService.getBrandSettings().primaryColor} />
+
+        {/* Welcome Onboarding Tour Modal with Batak Mascot Si Toba */}
+        <WelcomeTourModal
+          isOpen={isTourOpen}
+          onClose={() => setIsTourOpen(false)}
+          userName={user.name}
+        />
 
       </div>
     </div>

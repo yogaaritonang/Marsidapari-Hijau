@@ -19,6 +19,7 @@ import {
   Leaf,
   X,
   Compass,
+  Search,
 } from 'lucide-react';
 import { User, Challenge, ChallengeSubmission, EcotheologyArticle } from '../types';
 import { StorageService } from '../services/storageService';
@@ -49,6 +50,9 @@ export const HomePage: React.FC<HomePageProps> = ({
     StorageService.getEcotheologyArticles()
   );
   const [selectedArticle, setSelectedArticle] = useState<EcotheologyArticle | null>(null);
+  const [isAllWawasanOpen, setIsAllWawasanOpen] = useState(false);
+  const [wawasanSearch, setWawasanSearch] = useState('');
+  const [wawasanCategory, setWawasanCategory] = useState<string>('all');
   const [scrollY, setScrollY] = useState(0);
   const [brand, setBrand] = useState(() => StorageService.getBrandSettings());
   const [totalCommunityTrees, setTotalCommunityTrees] = useState(() =>
@@ -69,7 +73,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     };
     const onDataUpdate = () => {
       setTotalCommunityTrees(StorageService.getCommunityTotalTrees(user.communityId));
-      setChallenges(StorageService.getChallenges());
+      setDataVersion((v) => v + 1);
     };
     window.addEventListener('mh-brand-updated', onBrandUpdate);
     window.addEventListener('mh-data-updated', onDataUpdate);
@@ -193,7 +197,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const hasActiveStreak = !isGuest && user.streakDays > 0;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-4 pb-28 pt-2 sm:space-y-5 sm:pt-3 md:pb-28 md:pt-5">
+    <div className="mx-auto w-full max-w-6xl space-y-4 pb-0 pt-2 sm:space-y-5 sm:pt-3 md:pb-0 md:pt-5">
       {/* Aesthetic Semi-Transparent Ulos Parallax Header Decoration */}
       <div className="px-4 sm:px-6 lg:px-8">
         <BatakUlosHeaderParallax scrollY={scrollY} tintColor={brand.primaryColor} />
@@ -451,58 +455,88 @@ export const HomePage: React.FC<HomePageProps> = ({
           <BatakUlosRibbon heightClass="h-1.5" className="opacity-90" tintColor={brand.primaryColor} interactive={true} />
         </div>
 
-        {/* Responsive Grid Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {ecotheologyArticles.map((article) => {
-            const categoryLabels: Record<string, { label: string; color: string }> = {
-              mandatum_creationis: { label: 'Mandat Penciptaan', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-              kearifan_lokal: { label: 'Kearifan Marsiadapari', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-              danau_toba: { label: 'Konservasi Danau Toba', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
-              keberlanjutan_alam: { label: 'Keberlanjutan Alam', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-            };
-            const catInfo = categoryLabels[article.category] || { label: 'Ekoteologi', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+        {/* Single Featured Wawasan Card + Lihat Wawasan Lainnya action */}
+        {(() => {
+          const featuredArticle = ecotheologyArticles.find((a) => a.isFeatured) || ecotheologyArticles[0];
+          if (!featuredArticle) return null;
 
-            return (
+          const categoryLabels: Record<string, { label: string; color: string }> = {
+            mandatum_creationis: { label: 'Mandat Penciptaan', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+            kearifan_lokal: { label: 'Kearifan Marsiadapari', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+            danau_toba: { label: 'Konservasi Danau Toba', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+            keberlanjutan_alam: { label: 'Keberlanjutan Alam', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+          };
+          const catInfo = categoryLabels[featuredArticle.category] || { label: 'Ekoteologi', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+
+          return (
+            <div className="space-y-3">
               <article
-                key={article.id}
-                onClick={() => setSelectedArticle(article)}
-                className="group relative cursor-pointer rounded-3xl bg-white border border-[#2E6B34]/15 hover:border-[#2E6B34] p-4 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between"
+                onClick={() => setSelectedArticle(featuredArticle)}
+                className="group relative cursor-pointer rounded-3xl bg-white border border-[#2E6B34]/20 hover:border-[#2E6B34] p-4 sm:p-5 shadow-xs hover:shadow-md transition-all duration-200"
               >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-2xs">
+                      ★ Wawasan Pilihan Hari Ini
+                    </span>
                     <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${catInfo.color}`}>
                       {catInfo.label}
                     </span>
-                    {article.scriptureRef && (
-                      <span className="text-[10px] font-bold text-[#2E6B34] bg-[#FAF6EC] px-2 py-0.5 rounded-md border border-[#2E6B34]/20 flex items-center gap-1 shrink-0">
-                        <BookOpen className="w-3 h-3 text-[#2E6B34]" />
-                        {article.scriptureRef}
-                      </span>
-                    )}
                   </div>
-
-                  <h4 className="text-sm font-bold text-[#1F2A1F] font-poppins leading-snug group-hover:text-[#2E6B34] transition-colors line-clamp-2">
-                    {article.title}
-                  </h4>
-
-                  <p className="text-xs text-gray-600 mt-1.5 line-clamp-3 leading-relaxed">
-                    {article.summary}
-                  </p>
+                  {featuredArticle.scriptureRef && (
+                    <span className="text-[10px] font-bold text-[#2E6B34] bg-[#FAF6EC] px-2.5 py-1 rounded-md border border-[#2E6B34]/20 flex items-center gap-1 shrink-0 self-start sm:self-auto">
+                      <BookOpen className="w-3.5 h-3.5 text-[#2E6B34]" />
+                      {featuredArticle.scriptureRef}
+                    </span>
+                  )}
                 </div>
 
-                <div className="mt-3 pt-2.5 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-[10px] text-[#7A5230] italic truncate max-w-[200px] font-medium">
-                    "{article.batakWisdom.split(':')[0]}"
+                <h4 className="text-base sm:text-lg font-bold text-[#1F2A1F] font-poppins leading-snug group-hover:text-[#2E6B34] transition-colors">
+                  {featuredArticle.title}
+                </h4>
+
+                <p className="text-xs sm:text-sm text-gray-600 mt-2 line-clamp-2 leading-relaxed">
+                  {featuredArticle.summary}
+                </p>
+
+                <div className="mt-3.5 pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-2">
+                  <span className="text-[11px] text-[#7A5230] italic font-medium">
+                    "{featuredArticle.batakWisdom.split(':')[0]}"
                   </span>
-                  <span className="inline-flex items-center gap-0.5 text-xs font-bold text-[#2E6B34] group-hover:underline">
-                    Baca Wawasan
-                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-[#2E6B34] group-hover:underline">
+                    Baca Selengkapnya
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                   </span>
                 </div>
               </article>
-            );
-          })}
-        </div>
+
+              {/* Action Button: Buka Katalog Seluruh Wawasan */}
+              <button
+                type="button"
+                onClick={() => setIsAllWawasanOpen(true)}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-gradient-to-r from-[#FAF6EC] via-white to-[#FAF6EC] border border-[#2E6B34]/20 hover:border-[#2E6B34] text-[#1F2A1F] transition hover:shadow-xs group cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5 text-left">
+                  <div className="w-8 h-8 rounded-xl bg-emerald-100/80 text-[#2E6B34] flex items-center justify-center shrink-0">
+                    <ScrollText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-[#1F2A1F] group-hover:text-[#2E6B34] transition-colors block">
+                      Jelajahi Wawasan Lainnya ({ecotheologyArticles.length} Refleksi Ekoteologi)
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      Pelajari nats firman, falsafah Marsiadapari, dan teologi Danau Toba
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 text-xs font-bold text-[#2E6B34] shrink-0 bg-white px-3 py-1.5 rounded-xl border border-[#2E6B34]/15 group-hover:bg-[#2E6B34] group-hover:text-white transition">
+                  <span>Buka Koleksi</span>
+                  <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </div>
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
 
@@ -898,6 +932,195 @@ export const HomePage: React.FC<HomePageProps> = ({
               <button
                 type="button"
                 onClick={() => setSelectedArticle(null)}
+                className="px-4 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition cursor-pointer"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dedicated All Wawasan Catalog Modal */}
+      {isAllWawasanOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xs p-0 sm:p-4 overflow-y-auto"
+          onClick={() => setIsAllWawasanOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-3xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/30 shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+          >
+            {/* Header with authentic Batak ribbon */}
+            <div className="p-4 sm:p-5 bg-gradient-to-r from-[#2E6B34] via-[#24592A] to-[#173F1C] text-white flex items-center justify-between shadow-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-xl bg-[#A8D5A2]/25 flex items-center justify-center text-[#A8D5A2]">
+                  <ScrollText className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-[#A8D5A2] uppercase tracking-wider block">
+                    Khazanah &amp; Refleksi Ekoteologi
+                  </span>
+                  <h3 className="text-base sm:text-lg font-bold font-poppins">
+                    Semua Wawasan Ciptaan &amp; Kearifan Toba
+                  </h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAllWawasanOpen(false)}
+                className="p-1.5 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition cursor-pointer"
+                title="Tutup Galeri"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <BatakUlosRibbon heightClass="h-1.5" />
+
+            {/* Filter and Search Bar */}
+            <div className="p-4 bg-white/90 border-b border-gray-200 space-y-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={wawasanSearch}
+                  onChange={(e) => setWawasanSearch(e.target.value)}
+                  placeholder="Cari nats firman, topik, atau kata kunci..."
+                  className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm rounded-xl border border-gray-300 focus:border-[#2E6B34] focus:ring-1 focus:ring-[#2E6B34] outline-none bg-white"
+                />
+                {wawasanSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setWawasanSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
+                {[
+                  { id: 'all', label: 'Semua Kategori' },
+                  { id: 'mandatum_creationis', label: 'Mandat Penciptaan' },
+                  { id: 'kearifan_lokal', label: 'Kearifan Marsiadapari' },
+                  { id: 'danau_toba', label: 'Konservasi Danau Toba' },
+                  { id: 'keberlanjutan_alam', label: 'Keberlanjutan Alam' },
+                ].map((cat) => (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => setWawasanCategory(cat.id)}
+                    className={`shrink-0 px-3 py-1 rounded-full font-bold transition text-[11px] cursor-pointer ${
+                      wawasanCategory === cat.id
+                        ? 'bg-[#2E6B34] text-white shadow-2xs'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                    }`}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Articles List */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3">
+              {(() => {
+                const filtered = ecotheologyArticles.filter((art) => {
+                  const matchCat = wawasanCategory === 'all' || art.category === wawasanCategory;
+                  const query = wawasanSearch.toLowerCase().trim();
+                  const matchQuery =
+                    !query ||
+                    art.title.toLowerCase().includes(query) ||
+                    art.summary.toLowerCase().includes(query) ||
+                    (art.scriptureRef && art.scriptureRef.toLowerCase().includes(query)) ||
+                    art.batakWisdom.toLowerCase().includes(query);
+                  return matchCat && matchQuery;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-gray-500 space-y-2">
+                      <ScrollText className="w-10 h-10 mx-auto text-gray-400 opacity-60" />
+                      <p className="text-xs sm:text-sm font-semibold">Tidak ditemukan wawasan yang sesuai kriteria pencarian.</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setWawasanSearch('');
+                          setWawasanCategory('all');
+                        }}
+                        className="text-xs text-[#2E6B34] font-bold underline"
+                      >
+                        Reset Pencarian
+                      </button>
+                    </div>
+                  );
+                }
+
+                const categoryLabels: Record<string, { label: string; color: string }> = {
+                  mandatum_creationis: { label: 'Mandat Penciptaan', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
+                  kearifan_lokal: { label: 'Kearifan Marsiadapari', color: 'bg-amber-100 text-amber-800 border-amber-200' },
+                  danau_toba: { label: 'Konservasi Danau Toba', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
+                  keberlanjutan_alam: { label: 'Keberlanjutan Alam', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+                };
+
+                return (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {filtered.map((article) => {
+                      const catInfo = categoryLabels[article.category] || { label: 'Ekoteologi', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+                      return (
+                        <article
+                          key={article.id}
+                          onClick={() => {
+                            setSelectedArticle(article);
+                          }}
+                          className="group cursor-pointer rounded-2xl bg-white border border-[#2E6B34]/15 hover:border-[#2E6B34] p-4 shadow-2xs hover:shadow-md transition flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-1.5 mb-2 flex-wrap">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${catInfo.color}`}>
+                                {catInfo.label}
+                              </span>
+                              {article.scriptureRef && (
+                                <span className="text-[10px] font-bold text-[#2E6B34] bg-[#FAF6EC] px-2 py-0.5 rounded-md border border-[#2E6B34]/20 flex items-center gap-1">
+                                  <BookOpen className="w-3 h-3 text-[#2E6B34]" />
+                                  {article.scriptureRef}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-sm font-bold text-[#1F2A1F] font-poppins leading-snug group-hover:text-[#2E6B34] transition-colors line-clamp-2">
+                              {article.title}
+                            </h4>
+                            <p className="text-xs text-gray-600 mt-1 line-clamp-2 leading-relaxed">
+                              {article.summary}
+                            </p>
+                          </div>
+                          <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+                            <span className="text-[10px] text-[#7A5230] italic truncate max-w-[170px]">
+                              "{article.batakWisdom.split(':')[0]}"
+                            </span>
+                            <span className="text-xs font-bold text-[#2E6B34] flex items-center gap-0.5 group-hover:underline">
+                              Baca
+                              <ChevronRight className="w-3.5 h-3.5" />
+                            </span>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 sm:p-4 bg-white border-t border-gray-200 flex items-center justify-between text-xs text-gray-500">
+              <span className="text-[11px] italic">
+                {ecotheologyArticles.length} Refleksi Ekoteologi &amp; Marsiadapari
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsAllWawasanOpen(false)}
                 className="px-4 py-1.5 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold transition cursor-pointer"
               >
                 Tutup

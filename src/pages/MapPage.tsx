@@ -104,32 +104,85 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Add markers for filtered locations
+    // Add markers for filtered locations with aesthetic custom pins
     filtered.forEach((loc) => {
-      const getEmoji = (cat: string) => {
-        if (cat === 'bank_sampah') return '♻️';
-        if (cat === 'tanam_pohon') return '🌱';
-        if (cat === 'bersih_danau') return '🌊';
-        return '💧';
+      const getMarkerConfig = (cat: string) => {
+        if (cat === 'bank_sampah') {
+          return {
+            gradient: 'linear-gradient(135deg, #0284C7 0%, #0D9488 100%)',
+            borderColor: '#FFFFFF',
+            shadowColor: 'rgba(2, 132, 199, 0.45)',
+            tipColor: '#0D9488',
+            emoji: '♻️',
+            label: 'Bank Sampah',
+          };
+        }
+        if (cat === 'tanam_pohon') {
+          return {
+            gradient: 'linear-gradient(135deg, #15803D 0%, #166534 100%)',
+            borderColor: '#FEF08A',
+            shadowColor: 'rgba(22, 101, 52, 0.45)',
+            tipColor: '#166534',
+            emoji: '🌱',
+            label: 'Reboisasi',
+          };
+        }
+        if (cat === 'bersih_danau') {
+          return {
+            gradient: 'linear-gradient(135deg, #2563EB 0%, #0284C7 100%)',
+            borderColor: '#E0F2FE',
+            shadowColor: 'rgba(37, 99, 235, 0.45)',
+            tipColor: '#0284C7',
+            emoji: '🌊',
+            label: 'Danau Toba',
+          };
+        }
+        return {
+          gradient: 'linear-gradient(135deg, #06B6D4 0%, #0284C7 100%)',
+          borderColor: '#E0F2FE',
+          shadowColor: 'rgba(6, 182, 212, 0.45)',
+          tipColor: '#0284C7',
+          emoji: '💧',
+          label: 'Mata Air',
+        };
       };
+
+      const cfg = getMarkerConfig(loc.category);
+      const isSelected = selectedLocation?.id === loc.id;
 
       const customIcon = L.divIcon({
         className: 'custom-leaflet-marker',
-        html: `<div style="
-          background-color: #2E6B34;
-          color: white;
-          width: 34px;
-          height: 34px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid white;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-          font-size: 16px;
-        ">${getEmoji(loc.category)}</div>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
+        html: `
+          <div style="position: relative; width: 38px; height: 46px; cursor: pointer; transition: transform 0.2s;" class="${isSelected ? 'scale-110' : ''}">
+            <div style="
+              width: 38px;
+              height: 38px;
+              border-radius: 50%;
+              background: ${cfg.gradient};
+              border: 2.5px solid ${cfg.borderColor};
+              box-shadow: 0 4px 14px ${cfg.shadowColor};
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 18px;
+            ">
+              ${cfg.emoji}
+            </div>
+            <div style="
+              position: absolute;
+              bottom: 0px;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-top: 8px solid ${cfg.tipColor};
+            "></div>
+          </div>
+        `,
+        iconSize: [38, 46],
+        iconAnchor: [19, 46],
       });
 
       const marker = L.marker(loc.coordinates, { icon: customIcon }).addTo(map);
@@ -141,7 +194,7 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
 
       markersRef.current.push(marker);
     });
-  }, [filtered]);
+  }, [filtered, selectedLocation]);
 
   const handleAddNewLocation = () => {
     const lat = Number(latitude);
@@ -258,10 +311,10 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
           <button
             key={f.id}
             onClick={() => setSelectedCategory(f.id)}
-            className={`touch-target shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition ${
+            className={`touch-target shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition cursor-pointer ${
               selectedCategory === f.id
                 ? 'bg-[#2E6B34] text-white shadow-xs'
-                : 'bg-white border border-gray-200 text-gray-700 hover:border-[#2E6B34]/30'
+                : 'bg-white dark:bg-[#1A261C] border border-gray-200 dark:border-white/10 text-gray-700 dark:text-gray-300 hover:border-[#2E6B34]/30'
             }`}
           >
             {f.label}
@@ -270,49 +323,78 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
       </div>
 
       {/* Map Container */}
-      <div className="relative rounded-3xl overflow-hidden border-2 border-[#2E6B34]/25 shadow-sm h-72 w-full bg-emerald-50">
+      <div className="relative rounded-3xl overflow-hidden border-2 border-[#2E6B34]/25 dark:border-white/10 shadow-sm h-72 w-full bg-emerald-50 dark:bg-[#0A120B]">
         <div ref={mapContainerRef} className="w-full h-full" />
       </div>
 
       {/* Selected Location Card */}
       {selectedLocation && (
-        <div className="p-4 rounded-3xl bg-white border border-[#2E6B34]/30 shadow-xs space-y-2 animate-in fade-in">
+        <div className="p-4 rounded-3xl bg-white dark:bg-[#121E14] border border-[#2E6B34]/30 dark:border-white/10 shadow-xs space-y-3 animate-in fade-in">
           <div className="flex items-start justify-between">
             <div>
-              <span className="text-[10px] font-bold text-[#7A5230] uppercase tracking-wider block">
+              <span className="text-[10px] font-bold text-[#7A5230] dark:text-emerald-400 uppercase tracking-wider block">
                 {selectedLocation.category.replaceAll('_', ' ')}
               </span>
               {selectedLocation.approvalStatus === 'pending' && (
-                <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
+                <span className="mt-1 inline-block rounded-full bg-amber-100 dark:bg-amber-950/60 px-2 py-0.5 text-[10px] font-bold text-amber-800 dark:text-amber-400 border border-amber-300 dark:border-amber-700">
                   Menunggu persetujuan
                 </span>
               )}
-              <h3 className="text-sm font-bold text-[#1F2A1F]">
+              <h3 className="text-sm font-bold text-[#1F2A1F] dark:text-white mt-0.5">
                 {selectedLocation.title}
               </h3>
             </div>
             <button
               onClick={() => setSelectedLocation(null)}
-              className="p-1 text-gray-400 hover:text-gray-700"
+              className="p-1 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <p className="text-xs text-gray-700 leading-relaxed">
+          <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
             {selectedLocation.description}
           </p>
 
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-[11px] text-gray-600">
+          <div className="pt-2 border-t border-gray-100 dark:border-white/10 flex items-center justify-between text-[11px] text-gray-600 dark:text-gray-400">
             <span className="flex items-center gap-1">
-              <MapPin className="w-3.5 h-3.5 text-[#2E6B34]" />
-              {selectedLocation.address}
+              <MapPin className="w-3.5 h-3.5 text-[#2E6B34] dark:text-emerald-400 shrink-0" />
+              <span>{selectedLocation.address}</span>
             </span>
             {selectedLocation.contactPerson && (
-              <span className="flex items-center gap-1 text-[#7A5230] font-medium">
+              <span className="flex items-center gap-1 text-[#7A5230] dark:text-emerald-400 font-medium shrink-0">
                 <Phone className="w-3 h-3" />
-                {selectedLocation.contactPerson}
+                <span>{selectedLocation.contactPerson}</span>
               </span>
+            )}
+          </div>
+
+          {/* Direct Route and Contact Buttons */}
+          <div className="flex gap-2 pt-1 border-t border-gray-100 dark:border-white/10">
+            <button
+              type="button"
+              onClick={() => {
+                const [lat, lng] = selectedLocation.coordinates;
+                window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`, '_blank', 'noopener,noreferrer');
+              }}
+              className="flex-1 py-2 px-3 rounded-xl bg-[#2E6B34] hover:bg-[#235328] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Buka Rute Navigasi Google Maps</span>
+            </button>
+            {selectedLocation.contactPerson && (
+              <button
+                type="button"
+                onClick={() => {
+                  const cleanPhone = selectedLocation.contactPerson?.replace(/\D/g, '') || '';
+                  const waUrl = cleanPhone.startsWith('0') ? `62${cleanPhone.slice(1)}` : cleanPhone;
+                  window.open(`https://wa.me/${waUrl}?text=Horas,%20saya%20ingin%20bertanya%20mengenai%20titik%20${encodeURIComponent(selectedLocation.title)}`, '_blank', 'noopener,noreferrer');
+                }}
+                className="py-2 px-3 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 hover:bg-emerald-200 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>WhatsApp</span>
+              </button>
             )}
           </div>
         </div>
@@ -320,7 +402,7 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
 
       {/* Location Directory List */}
       <div className="space-y-2 pt-1">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#7A5230] font-poppins">
+        <h3 className="text-xs font-extrabold uppercase tracking-wider text-[#7A5230] dark:text-emerald-400 font-poppins">
           Daftar Titik Penting ({filtered.length})
         </h3>
         <div className="space-y-2">
@@ -333,10 +415,10 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
                   mapInstanceRef.current.setView(loc.coordinates, 14, { animate: true });
                 }
               }}
-              className="cursor-pointer p-3 rounded-2xl bg-white border border-gray-200 hover:border-[#2E6B34]/40 shadow-xs flex items-center justify-between gap-3 transition"
+              className="cursor-pointer p-3 rounded-2xl bg-white dark:bg-[#121E14] border border-gray-200 dark:border-white/10 hover:border-[#2E6B34]/40 dark:hover:border-emerald-500/40 shadow-xs flex items-center justify-between gap-3 transition"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#A8D5A2]/30 text-[#2E6B34] flex items-center justify-center font-bold text-base shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#A8D5A2]/30 dark:bg-emerald-950/60 text-[#2E6B34] dark:text-emerald-400 flex items-center justify-center font-bold text-base shrink-0">
                   {loc.category === 'bank_sampah'
                     ? '♻️'
                     : loc.category === 'tanam_pohon'
@@ -346,19 +428,19 @@ export const MapPage: React.FC<MapPageProps> = ({ user, isGuest, onRequireAuth }
                     : '💧'}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-900 leading-tight">
+                  <h4 className="text-xs font-bold text-gray-900 dark:text-white leading-tight">
                     {loc.title}
                   </h4>
-                  <p className="text-[10px] text-gray-500 mt-0.5 truncate max-w-[200px]">
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-[200px]">
                     {loc.address}
                   </p>
                   {loc.approvalStatus === 'pending' && (
-                    <span className="mt-1 inline-block text-[9px] font-bold text-amber-700">Menunggu persetujuan</span>
+                    <span className="mt-1 inline-block text-[9px] font-bold text-amber-700 dark:text-amber-400">Menunggu persetujuan</span>
                   )}
                 </div>
               </div>
 
-              <span className="text-[11px] font-bold text-[#2E6B34] flex items-center gap-0.5 shrink-0">
+              <span className="text-[11px] font-bold text-[#2E6B34] dark:text-emerald-400 flex items-center gap-0.5 shrink-0">
                 <span>Lihat</span>
                 <Navigation className="w-3 h-3" />
               </span>

@@ -445,6 +445,29 @@ export class SocialSyncService {
   }
 
   /**
+   * Add a notification locally and broadcast across the app
+   */
+  static addNotification(notification: AppNotification): void {
+    const list = this.getLocalNotifications();
+    const updated = [notification, ...list.filter((n) => n.id !== notification.id)].slice(0, 50);
+    this.saveLocalNotifications(updated);
+    window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: updated }));
+
+    try {
+      void fetch('/api/social-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add_notification',
+          payload: notification,
+        }),
+      });
+    } catch {
+      // offline fallback is preserved
+    }
+  }
+
+  /**
    * Mark notification as read
    */
   static async markNotificationRead(notificationId?: string, userId?: string): Promise<void> {

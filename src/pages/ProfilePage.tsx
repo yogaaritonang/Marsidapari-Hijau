@@ -19,8 +19,10 @@ import {
   LogOut,
   Moon,
   Sun,
+  Sparkles,
+  ChevronRight,
 } from 'lucide-react';
-import { User } from '../types';
+import { User, Community } from '../types';
 import { StorageService } from '../services/storageService';
 import { AuthService } from '../services/authService';
 import { POINT_BADGES } from '../data/badges';
@@ -597,8 +599,33 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
       </section>
 
+      {/* Panduan Aplikasi & Maskot Si Toba Card */}
+      <div className="rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/60 dark:from-[#17261B] dark:via-[#132216] dark:to-[#17261B] border border-emerald-300/80 dark:border-white/10 p-4 shadow-xs flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <Sparkles className="w-5 h-5 text-amber-300" />
+          </div>
+          <div>
+            <h4 className="font-bold text-xs font-poppins text-[#1F2A1F] dark:text-white">
+              Panduan Aplikasi &amp; Maskot Si Toba
+            </h4>
+            <p className="text-[11px] text-gray-600 dark:text-gray-300">
+              Pelajari fitur unggulan, aksi gotong royong, dan gamifikasi hijau.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent('mh-open-tour'))}
+          className="touch-target px-3 py-1.5 rounded-xl bg-[#2E6B34] hover:bg-[#235328] text-white text-xs font-bold transition flex items-center gap-1 shadow-xs shrink-0 cursor-pointer"
+        >
+          <span>Buka</span>
+          <ChevronRight className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
       {/* Preferences Section */}
-      <div className="rounded-3xl bg-white border border-gray-200/90 p-4 shadow-xs space-y-3 text-xs">
+      <div className="rounded-3xl bg-white dark:bg-[#121E14] border border-gray-200/90 dark:border-white/10 p-4 shadow-xs space-y-3 text-xs">
         <h4 className="font-bold text-[#7A5230] dark:text-emerald-400 uppercase tracking-wider text-[10px]">
           Pengaturan Tampilan &amp; Notifikasi
         </h4>

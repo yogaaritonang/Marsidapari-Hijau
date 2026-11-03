@@ -392,6 +392,32 @@ export class AuthService {
       });
     }
 
+    const existingStoredUser = StorageService.getUser();
+    const existingPoints =
+      existingStoredUser && existingStoredUser.id === authUser.id
+        ? existingStoredUser.points
+        : typeof metadata.points === 'number'
+        ? metadata.points
+        : typeof metadata.welcomePoints === 'number'
+        ? metadata.welcomePoints
+        : 0;
+
+    const existingStreak =
+      existingStoredUser && existingStoredUser.id === authUser.id
+        ? Math.max(1, existingStoredUser.streakDays || 1)
+        : 1;
+
+    const existingPreferences =
+      existingStoredUser && existingStoredUser.id === authUser.id && existingStoredUser.preferences
+        ? existingStoredUser.preferences
+        : {
+            fontSize: 'normal' as const,
+            darkMode: false,
+            dataSaver: false,
+            notifications: true,
+            isAnonymous: typeof metadata.isAnonymous === 'boolean' ? metadata.isAnonymous : false,
+          };
+
     return {
       id: authUser.id,
       name: typeof metadata.name === 'string' ? metadata.name : authUser.email || 'Sahabat Hijau',
@@ -399,17 +425,11 @@ export class AuthService {
       role,
       communityId,
       communityName,
-      points: typeof metadata.welcomePoints === 'number' ? metadata.welcomePoints : 0,
-      streakDays: 1,
+      points: existingPoints,
+      streakDays: existingStreak,
       lastActiveDate: today,
       joinedDate: typeof metadata.joinedDate === 'string' ? metadata.joinedDate : today,
-      preferences: {
-        fontSize: 'normal',
-        darkMode: false,
-        dataSaver: false,
-        notifications: true,
-        isAnonymous: typeof metadata.isAnonymous === 'boolean' ? metadata.isAnonymous : false,
-      },
+      preferences: existingPreferences,
     };
   }
 
