@@ -70,11 +70,11 @@ export const ShareAchievementModal: React.FC<ShareAchievementModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/20 p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
+      <div className="relative w-full max-w-md rounded-3xl bg-[#FAF6EC] dark:bg-[#142518] border border-[#2E6B34]/20 dark:border-[#2E6B34]/40 p-5 shadow-2xl max-h-[90vh] overflow-y-auto space-y-4">
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full p-1.5 text-gray-500 hover:bg-black/5 transition"
+          className="absolute right-4 top-4 rounded-full p-1.5 text-gray-500 dark:text-gray-300 hover:bg-black/5 dark:hover:bg-white/10 transition"
           aria-label="Tutup modal berbagi"
         >
           <X className="h-5 w-5" />
@@ -82,14 +82,14 @@ export const ShareAchievementModal: React.FC<ShareAchievementModalProps> = ({
 
         {/* Modal Header */}
         <div className="pr-8">
-          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#2E6B34]">
+          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#2E6B34] dark:text-emerald-400">
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             Ajak Sahabat &amp; Jemaat
           </span>
-          <h3 className="text-lg font-bold font-poppins text-[#1F2A1F]">
+          <h3 className="text-lg font-bold font-poppins text-[#1F2A1F] dark:text-white">
             Bagikan Capaian Aksi Hijau
           </h3>
-          <p className="text-xs text-gray-600 mt-0.5">
+          <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
             Sebarkan semangat gotong royong Marsiadapari untuk merawat alam Danau Toba.
           </p>
         </div>

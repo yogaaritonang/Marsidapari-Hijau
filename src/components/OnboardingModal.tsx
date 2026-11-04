@@ -176,7 +176,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#17251a]/70 p-3 backdrop-blur-sm sm:items-center sm:p-6">
       <section
         aria-labelledby="auth-heading"
-        className="relative my-3 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 dark:border-white/10 bg-[#FAF6EC] dark:bg-[#121B14] text-[#1F2A1F] dark:text-[#E8EFE8] shadow-[0_30px_100px_rgba(15,35,18,0.35)] sm:my-auto"
+        className="relative my-3 w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 dark:border-[#2E6B34]/30 bg-[#FAF6EC] dark:bg-[#142518] text-[#1F2A1F] dark:text-white shadow-[0_30px_100px_rgba(15,35,18,0.5)] sm:my-auto"
       >
         {onClose && (
           <button

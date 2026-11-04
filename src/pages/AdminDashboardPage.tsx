@@ -104,6 +104,23 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const [challengeDescription, setChallengeDescription] = useState('');
   const [notice, setNotice] = useState('');
 
+  // Organization Editing State
+  const [editingCommunity, setEditingCommunity] = useState<Community | null>(null);
+  const [editOrgName, setEditOrgName] = useState('');
+  const [editOrgCategory, setEditOrgCategory] = useState<Community['category']>('Komunitas Warga');
+  const [editOrgLocation, setEditOrgLocation] = useState('');
+  const [editOrgDescription, setEditOrgDescription] = useState('');
+  const [editOrgTreeTarget, setEditOrgTreeTarget] = useState(200);
+  const [editOrgActionTarget, setEditOrgActionTarget] = useState(500);
+
+  // Challenge Editing State
+  const [editingChallenge, setEditingChallenge] = useState<Challenge | null>(null);
+  const [editChallengeTitle, setEditChallengeTitle] = useState('');
+  const [editChallengeDescription, setEditChallengeDescription] = useState('');
+  const [editChallengeCategory, setEditChallengeCategory] = useState<Challenge['category']>('harian');
+  const [editChallengePoints, setEditChallengePoints] = useState(10);
+  const [editChallengeDifficulty, setEditChallengeDifficulty] = useState<Challenge['difficulty']>('Mudah');
+
   // Event Management State
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
@@ -495,6 +512,64 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     StorageService.saveChallenges(updated);
     setChallenges(updated);
     notify('Tantangan dihapus.');
+  };
+
+  const handleOpenEditCommunity = (comm: Community) => {
+    setEditingCommunity(comm);
+    setEditOrgName(comm.name);
+    setEditOrgCategory(comm.category);
+    setEditOrgLocation(comm.location || 'Tapanuli Utara');
+    setEditOrgDescription(comm.description || '');
+    setEditOrgTreeTarget(comm.treeTarget || 200);
+    setEditOrgActionTarget(comm.actionTarget || 500);
+  };
+
+  const handleSaveEditCommunity = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCommunity || !editOrgName.trim()) return;
+
+    const updatedCommunity: Community = {
+      ...editingCommunity,
+      name: editOrgName.trim(),
+      category: editOrgCategory,
+      location: editOrgLocation.trim() || 'Tapanuli Utara',
+      description: editOrgDescription.trim(),
+      treeTarget: Number(editOrgTreeTarget) || 200,
+      actionTarget: Number(editOrgActionTarget) || 500,
+    };
+
+    StorageService.updateCommunity(updatedCommunity);
+    setCommunities(StorageService.getCommunities());
+    setEditingCommunity(null);
+    notify(`Organisasi "${updatedCommunity.name}" berhasil diperbarui.`);
+  };
+
+  const handleOpenEditChallenge = (chal: Challenge) => {
+    setEditingChallenge(chal);
+    setEditChallengeTitle(chal.title);
+    setEditChallengeDescription(chal.description);
+    setEditChallengeCategory(chal.category);
+    setEditChallengePoints(chal.points);
+    setEditChallengeDifficulty(chal.difficulty);
+  };
+
+  const handleSaveEditChallenge = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingChallenge || !editChallengeTitle.trim()) return;
+
+    const updated: Challenge = {
+      ...editingChallenge,
+      title: editChallengeTitle.trim(),
+      description: editChallengeDescription.trim(),
+      category: editChallengeCategory,
+      points: Number(editChallengePoints) || 10,
+      difficulty: editChallengeDifficulty,
+    };
+
+    StorageService.updateChallenge(updated);
+    setChallenges(StorageService.getChallenges());
+    setEditingChallenge(null);
+    notify(`Tantangan "${updated.title}" berhasil diperbarui.`);
   };
 
   const resetEventForm = () => {
@@ -2367,7 +2442,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               <form onSubmit={addOrganization} className="grid gap-3 rounded-2xl border border-gray-200 bg-white p-4 sm:grid-cols-[1fr_200px_auto] sm:items-end">
                 <label className="space-y-1.5 text-xs font-bold">
                   Nama organisasi
-                  <input required minLength={2} value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
+                  <input required minLength={2} value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} placeholder="Contoh: HKBP Sipoholon / Universitas HKBP Nommensen" className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm font-normal outline-none focus:border-[#2E6B34]" />
                 </label>
                 <label className="space-y-1.5 text-xs font-bold">
                   Jenis
@@ -2375,20 +2450,153 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                     <option>Kampus</option><option>Gereja</option><option>Pemuda</option><option>Komunitas Warga</option>
                   </select>
                 </label>
-                <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-xs font-bold text-white"><Plus className="h-4 w-4" /> Tambah</button>
+                <button className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#235328] transition"><Plus className="h-4 w-4" /> Tambah</button>
               </form>
+
+              {/* Edit Organization Modal */}
+              {editingCommunity && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto" onClick={() => setEditingCommunity(null)}>
+                  <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-3xl bg-white border border-[#2E6B34]/30 shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <div className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5 text-[#2E6B34]" />
+                        <h3 className="text-base font-bold text-gray-900">Edit Data &amp; Penamaan Organisasi</h3>
+                      </div>
+                      <button type="button" onClick={() => setEditingCommunity(null)} className="text-gray-400 hover:text-gray-700">
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveEditCommunity} className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Nama Organisasi / Komunitas *</label>
+                        <input
+                          required
+                          minLength={2}
+                          value={editOrgName}
+                          onChange={(e) => setEditOrgName(e.target.value)}
+                          placeholder="Nama gereja, kampus, atau paguyuban"
+                          className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34] focus:ring-1 focus:ring-[#2E6B34]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Jenis Organisasi</label>
+                          <select
+                            value={editOrgCategory}
+                            onChange={(e) => setEditOrgCategory(e.target.value as Community['category'])}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          >
+                            <option>Kampus</option>
+                            <option>Gereja</option>
+                            <option>Pemuda</option>
+                            <option>Komunitas Warga</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Wilayah / Lokasi</label>
+                          <input
+                            value={editOrgLocation}
+                            onChange={(e) => setEditOrgLocation(e.target.value)}
+                            placeholder="Contoh: Tarutung, Tapanuli Utara"
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Target Pohon Komunitas</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={editOrgTreeTarget}
+                            onChange={(e) => setEditOrgTreeTarget(Number(e.target.value))}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Target Aksi Bersama</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={editOrgActionTarget}
+                            onChange={(e) => setEditOrgActionTarget(Number(e.target.value))}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi Organisasi</label>
+                        <textarea
+                          rows={2}
+                          value={editOrgDescription}
+                          onChange={(e) => setEditOrgDescription(e.target.value)}
+                          placeholder="Deskripsi singkat aksi atau visi misi komunitas..."
+                          className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-[#2E6B34]"
+                        />
+                      </div>
+
+                      <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-3 text-xs text-emerald-800 flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <span>
+                          Perubahan nama organisasi otomatis langsung terbarui di seluruh halaman pengguna (Beranda, Komunitas, Peringkat, Profil).
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                        <button type="button" onClick={() => setEditingCommunity(null)} className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition">
+                          Batal
+                        </button>
+                        <button type="submit" className="px-5 py-2.5 text-xs font-bold text-white bg-[#2E6B34] hover:bg-[#235328] rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5">
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Perubahan</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-3 md:grid-cols-2">
                 {communities.map((community) => (
-                  <article key={community.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+                  <article key={community.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:border-[#2E6B34]/50 transition">
                     <div className="flex min-w-0 gap-3">
-                      <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-[#2E6B34]" />
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100/70 text-[#2E6B34]">
+                        <Building2 className="h-5 w-5" />
+                      </div>
                       <div className="min-w-0">
-                        <h3 className="break-words font-bold">{community.name}</h3>
-                        <p className="text-xs text-gray-500">{community.category} · {community.location}</p>
-                        <p className="mt-2 flex items-center gap-1 text-xs text-gray-600"><Users className="h-3.5 w-3.5" /> {community.memberCount} anggota</p>
+                        <h3 className="break-words font-bold text-gray-900">{community.name}</h3>
+                        <p className="text-xs text-gray-500">{community.category} · {community.location || 'Tapanuli Utara'}</p>
+                        <p className="mt-1.5 flex items-center gap-2 text-xs text-gray-600">
+                          <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-[#2E6B34]" /> {community.memberCount} anggota</span>
+                          <span>·</span>
+                          <span className="flex items-center gap-1"><Trees className="h-3.5 w-3.5 text-emerald-600" /> Target {community.treeTarget || 200} pohon</span>
+                        </p>
                       </div>
                     </div>
-                    <button onClick={() => deleteOrganization(community.id)} aria-label={`Hapus ${community.name}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenEditCommunity(community)}
+                        aria-label={`Edit ${community.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-emerald-50 hover:text-[#2E6B34] hover:border-emerald-300 transition"
+                        title="Edit nama & data organisasi"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteOrganization(community.id)}
+                        aria-label={`Hapus ${community.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-red-600 hover:bg-red-50 hover:border-red-200 transition"
+                        title="Hapus organisasi"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>
@@ -2401,13 +2609,125 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 <h2 className="font-bold">Tambah tantangan aksi</h2>
                 <input required minLength={3} value={challengeTitle} onChange={(event) => setChallengeTitle(event.target.value)} placeholder="Judul tantangan" className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]" />
                 <textarea required value={challengeDescription} onChange={(event) => setChallengeDescription(event.target.value)} placeholder="Deskripsi dan petunjuk aksi" rows={3} className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-[#2E6B34]" />
-                <button className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-xs font-bold text-white"><Plus className="h-4 w-4" /> Tambah tantangan</button>
+                <button className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-xs font-bold text-white shadow-xs hover:bg-[#235328] transition"><Plus className="h-4 w-4" /> Tambah tantangan</button>
               </form>
+
+              {/* Edit Challenge Modal */}
+              {editingChallenge && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto" onClick={() => setEditingChallenge(null)}>
+                  <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-3xl bg-white border border-[#2E6B34]/30 shadow-2xl p-5 sm:p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="flex items-center justify-between border-b pb-3">
+                      <div className="flex items-center gap-2">
+                        <Leaf className="h-5 w-5 text-[#2E6B34]" />
+                        <h3 className="text-base font-bold text-gray-900">Edit Tantangan Aksi Hijau</h3>
+                      </div>
+                      <button type="button" onClick={() => setEditingChallenge(null)} className="text-gray-400 hover:text-gray-700">
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleSaveEditChallenge} className="space-y-3.5">
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Judul Tantangan *</label>
+                        <input
+                          required
+                          value={editChallengeTitle}
+                          onChange={(e) => setEditChallengeTitle(e.target.value)}
+                          className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Kategori</label>
+                          <select
+                            value={editChallengeCategory}
+                            onChange={(e) => setEditChallengeCategory(e.target.value as Challenge['category'])}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          >
+                            <option value="harian">Harian</option>
+                            <option value="mingguan">Mingguan</option>
+                            <option value="khusus">Khusus</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Tingkat Kesulitan</label>
+                          <select
+                            value={editChallengeDifficulty}
+                            onChange={(e) => setEditChallengeDifficulty(e.target.value as Challenge['difficulty'])}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          >
+                            <option value="Mudah">Mudah</option>
+                            <option value="Sedang">Sedang</option>
+                            <option value="Tantangan Khusus">Tantangan Khusus</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-gray-700 mb-1">Poin Diberikan</label>
+                          <input
+                            type="number"
+                            min={1}
+                            value={editChallengePoints}
+                            onChange={(e) => setEditChallengePoints(Number(e.target.value))}
+                            className="min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm outline-none focus:border-[#2E6B34]"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Deskripsi dan Petunjuk Aksi</label>
+                        <textarea
+                          rows={3}
+                          value={editChallengeDescription}
+                          onChange={(e) => setEditChallengeDescription(e.target.value)}
+                          className="w-full rounded-xl border border-gray-300 p-3 text-sm outline-none focus:border-[#2E6B34]"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                        <button type="button" onClick={() => setEditingChallenge(null)} className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-100 rounded-xl transition">
+                          Batal
+                        </button>
+                        <button type="submit" className="px-5 py-2.5 text-xs font-bold text-white bg-[#2E6B34] hover:bg-[#235328] rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1.5">
+                          <Save className="w-4 h-4" />
+                          <span>Simpan Perubahan</span>
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
               <div className="grid gap-3 md:grid-cols-2">
                 {challenges.map((challenge) => (
-                  <article key={challenge.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
-                    <div className="min-w-0"><h3 className="font-bold">{challenge.title}</h3><p className="mt-1 line-clamp-2 text-xs text-gray-500">{challenge.description}</p></div>
-                    <button onClick={() => deleteChallenge(challenge.id)} aria-label={`Hapus ${challenge.title}`} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+                  <article key={challenge.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-2xs hover:border-[#2E6B34]/50 transition">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-gray-900">{challenge.title}</h3>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-[#2E6B34]">{challenge.points} Poin</span>
+                      </div>
+                      <p className="mt-1 line-clamp-2 text-xs text-gray-500">{challenge.description}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => handleOpenEditChallenge(challenge)}
+                        aria-label={`Edit ${challenge.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-gray-600 hover:bg-emerald-50 hover:text-[#2E6B34] transition"
+                        title="Edit tantangan"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteChallenge(challenge.id)}
+                        aria-label={`Hapus ${challenge.title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-xl border border-gray-200 text-red-600 hover:bg-red-50 transition"
+                        title="Hapus tantangan"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
                   </article>
                 ))}
               </div>

@@ -42,16 +42,16 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-3 sm:p-4">
-      <div className="relative w-full max-w-md rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/20 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-3 sm:p-4">
+      <div className="relative w-full max-w-md rounded-3xl bg-[#FAF6EC] dark:bg-[#142518] border border-[#2E6B34]/20 dark:border-[#2E6B34]/40 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#2E6B34]/15 bg-white/90 px-5 py-4">
+        <div className="flex items-center justify-between border-b border-[#2E6B34]/15 dark:border-[#2E6B34]/30 bg-white/90 dark:bg-[#0F2A15]/95 px-5 py-4">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 text-[#2E6B34]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-50 dark:bg-emerald-950 text-[#2E6B34] dark:text-emerald-400">
               <Bell className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-[#1F2A1F] font-poppins flex items-center gap-2">
+              <h3 className="font-bold text-sm text-[#1F2A1F] dark:text-white font-poppins flex items-center gap-2">
                 Notifikasi Interaksi
                 {unreadCount > 0 && (
                   <span className="rounded-full bg-red-500 px-2 py-0.5 text-[10px] font-black text-white">
@@ -59,12 +59,12 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   </span>
                 )}
               </h3>
-              <p className="text-[11px] text-gray-500">Aktivitas suka, komentar, &amp; dukungan jemaat</p>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400">Aktivitas suka, komentar, &amp; dukungan jemaat</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-800 dark:hover:text-white transition"
           >
             <X className="h-4 w-4" />
           </button>
@@ -107,29 +107,29 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   }}
                   className={`flex items-start gap-3 p-3 rounded-2xl cursor-pointer transition ${
                     isUnread
-                      ? 'bg-white border border-[#2E6B34]/20 shadow-xs'
-                      : 'hover:bg-white/60 opacity-80'
+                      ? 'bg-white dark:bg-[#1A3020] border border-[#2E6B34]/20 dark:border-[#2E6B34]/40 shadow-xs'
+                      : 'hover:bg-white/60 dark:hover:bg-white/5 opacity-80'
                   }`}
                 >
                   {/* Icon depending on notification type */}
                   <div className="mt-0.5 shrink-0">
                     {n.type === 'thread_like' && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 text-red-500">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-red-50 dark:bg-red-950 text-red-500">
                         <Heart className="h-4 w-4 fill-red-500" />
                       </div>
                     )}
                     {n.type === 'thread_reply' && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 dark:bg-blue-950 text-blue-600">
                         <MessageCircle className="h-4 w-4" />
                       </div>
                     )}
                     {n.type === 'thread_save' && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 text-amber-600">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-600">
                         <Bookmark className="h-4 w-4" />
                       </div>
                     )}
                     {n.type === 'leaderboard_cheer' && (
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-50 text-pink-500">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-50 dark:bg-pink-950 text-pink-500">
                         <Trophy className="h-4 w-4 text-amber-500" />
                       </div>
                     )}
@@ -138,10 +138,10 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
                   {/* Text details */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <p className="text-xs font-bold text-[#1F2A1F] truncate">{n.title}</p>
-                      <span className="text-[10px] text-gray-500 shrink-0">{formatTime(n.createdAt)}</span>
+                      <p className="text-xs font-bold text-[#1F2A1F] dark:text-white truncate">{n.title}</p>
+                      <span className="text-[10px] text-gray-500 dark:text-gray-400 shrink-0">{formatTime(n.createdAt)}</span>
                     </div>
-                    <p className="mt-0.5 text-xs text-gray-700 leading-snug">{n.message}</p>
+                    <p className="mt-0.5 text-xs text-gray-700 dark:text-gray-200 leading-snug">{n.message}</p>
                   </div>
 
                   {isUnread && (
@@ -154,8 +154,8 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-100 bg-white/70 px-4 py-2.5 text-center">
-          <p className="text-[10px] text-gray-500">
+        <div className="border-t border-gray-100 dark:border-white/10 bg-white/70 dark:bg-[#0F2A15]/95 px-4 py-2.5 text-center">
+          <p className="text-[10px] text-gray-500 dark:text-gray-400">
             Terus bergotong royong dan saling mendukung demi Danau Toba yang lestari! 🌿
           </p>
         </div>

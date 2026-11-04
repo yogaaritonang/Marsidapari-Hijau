@@ -320,6 +320,49 @@ export class StorageService {
     this.saveCommunities(list);
   }
 
+  static updateCommunity(updated: Community): void {
+    const list = this.getCommunities();
+    const existingIndex = list.findIndex((c) => c.id === updated.id);
+    let oldName = '';
+    if (existingIndex >= 0) {
+      oldName = list[existingIndex].name;
+      list[existingIndex] = { ...list[existingIndex], ...updated };
+    } else {
+      list.push(updated);
+    }
+    this.saveCommunities(list);
+
+    // Jika pengguna yang aktif terafiliasi dengan komunitas ini, perbarui nama komunitasnya seketika
+    const currentUser = this.getUser();
+    if (
+      currentUser &&
+      (currentUser.communityId === updated.id ||
+        (oldName && currentUser.communityName === oldName))
+    ) {
+      currentUser.communityId = updated.id;
+      currentUser.communityName = updated.name;
+      this.saveUser(currentUser);
+      window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: currentUser }));
+    }
+  }
+
+  static deleteCommunity(id: string): void {
+    const list = this.getCommunities().filter((c) => c.id !== id);
+    this.saveCommunities(list);
+  }
+
+  static updateChallenge(challenge: Challenge): void {
+    const list = this.getChallenges();
+    const existingIndex = list.findIndex((c) => c.id === challenge.id);
+    if (existingIndex >= 0) {
+      list[existingIndex] = { ...list[existingIndex], ...challenge };
+    } else {
+      list.push(challenge);
+    }
+    this.saveChallenges(list);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'challenges', values: list } }));
+  }
+
   /**
    * Menghitung total pohon tertanam secara dinamis untuk komunitas pengguna atau seluruh gerakan
    * Tersinkronisasi dengan aksi/challenge yang telah diselesaikan dan diverifikasi.

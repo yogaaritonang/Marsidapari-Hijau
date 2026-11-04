@@ -23,7 +23,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, u
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#2E6B34]/20 dark:border-white/10 bg-[#FAF6EC]/95 dark:bg-[#0D160E]/95 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.5)] backdrop-blur-md md:bottom-4 md:left-1/2 md:right-auto md:w-[min(100%-2rem,760px)] md:-translate-x-1/2 md:rounded-full md:border md:shadow-[0_8px_32px_rgba(31,42,31,0.16)] md:dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)]">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-[#2E6B34]/20 dark:border-[#2E6B34]/30 bg-[#FAF6EC]/95 dark:bg-[#0F2A15]/95 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] dark:shadow-[0_-4px_20px_rgba(0,0,0,0.7)] backdrop-blur-md md:bottom-4 md:left-1/2 md:right-auto md:w-[min(100%-2rem,760px)] md:-translate-x-1/2 md:rounded-full md:border md:shadow-[0_8px_32px_rgba(31,42,31,0.16)] md:dark:shadow-[0_8px_32px_rgba(0,0,0,0.7)]">
       <div className="mx-auto flex max-w-[760px] items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] md:pb-0 md:px-4">
         {tabs.map((tab) => {
           const isActive = currentTab === tab.id;
@@ -50,7 +50,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, u
                   <div
                     className={`relative flex items-center justify-center rounded-full transition-all duration-200 ${
                       isActive
-                        ? 'p-[1.5px] ring-2 ring-[#2E6B34] dark:ring-emerald-400 ring-offset-2 ring-offset-[#FAF6EC] dark:ring-offset-[#0D160E] scale-105'
+                        ? 'p-[1.5px] ring-2 ring-[#2E6B34] dark:ring-emerald-400 ring-offset-2 ring-offset-[#FAF6EC] dark:ring-offset-[#0F2A15] scale-105'
                         : 'ring-1 ring-gray-400/60 dark:ring-gray-600 hover:ring-[#2E6B34]/60'
                     }`}
                   >

@@ -112,7 +112,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
   return (
     <>
       <header
-        className={`sticky top-0 z-40 bg-[#FAF6EC]/95 dark:bg-[#0B150D]/95 backdrop-blur-xl border-b border-[#2E6B34]/15 dark:border-white/10 shadow-xs transition-all duration-400 ease-in-out ${
+        className={`sticky top-0 z-40 bg-[#FAF6EC]/95 dark:bg-[#0F2A15]/95 backdrop-blur-xl border-b border-[#2E6B34]/15 dark:border-[#2E6B34]/30 shadow-xs transition-all duration-400 ease-in-out ${
           isNavbarHidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
@@ -147,7 +147,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 {/* Active status indicator dot */}
                 <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-[#FAF6EC] dark:border-[#0B150D]"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-[#FAF6EC] dark:border-[#0F2A15]"></span>
                 </span>
               </div>
             ) : (
@@ -159,7 +159,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 <Leaf className="w-5 h-5 text-[#A8D5A2]" />
                 <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0B150D]"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0F2A15]"></span>
                 </span>
               </div>
             )}
@@ -234,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 <button
                   type="button"
                   onClick={() => setIsNotifOpen(true)}
-                  className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 dark:border-white/10 bg-white/90 dark:bg-[#152317] hover:bg-white dark:hover:bg-[#1c3020] text-[#2E6B34] dark:text-emerald-400 shadow-2xs hover:shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
+                  className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 dark:border-[#2E6B34]/30 bg-white/90 dark:bg-[#142518] hover:bg-white dark:hover:bg-[#1a3020] text-[#2E6B34] dark:text-emerald-400 shadow-2xs hover:shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
                   title="Notifikasi Interaksi & Kegiatan Baru"
                 >
                   <Bell className="h-4 w-4 text-[#2E6B34] dark:text-emerald-400" />

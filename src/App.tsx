@@ -130,10 +130,12 @@ export default function App() {
       }
     };
     window.addEventListener('focus', handleActiveSync);
-    document.addEventListener('visibilitychange', handleActiveSync);
+    window.addEventListener('visibilitychange', handleActiveSync);
+    window.addEventListener('mh-user-updated', handleActiveSync);
     return () => {
       window.removeEventListener('focus', handleActiveSync);
-      document.removeEventListener('visibilitychange', handleActiveSync);
+      window.removeEventListener('visibilitychange', handleActiveSync);
+      window.removeEventListener('mh-user-updated', handleActiveSync);
     };
   }, []);
 
@@ -317,6 +319,16 @@ export default function App() {
           StorageService.setOnboarded(true);
           setUser(syncedUser);
           setIsOnboarded(true);
+
+          // Force a fresh fetch from Supabase to ensure authoritative points, streaks, and ranks
+          void AuthService.fetchFreshUserProfile()
+            .then((fresh) => {
+              if (fresh && !cancelled) {
+                setUser(fresh);
+              }
+            })
+            .catch(() => null);
+
           void AuthService.getAccessToken()
             .then((token) => SharedDataService.connect(restoredUser, token))
             .catch((error: unknown) => {
@@ -573,7 +585,7 @@ export default function App() {
 
   if (isAuthLoading && portal !== 'user') {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[#FAF6EC] text-sm font-semibold text-[#2E6B34]">
+      <div className="flex min-h-dvh items-center justify-center bg-[#FAF6EC] dark:bg-[#0F2A15] text-sm font-semibold text-[#2E6B34] dark:text-emerald-400">
         Memeriksa sesi akun...
       </div>
     );
@@ -581,7 +593,7 @@ export default function App() {
 
   if (!isOnboarded && portal !== 'user') {
     return (
-      <div className="min-h-dvh bg-[#FAF6EC]">
+      <div className="min-h-dvh bg-[#FAF6EC] dark:bg-[#0F2A15]">
         <OnboardingModal
           portal={portal}
           initialError={authError}
@@ -615,14 +627,14 @@ export default function App() {
 
   if (portal === 'leader' && user.role === 'pemimpin') {
     return (
-      <div className="min-h-dvh bg-[#FAF6EC]">
+      <div className="min-h-dvh bg-[#FAF6EC] dark:bg-[#0F2A15]">
         {isOnboarded && <SharedSyncNotice state={sharedSyncState} message={sharedSyncMessage} />}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#2E6B34]/15 bg-[#FAF6EC]/95 px-4 py-3 backdrop-blur sm:px-6">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#2E6B34]/15 dark:border-[#2E6B34]/30 bg-[#FAF6EC]/95 dark:bg-[#0F2A15]/95 px-4 py-3 backdrop-blur sm:px-6">
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-[#1F2A1F]">{user.communityName}</p>
-            <p className="text-xs text-[#7A5230]">Portal Pemimpin Organisasi</p>
+            <p className="truncate text-sm font-bold text-[#1F2A1F] dark:text-white">{user.communityName}</p>
+            <p className="text-xs text-[#7A5230] dark:text-emerald-400">Portal Pemimpin Organisasi</p>
           </div>
-          <button onClick={handleLogout} className="min-h-11 rounded-xl border border-gray-200 px-3 text-xs font-bold text-gray-600 hover:bg-white">
+          <button onClick={handleLogout} className="min-h-11 rounded-xl border border-gray-200 dark:border-white/10 px-3 text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-[#142518]">
             Keluar
           </button>
         </header>
@@ -634,7 +646,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FAF6EC] text-[#1F2A1F] flex flex-col font-sans">
+    <div className="min-h-screen bg-[#FAF6EC] dark:bg-[#0F2A15] text-[#1F2A1F] dark:text-white flex flex-col font-sans">
       <div className="app-container flex flex-col">
         {/* Offline Connectivity Notification */}
         <OfflineIndicator />
@@ -689,14 +701,14 @@ export default function App() {
 
         {/* Sub-navigation bar when in auxiliary views */}
         {!['home', 'threads', 'challenges', 'garden', 'community', 'profile'].includes(currentTab) && (
-          <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between border-b border-gray-200 bg-white/60 px-4 py-2 text-xs">
+          <div className="mx-auto flex w-full max-w-[1120px] items-center justify-between border-b border-gray-200 dark:border-[#2E6B34]/30 bg-white/60 dark:bg-[#142518]/90 px-4 py-2 text-xs">
             <button
               onClick={() => setCurrentTab('home')}
-              className="text-[#2E6B34] font-bold hover:underline flex items-center gap-1"
+              className="text-[#2E6B34] dark:text-emerald-400 font-bold hover:underline flex items-center gap-1"
             >
               &larr; Kembali ke Beranda
             </button>
-            <span className="font-semibold text-gray-500 capitalize">
+            <span className="font-semibold text-gray-500 dark:text-gray-300 capitalize">
               {currentTab === 'waste-scan'
                 ? 'Pemindai Sampah'
                 : currentTab === 'devotions'

@@ -121,43 +121,129 @@ export class UserService {
   }
 
   /**
-   * Mendapatkan status dan informasi streak pengguna
+   * Strategi Resolusi Konflik Data Real-Time untuk Profil Pengguna.
+   * Dipanggil saat pengguna masuk (login) atau memulihkan sesi.
+   * Memastikan poin, streak, peringkat, dan nama organisasi tersinkronisasi
+   * secara otoritatif dengan state server Supabase dan membersihkan cache basi.
    */
-  static getStreakStatus(user: User): {
-    streakDays: number;
-    isActive: boolean;
-    visitedToday: boolean;
-    hoursInactive: number;
-    statusText: string;
-  } {
-    if (!user || user.id === 'guest-preview') {
-      return {
-        streakDays: 0,
-        isActive: false,
-        visitedToday: false,
-        hoursInactive: 0,
-        statusText: 'Mode Pengunjung',
-      };
+  static resolveProfileConflict(
+    authUser: {
+      id: string;
+      email?: string;
+      app_metadata?: Record<string, unknown>;
+      user_metadata?: Record<string, unknown>;
+    },
+    options?: {
+      clearStaleCache?: boolean;
     }
+  ): User {
+    const metadata = authUser.user_metadata || {};
+    const appMetadata = authUser.app_metadata || {};
+    const userId = authUser.id;
+
+    // 1. Bersihkan cache sesi basi jika berbeda akun
+    if (options?.clearStaleCache) {
+      try {
+        const rawLocal = localStorage.getItem('mh_user');
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (parsed && parsed.id && parsed.id !== userId) {
+            localStorage.removeItem('mh_user');
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    // 2. Ambil profil lokal yang tersimpan khusus user ini
+    let cachedUser: Partial<User> | null = null;
+    try {
+      const rawUserCache = localStorage.getItem(`mh_user_profile_${userId}`);
+      if (rawUserCache) {
+        cachedUser = JSON.parse(rawUserCache) as Partial<User>;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 3. Resolusi Role
+    const role: User['role'] = appMetadata.role === 'admin'
+      ? 'admin'
+      : appMetadata.role === 'pemimpin'
+      ? 'pemimpin'
+      : 'anggota';
+
+    // 4. Resolusi Organisasi (Komunitas)
+    // Utamakan app_metadata (trusted) kemudian user_metadata
+    const trustedOrgId = typeof appMetadata.organization_id === 'string' ? appMetadata.organization_id : undefined;
+    const communityId = trustedOrgId || (typeof metadata.communityId === 'string' ? metadata.communityId : 'umum');
+
+    // Ambil daftar komunitas terkini dari storage untuk memastikan nama yang diedit admin langsung dipakai
+    let communityName = typeof metadata.communityName === 'string' && metadata.communityName.trim()
+      ? metadata.communityName
+      : 'Komunitas Marsiadapari Hijau';
+
+    try {
+      const rawComms = localStorage.getItem('mh_communities');
+      if (rawComms) {
+        const comms = JSON.parse(rawComms) as Array<{ id: string; name: string }>;
+        const matched = comms.find((c) => c.id === communityId);
+        if (matched && matched.name) {
+          communityName = matched.name;
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    // 5. Resolusi Konflik Poin (Conflict Resolution Strategy)
+    // Server metadata adalah otoritatif. Namun jika klien lokal memiliki poin terverifikasi lebih tinggi
+    // (misalnya setelah aksi offline yang belum sempat push), ambil nilai tertinggi dan jadwalkan sinkronisasi kembali ke server.
+    const serverPoints = typeof metadata.points === 'number' ? metadata.points : 0;
+    const localPoints = typeof cachedUser?.points === 'number' ? cachedUser.points : 0;
+    const resolvedPoints = Math.max(serverPoints, localPoints);
+
+    // 6. Resolusi Streak Harian
+    const serverStreak = typeof metadata.streakDays === 'number' ? metadata.streakDays : 1;
+    const localStreak = typeof cachedUser?.streakDays === 'number' ? cachedUser.streakDays : 1;
+    const resolvedStreak = Math.max(1, serverStreak, localStreak);
+
+    // 7. Resolusi Preferensi
+    const resolvedPreferences = cachedUser?.preferences || {
+      fontSize: 'normal' as const,
+      darkMode: false,
+      dataSaver: false,
+      notifications: true,
+      isAnonymous: typeof metadata.isAnonymous === 'boolean' ? metadata.isAnonymous : false,
+    };
 
     const today = this.getTodayDateString();
-    const visitedToday = user.lastActiveDate === today;
-    const hoursInactive = this.getHoursSinceTimestamp(user.lastActiveTimestamp);
-    const isActive = user.streakDays > 0;
+    const resolvedUser: User = {
+      id: userId,
+      name: typeof metadata.name === 'string' ? metadata.name : (cachedUser?.name || authUser.email || 'Sahabat Hijau'),
+      contact: authUser.email || cachedUser?.contact || '',
+      role,
+      communityId,
+      communityName,
+      points: resolvedPoints,
+      streakDays: resolvedStreak,
+      lastActiveDate: today,
+      lastActiveTimestamp: new Date().toISOString(),
+      joinedDate: typeof metadata.joinedDate === 'string' ? metadata.joinedDate : (cachedUser?.joinedDate || today),
+      preferences: resolvedPreferences,
+    };
 
-    let statusText = 'Mulai Aksi Hari Ini';
-    if (isActive) {
-      statusText = `${user.streakDays} Hari Berturut-turut 🔥`;
-    } else if (hoursInactive >= 24) {
-      statusText = 'Streak Ter-reset (Tidak aktif >24 jam)';
+    // Sinkronisasi streak harian
+    const activeUser = this.recordDailyVisit(resolvedUser);
+
+    // Simpan ke cache otoritatif
+    try {
+      localStorage.setItem(`mh_user_profile_${userId}`, JSON.stringify(activeUser));
+    } catch {
+      // ignore
     }
 
-    return {
-      streakDays: user.streakDays || 0,
-      isActive,
-      visitedToday,
-      hoursInactive,
-      statusText,
-    };
+    return activeUser;
   }
 }

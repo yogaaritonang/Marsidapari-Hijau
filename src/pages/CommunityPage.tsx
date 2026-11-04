@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Trophy,
@@ -27,11 +27,24 @@ interface CommunityPageProps {
 
 export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onRequireAuth, onNavigateTab }) => {
   const [activeTab, setActiveTab] = useState<'peringkat' | 'galeri' | 'konfirmasi' | 'antar_kelompok'>('peringkat');
-  const [communities] = useState<Community[]>(StorageService.getCommunities());
-  const [submissions, setSubmissions] = useState<ChallengeSubmission[]>(
-    StorageService.getSubmissions()
-  );
+  const [communities, setCommunities] = useState<Community[]>(() => StorageService.getCommunities());
+  const [submissions, setSubmissions] = useState<ChallengeSubmission[]>(() => StorageService.getSubmissions());
   const [reviewToast, setReviewToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setCommunities(StorageService.getCommunities());
+      setSubmissions(StorageService.getSubmissions());
+    };
+    window.addEventListener('mh-data-updated', handleUpdate);
+    window.addEventListener('mh-shared-data-change', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+    return () => {
+      window.removeEventListener('mh-data-updated', handleUpdate);
+      window.removeEventListener('mh-shared-data-change', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
 
   const userCommunity =
     communities.find((c) => c.id === user.communityId) || {

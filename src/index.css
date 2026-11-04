@@ -11,8 +11,8 @@
   }
 
   html.dark {
-    --color-cream: #0D160E;
-    --color-dark: #E6EFE6;
+    --color-cream: #0F2A15;
+    --color-dark: #FFFFFF;
     color-scheme: dark;
   }
 
@@ -26,8 +26,8 @@
   }
 
   html.dark body {
-    background-color: #0D160E;
-    color: #E6EFE6;
+    background-color: #0F2A15;
+    color: #FFFFFF;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -35,64 +35,82 @@
   }
 }
 
-/* Comprehensive Dark Mode Theme Rules */
+/* Comprehensive Dark Mode Theme Rules strictly using deep forest tokens */
 html.dark .app-container {
-  background-color: #0D160E;
-  color: #E6EFE6;
-  box-shadow: 0 0 60px rgba(0, 0, 0, 0.5);
+  background-color: #0F2A15 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.7);
 }
 
 html.dark .bg-white {
-  background-color: #142217 !important;
-  border-color: rgba(74, 222, 128, 0.15) !important;
-  color: #E6EFE6 !important;
+  background-color: #142518 !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
+  color: #FFFFFF !important;
 }
 
+html.dark .bg-white\/95,
 html.dark .bg-white\/90,
 html.dark .bg-white\/80,
+html.dark .bg-white\/70,
 html.dark .bg-white\/60,
 html.dark .bg-white\/50 {
-  background-color: rgba(20, 34, 23, 0.88) !important;
-  border-color: rgba(74, 222, 128, 0.15) !important;
+  background-color: rgba(20, 37, 24, 0.94) !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
+  color: #FFFFFF !important;
 }
 
-html.dark .bg-\[\#FAF6EC\] {
-  background-color: #0D160E !important;
+html.dark .bg-\[\#FAF6EC\],
+html.dark .bg-\[\#FAF6EC\]\/95,
+html.dark .bg-\[\#F3F6F1\] {
+  background-color: #0F2A15 !important;
+  color: #FFFFFF !important;
 }
 
 html.dark .text-gray-900,
 html.dark .text-gray-800,
 html.dark .text-\[\#1F2A1F\] {
-  color: #E6EFE6 !important;
+  color: #FFFFFF !important;
 }
 
 html.dark .text-gray-700,
 html.dark .text-gray-600 {
-  color: #B5C6B7 !important;
+  color: #D1E2D3 !important;
 }
 
 html.dark .text-gray-500 {
-  color: #8CA08E !important;
+  color: #A3B8A5 !important;
 }
 
 html.dark .border-gray-200,
 html.dark .border-gray-300,
 html.dark .border-gray-100 {
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(74, 222, 128, 0.2) !important;
 }
 
 html.dark .bg-gray-50,
-html.dark .bg-gray-100 {
-  background-color: #1A2C1E !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+html.dark .bg-gray-100,
+html.dark .bg-\[\#EDE9DC\] {
+  background-color: #172B1B !important;
+  border-color: rgba(74, 222, 128, 0.15) !important;
+  color: #FFFFFF !important;
 }
 
 html.dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
 html.dark textarea,
 html.dark select {
-  background-color: #17271B !important;
-  color: #E6EFE6 !important;
-  border-color: rgba(74, 222, 128, 0.25) !important;
+  background-color: #0E1B11 !important;
+  color: #FFFFFF !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #7B9A7D !important;
+}
+
+html.dark option {
+  background-color: #0E1B11 !important;
+  color: #FFFFFF !important;
 }
 
 /* Batak Gorga subtle decorative border & motifs */
@@ -138,6 +156,16 @@ html.dark select {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #2E6B34;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0F2A15;
+}
+html.dark ::-webkit-scrollbar-thumb {
+  background: #2E6B34;
+}
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #4ADE80;
 }
 
 /* Mobile viewport container */

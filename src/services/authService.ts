@@ -1,5 +1,6 @@
 import { User } from '../types';
 import { StorageService } from './storageService';
+import { UserService } from './userService';
 
 export interface AuthUser {
   id: string;
@@ -102,7 +103,11 @@ export class AuthService {
       type: 'email',
     });
 
-    return this.saveSession(response);
+    const authUser = this.saveSession(response);
+    if (response.access_token) {
+      await this.fetchFreshUserProfile(response.access_token).catch(() => null);
+    }
+    return authUser;
   }
 
   static async updateProfileMetadata(metadata: Record<string, unknown>): Promise<void> {
@@ -339,48 +344,18 @@ export class AuthService {
   }
 
   static getUserProfile(authUser: AuthUser): User {
-    const savedUser = StorageService.getUser();
-    const role = authUser.app_metadata?.role === 'admin'
-      ? 'admin'
-      : authUser.app_metadata?.role === 'pemimpin'
-      ? 'pemimpin'
-      : 'anggota';
-    const metadata = authUser.user_metadata ?? {};
-    const trustedOrganizationId = authUser.app_metadata?.organization_id;
-    if (StorageService.isOnboarded() && savedUser.id === authUser.id) {
-      return {
-        ...savedUser,
-        role,
-        ...(typeof trustedOrganizationId === 'string' ? { communityId: trustedOrganizationId } : {}),
-        ...(typeof metadata.organizationName === 'string' ? { communityName: metadata.organizationName } : {}),
-        contact: authUser.email || savedUser.contact,
-      };
-    }
+    const user = UserService.resolveProfileConflict(authUser, { clearStaleCache: true });
 
+    // Pastikan jika komunitas baru dari pemimpin terdaftar di communities
     const communities = StorageService.getCommunities();
-    const communityId = typeof trustedOrganizationId === 'string'
-      ? trustedOrganizationId
-      : typeof metadata.communityId === 'string'
-      ? metadata.communityId
-      : 'umum';
-    const communityName = typeof metadata.communityName === 'string' && metadata.communityName.trim()
-      ? metadata.communityName
-      : communities.find((community) => community.id === communityId)?.name || 'Komunitas Marsiadapari Hijau';
-    const communityCategory = metadata.organizationCategory === 'Kampus' ||
-      metadata.organizationCategory === 'Gereja' ||
-      metadata.organizationCategory === 'Pemuda'
-      ? metadata.organizationCategory
-      : 'Komunitas Warga';
-    const today = new Date().toISOString().split('T')[0];
-
     if (
-      (communityId.startsWith('comm-') || communityId.startsWith('org-')) &&
-      !communities.some((community) => community.id === communityId)
+      (user.communityId.startsWith('comm-') || user.communityId.startsWith('org-')) &&
+      !communities.some((c) => c.id === user.communityId)
     ) {
       StorageService.addCommunity({
-        id: communityId,
-        name: communityName,
-        category: communityCategory,
+        id: user.communityId,
+        name: user.communityName,
+        category: 'Komunitas Warga',
         location: 'Tapanuli Utara',
         memberCount: 1,
         totalPoints: 0,
@@ -392,56 +367,29 @@ export class AuthService {
       });
     }
 
-    let cachedProfile: Partial<User> | null = null;
+    return user;
+  }
+
+  /**
+   * Mengambil profil pengguna secara segar (fresh fetch) dari server Supabase
+   * untuk mengatasi konflik data, membersihkan cache lokal basi, dan memastikan
+   * poin, streak, serta afiliasi organisasi selalu sinkron dengan state server.
+   */
+  static async fetchFreshUserProfile(token?: string): Promise<User | null> {
+    const activeToken = token || (await this.getAccessToken());
+    if (!activeToken) return null;
+
     try {
-      const rawCached = localStorage.getItem(`mh_user_profile_${authUser.id}`);
-      if (rawCached) {
-        cachedProfile = JSON.parse(rawCached) as Partial<User>;
-      }
-    } catch {
-      // ignore
+      const freshAuthUser = await this.request<AuthUser>('/user', undefined, activeToken);
+      const user = this.getUserProfile(freshAuthUser);
+      StorageService.saveUser(user);
+      window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: user }));
+      window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'user', values: [user] } }));
+      return user;
+    } catch (err) {
+      console.warn('Fresh fetch profil Supabase gagal, menggunakan cache lokal:', err);
+      return null;
     }
-
-    const existingStoredUser = StorageService.getUser();
-    const existingPoints = Math.max(
-      cachedProfile?.points ?? 0,
-      existingStoredUser && existingStoredUser.id === authUser.id ? existingStoredUser.points : 0,
-      typeof metadata.points === 'number' ? metadata.points : 0,
-      typeof metadata.welcomePoints === 'number' ? metadata.welcomePoints : 0,
-    );
-
-    const existingStreak = Math.max(
-      1,
-      cachedProfile?.streakDays ?? 1,
-      existingStoredUser && existingStoredUser.id === authUser.id ? (existingStoredUser.streakDays || 1) : 1,
-    );
-
-    const existingPreferences =
-      existingStoredUser && existingStoredUser.id === authUser.id && existingStoredUser.preferences
-        ? existingStoredUser.preferences
-        : cachedProfile?.preferences
-        ? cachedProfile.preferences
-        : {
-            fontSize: 'normal' as const,
-            darkMode: false,
-            dataSaver: false,
-            notifications: true,
-            isAnonymous: typeof metadata.isAnonymous === 'boolean' ? metadata.isAnonymous : false,
-          };
-
-    return {
-      id: authUser.id,
-      name: typeof metadata.name === 'string' ? metadata.name : (cachedProfile?.name || authUser.email || 'Sahabat Hijau'),
-      contact: authUser.email || cachedProfile?.contact || '',
-      role,
-      communityId,
-      communityName,
-      points: existingPoints,
-      streakDays: existingStreak,
-      lastActiveDate: today,
-      joinedDate: typeof metadata.joinedDate === 'string' ? metadata.joinedDate : (cachedProfile?.joinedDate || today),
-      preferences: existingPreferences,
-    };
   }
 
   private static saveSession(response: AuthResponse): AuthUser {
