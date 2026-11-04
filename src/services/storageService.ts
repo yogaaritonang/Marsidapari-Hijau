@@ -213,6 +213,13 @@ export class StorageService {
 
   static saveUser(user: User): void {
     this.setItem<User>(STORAGE_KEYS.USER, user);
+    if (user && user.id && user.id !== 'guest-preview') {
+      try {
+        localStorage.setItem(`mh_user_profile_${user.id}`, JSON.stringify(user));
+      } catch {
+        // ignore
+      }
+    }
   }
 
   static updateUser(updates: Partial<User>): User {
@@ -452,15 +459,33 @@ export class StorageService {
       this.saveUser(user);
       notifyBadgeUnlocks(user.id, newlyUnlocked);
 
+      // Async sync points to auth metadata so they persist across sessions
+      if (typeof window !== 'undefined' && user.id !== 'guest-preview') {
+        import('./authService').then(({ AuthService }) => {
+          AuthService.updateProfileMetadata({
+            points: user.points,
+            streakDays: user.streakDays,
+            lastChallengeDate: user.lastChallengeDate,
+          }).catch(() => {});
+        }).catch(() => {});
+      }
+
       this.addGardenExp(sub.awardedPoints);
 
       const communities = this.getCommunities();
-      const userComm = communities.find((c) => c.id === user.communityId || c.name === user.communityName) || communities[0];
+      const targetCommId = user.communityId || (sub.userCommunity ? sub.userCommunity : '');
+      const userComm = communities.find((c) =>
+        c.id === targetCommId ||
+        c.name === targetCommId ||
+        c.name === user.communityName ||
+        (sub.userCommunity && (c.name === sub.userCommunity || c.id === sub.userCommunity))
+      ) || communities[0];
+
       if (userComm) {
-        userComm.totalPoints += sub.awardedPoints;
-        userComm.actionCount += 1;
+        userComm.totalPoints = (userComm.totalPoints || 0) + sub.awardedPoints;
+        userComm.actionCount = (userComm.actionCount || 0) + 1;
         if (sub.impact && sub.impact.trees > 0) {
-          userComm.treesPlanted += sub.impact.trees;
+          userComm.treesPlanted = (userComm.treesPlanted || 0) + sub.impact.trees;
         }
         this.saveCommunities(communities);
       }
@@ -483,17 +508,30 @@ export class StorageService {
           const newlyUnlocked = awardPoints(user, sub.awardedPoints);
           this.saveUser(user);
           notifyBadgeUnlocks(user.id, newlyUnlocked);
+          if (typeof window !== 'undefined' && user.id !== 'guest-preview') {
+            import('./authService').then(({ AuthService }) => {
+              AuthService.updateProfileMetadata({
+                points: user.points,
+                streakDays: user.streakDays,
+              }).catch(() => {});
+            }).catch(() => {});
+          }
         }
         this.addGardenExp(sub.awardedPoints);
 
-        // Synchronize community points, actionCount, and treesPlanted
+        // Synchronize community points, actionCount, and treesPlanted using submitter's community
         const communities = this.getCommunities();
-        const userComm = communities.find((c) => c.id === user.communityId) || communities[0];
+        const userComm = communities.find((c) =>
+          (sub.userCommunity && (c.id === sub.userCommunity || c.name === sub.userCommunity)) ||
+          c.id === user.communityId ||
+          c.name === user.communityName
+        ) || communities[0];
+
         if (userComm) {
-          userComm.totalPoints += sub.awardedPoints;
-          userComm.actionCount += 1;
+          userComm.totalPoints = (userComm.totalPoints || 0) + sub.awardedPoints;
+          userComm.actionCount = (userComm.actionCount || 0) + 1;
           if (sub.impact && sub.impact.trees > 0) {
-            userComm.treesPlanted += sub.impact.trees;
+            userComm.treesPlanted = (userComm.treesPlanted || 0) + sub.impact.trees;
           }
           this.saveCommunities(communities);
         }

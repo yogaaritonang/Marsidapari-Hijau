@@ -392,24 +392,35 @@ export class AuthService {
       });
     }
 
-    const existingStoredUser = StorageService.getUser();
-    const existingPoints =
-      existingStoredUser && existingStoredUser.id === authUser.id
-        ? existingStoredUser.points
-        : typeof metadata.points === 'number'
-        ? metadata.points
-        : typeof metadata.welcomePoints === 'number'
-        ? metadata.welcomePoints
-        : 0;
+    let cachedProfile: Partial<User> | null = null;
+    try {
+      const rawCached = localStorage.getItem(`mh_user_profile_${authUser.id}`);
+      if (rawCached) {
+        cachedProfile = JSON.parse(rawCached) as Partial<User>;
+      }
+    } catch {
+      // ignore
+    }
 
-    const existingStreak =
-      existingStoredUser && existingStoredUser.id === authUser.id
-        ? Math.max(1, existingStoredUser.streakDays || 1)
-        : 1;
+    const existingStoredUser = StorageService.getUser();
+    const existingPoints = Math.max(
+      cachedProfile?.points ?? 0,
+      existingStoredUser && existingStoredUser.id === authUser.id ? existingStoredUser.points : 0,
+      typeof metadata.points === 'number' ? metadata.points : 0,
+      typeof metadata.welcomePoints === 'number' ? metadata.welcomePoints : 0,
+    );
+
+    const existingStreak = Math.max(
+      1,
+      cachedProfile?.streakDays ?? 1,
+      existingStoredUser && existingStoredUser.id === authUser.id ? (existingStoredUser.streakDays || 1) : 1,
+    );
 
     const existingPreferences =
       existingStoredUser && existingStoredUser.id === authUser.id && existingStoredUser.preferences
         ? existingStoredUser.preferences
+        : cachedProfile?.preferences
+        ? cachedProfile.preferences
         : {
             fontSize: 'normal' as const,
             darkMode: false,
@@ -420,15 +431,15 @@ export class AuthService {
 
     return {
       id: authUser.id,
-      name: typeof metadata.name === 'string' ? metadata.name : authUser.email || 'Sahabat Hijau',
-      contact: authUser.email || '',
+      name: typeof metadata.name === 'string' ? metadata.name : (cachedProfile?.name || authUser.email || 'Sahabat Hijau'),
+      contact: authUser.email || cachedProfile?.contact || '',
       role,
       communityId,
       communityName,
       points: existingPoints,
       streakDays: existingStreak,
       lastActiveDate: today,
-      joinedDate: typeof metadata.joinedDate === 'string' ? metadata.joinedDate : today,
+      joinedDate: typeof metadata.joinedDate === 'string' ? metadata.joinedDate : (cachedProfile?.joinedDate || today),
       preferences: existingPreferences,
     };
   }

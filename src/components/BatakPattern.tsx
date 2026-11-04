@@ -118,10 +118,10 @@ export const BatakUlosHeaderParallax: React.FC<{
       role="presentation"
       aria-hidden="true"
     >
-      <div className="relative h-11 sm:h-13 w-full rounded-2xl overflow-hidden border border-amber-800/25 dark:border-amber-500/20 shadow-xs bg-[#1F1010]/30 backdrop-blur-xs transition-all duration-300 group-hover:scale-[1.015] group-hover:opacity-95 opacity-80">
+      <div className="relative h-11 sm:h-13 w-full rounded-2xl overflow-hidden border border-amber-700/20 dark:border-amber-400/20 bg-transparent transition-all duration-300 group-hover:opacity-100 opacity-85">
         {/* Semi-transparent Ulos pattern background */}
         <div
-          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-75 dark:opacity-65"
+          className="w-full h-full bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-80 dark:opacity-70"
           style={{
             backgroundImage: "url('/assets/ulos-ribbon.jpg')",
             backgroundPosition: 'center',
@@ -132,14 +132,13 @@ export const BatakUlosHeaderParallax: React.FC<{
         {/* Dynamic community/brand color tint */}
         {tintColor && (
           <div
-            className="absolute inset-0 pointer-events-none opacity-30 mix-blend-color"
+            className="absolute inset-0 pointer-events-none opacity-20 mix-blend-color"
             style={{ backgroundColor: tintColor }}
           />
         )}
 
-        {/* Soft edge masking and gradient overlay so text/content above/below stays pristine */}
-        <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6EC]/90 via-transparent to-[#FAF6EC]/90 dark:from-[#0F1710]/90 dark:via-transparent dark:to-[#0F1710]/90 pointer-events-none" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/10 to-transparent pointer-events-none" />
+        {/* Soft edge masking without muddy dark shadows */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#FAF6EC]/90 via-transparent to-[#FAF6EC]/90 dark:from-[#0B150D]/90 dark:via-transparent dark:to-[#0B150D]/90 pointer-events-none" />
       </div>
     </div>
   );

@@ -129,6 +129,7 @@ export interface ChallengeSubmission {
   id: string;
   userId: string;
   userName: string;
+  userCommunity?: string;
   isAnonymous: boolean;
   challengeId: string;
   challengeTitle: string;

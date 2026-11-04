@@ -6,6 +6,7 @@ export const PWAInstallButton: React.FC<{ className?: string }> = ({ className =
   const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
   const [showGuide, setShowGuide] = useState(false);
 
+  // When app is installed, do not render anything to keep navbar pristine
   if (isInstalled) return null;
 
   if (isInstallable) {
@@ -13,28 +14,26 @@ export const PWAInstallButton: React.FC<{ className?: string }> = ({ className =
       <button
         type="button"
         onClick={install}
-        className={`touch-target shrink-0 inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#2E6B34] text-white text-[10px] sm:text-xs font-bold shadow-xs hover:bg-[#235328] active:scale-95 transition cursor-pointer ${className}`}
-        title="Pasang aplikasi Marsiadapari Hijau di layar utama HP"
+        className={`touch-target shrink-0 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl bg-emerald-700/90 dark:bg-emerald-800/90 hover:bg-[#235328] text-white shadow-xs transition active:scale-95 cursor-pointer ${className}`}
+        title="Pasang Aplikasi Marsiadapari Hijau"
+        aria-label="Pasang Aplikasi"
       >
-        <Download className="w-3.5 h-3.5 shrink-0" />
-        <span className="hidden sm:inline">Pasang App</span>
-        <span className="sm:hidden">Pasang</span>
+        <Download className="w-4 h-4 shrink-0" />
       </button>
     );
   }
 
-  // Fallback button for mobile users on iOS Safari or browsers without immediate prompt
+  // Fallback icon button for iOS Safari or browsers without immediate prompt
   return (
     <>
       <button
         type="button"
         onClick={() => setShowGuide(true)}
-        className={`touch-target shrink-0 inline-flex items-center gap-1 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full bg-[#FAF6EC] dark:bg-emerald-950/60 border border-[#2E6B34]/30 dark:border-emerald-700/60 text-[#2E6B34] dark:text-emerald-300 text-[10px] sm:text-xs font-bold shadow-2xs hover:bg-[#A8D5A2]/20 transition cursor-pointer ${className}`}
-        title="Panduan pasang aplikasi di HP"
+        className={`touch-target shrink-0 flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-[#2E6B34]/25 dark:border-white/10 bg-white/90 dark:bg-[#152317] text-[#2E6B34] dark:text-emerald-400 hover:bg-[#A8D5A2]/20 dark:hover:bg-emerald-950/60 shadow-2xs transition active:scale-95 cursor-pointer ${className}`}
+        title="Pasang Aplikasi di Layar Utama HP / Desktop"
+        aria-label="Panduan Pasang Aplikasi"
       >
-        <Smartphone className="w-3.5 h-3.5 shrink-0" />
-        <span className="hidden sm:inline">Pasang di HP</span>
-        <span className="sm:hidden">Pasang</span>
+        <Smartphone className="w-4 h-4 shrink-0" />
       </button>
 
       {showGuide && (

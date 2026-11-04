@@ -112,15 +112,19 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
   return (
     <>
       <header
-        className={`sticky top-0 z-40 bg-[#FAF6EC]/92 dark:bg-[#0F1710]/95 backdrop-blur-xl border-b border-[#2E6B34]/15 dark:border-white/10 shadow-xs transition-all duration-400 ease-in-out ${
+        className={`sticky top-0 z-40 bg-[#FAF6EC]/95 dark:bg-[#0B150D]/95 backdrop-blur-xl border-b border-[#2E6B34]/15 dark:border-white/10 shadow-xs transition-all duration-400 ease-in-out ${
           isNavbarHidden ? '-translate-y-full opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'
         }`}
       >
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5 lg:px-8">
-          {/* Logo, Dynamic Brand & Greeting with Smooth Folding Transition */}
+        <div className="relative flex items-center justify-between gap-2 px-3 py-2.5 sm:px-5 lg:px-8 overflow-hidden">
+          {/* Logo, Dynamic Brand & Greeting with Smooth Folding and Center Shift Transition */}
           <div
             onClick={() => onNavigateTab('home')}
-            className="flex min-w-0 items-center gap-2.5 cursor-pointer select-none group"
+            className={`flex min-w-0 items-center gap-2.5 cursor-pointer select-none group transition-all duration-500 ease-out ${
+              isScrolledDown
+                ? 'translate-x-[calc(50vw-3.75rem)] sm:translate-x-[calc(50vw-4.5rem)] md:translate-x-[calc(min(50vw,36rem)-4.5rem)]'
+                : 'translate-x-0'
+            }`}
             role="button"
             tabIndex={0}
             aria-label="Kembali ke beranda"
@@ -128,11 +132,11 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
               if (event.key === 'Enter' || event.key === ' ') onNavigateTab('home');
             }}
           >
-            {/* Logo image: scales up slightly when scrolled down */}
+            {/* Logo image: scales up slightly when scrolled down and centered */}
             {brand.logoUrl && brand.logoUrl.trim() ? (
               <div
-                className={`relative h-10 w-10 flex items-center justify-center shrink-0 transition-all duration-300 ease-out ${
-                  isScrolledDown ? 'scale-115 drop-shadow-md' : 'group-hover:scale-105'
+                className={`relative h-10 w-10 flex items-center justify-center shrink-0 transition-all duration-500 ease-out ${
+                  isScrolledDown ? 'scale-120 drop-shadow-md' : 'group-hover:scale-105'
                 }`}
               >
                 <img
@@ -140,23 +144,22 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                   alt={brand.name || 'Logo'}
                   className="max-h-10 max-w-10 object-contain drop-shadow-sm"
                 />
-                {/* Subtle active status dot */}
+                {/* Active status indicator dot */}
                 <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-[#FAF6EC] dark:border-[#0B150D]"></span>
                 </span>
               </div>
             ) : (
               <div
-                className={`relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2E6B34] via-[#24592A] to-[#173F1C] flex items-center justify-center text-white shadow-md shadow-[#2E6B34]/25 transition-all duration-300 ease-out shrink-0 ${
-                  isScrolledDown ? 'scale-115' : 'group-hover:scale-105'
+                className={`relative w-10 h-10 rounded-2xl bg-gradient-to-br from-[#2E6B34] via-[#24592A] to-[#173F1C] flex items-center justify-center text-white shadow-md shadow-[#2E6B34]/25 transition-all duration-500 ease-out shrink-0 ${
+                  isScrolledDown ? 'scale-120' : 'group-hover:scale-105'
                 }`}
               >
                 <Leaf className="w-5 h-5 text-[#A8D5A2]" />
-                {/* Subtle active status dot */}
                 <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0F1710]"></span>
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0B150D]"></span>
                 </span>
               </div>
             )}
@@ -165,7 +168,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             <div
               className={`min-w-0 transition-all duration-400 ease-out origin-left ${
                 isScrolledDown
-                  ? 'max-w-0 opacity-0 -translate-x-3 scale-90 overflow-hidden pointer-events-none mr-0'
+                  ? 'max-w-0 opacity-0 -translate-x-4 scale-75 overflow-hidden pointer-events-none mr-0'
                   : 'max-w-[240px] opacity-100 translate-x-0 scale-100'
               }`}
             >
@@ -180,14 +183,14 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 )}
               </div>
               
-              {/* Dynamic time-aware subtitle */}
-              <div className="flex items-center gap-1.5 text-[11px] font-medium leading-none text-[#7A5230] dark:text-emerald-300/80 mt-0.5 whitespace-nowrap">
+              {/* Dynamic time-aware subtitle with full dark mode adjustment */}
+              <div className="flex items-center gap-1.5 text-[11px] font-medium leading-none text-[#7A5230] dark:text-emerald-300 mt-0.5 whitespace-nowrap">
                 <span className="flex items-center gap-1">
-                  {greeting.icon === 'morning' && <Sunrise className="w-3 h-3 text-amber-500" />}
-                  {greeting.icon === 'noon' && <Sun className="w-3 h-3 text-amber-500" />}
-                  {greeting.icon === 'afternoon' && <CloudSun className="w-3 h-3 text-orange-400" />}
-                  {greeting.icon === 'night' && <Moon className="w-3 h-3 text-indigo-400" />}
-                  <span className="font-semibold text-gray-700 dark:text-gray-300">
+                  {greeting.icon === 'morning' && <Sunrise className="w-3 h-3 text-amber-500 shrink-0" />}
+                  {greeting.icon === 'noon' && <Sun className="w-3 h-3 text-amber-500 shrink-0" />}
+                  {greeting.icon === 'afternoon' && <CloudSun className="w-3 h-3 text-orange-400 shrink-0" />}
+                  {greeting.icon === 'night' && <Moon className="w-3 h-3 text-indigo-400 shrink-0" />}
+                  <span className="font-semibold text-gray-700 dark:text-gray-200">
                     {isGuest ? `${greeting.text}!` : `${greeting.text}, ${firstName}!`}
                   </span>
                 </span>
@@ -195,9 +198,13 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             </div>
           </div>
 
-          {/* Right Action Cluster: Pasang App, Poin & Notifikasi */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            {/* PWA Install Button: available on both mobile and desktop without shrinking any element */}
+          {/* Right Action Cluster: PWA icon, Poin & Notifikasi */}
+          <div
+            className={`flex shrink-0 items-center gap-1.5 sm:gap-2 transition-opacity duration-300 ${
+              isScrolledDown ? 'opacity-30 pointer-events-none sm:opacity-75 sm:pointer-events-auto' : 'opacity-100'
+            }`}
+          >
+            {/* PWA Install Button: icon-only without displacing or shrinking adjacent elements */}
             <div className="shrink-0 flex items-center">
               <PWAInstallButton />
             </div>
@@ -205,7 +212,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             {isGuest ? (
               <button
                 onClick={() => onOpenAuth('login')}
-                className="rounded-xl bg-[#2E6B34] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-[#235328] active:scale-95 shrink-0"
+                className="rounded-xl bg-[#2E6B34] hover:bg-[#235328] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
               >
                 Masuk
               </button>
@@ -215,10 +222,10 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 <button
                   type="button"
                   onClick={() => setIsShareOpen(true)}
-                  className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-[#2E6B34]/25 bg-gradient-to-r from-[#A8D5A2]/30 to-emerald-100/60 px-2 sm:px-2.5 py-1 transition hover:bg-[#A8D5A2]/45 active:scale-95 shadow-2xs shrink-0 cursor-pointer"
+                  className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-[#2E6B34]/25 dark:border-emerald-700/50 bg-gradient-to-r from-[#A8D5A2]/30 to-emerald-100/60 dark:from-emerald-950/70 dark:to-emerald-900/60 px-2 sm:px-2.5 py-1 transition hover:bg-[#A8D5A2]/45 dark:hover:bg-emerald-900/80 active:scale-95 shadow-2xs shrink-0 cursor-pointer"
                   title="Klik untuk melihat pencapaian Poin Hijau Anda"
                 >
-                  <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#2E6B34] shrink-0" />
+                  <Award className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-[#2E6B34] dark:text-emerald-400 shrink-0" />
                   <span className="text-[11px] sm:text-xs font-black text-[#1F2A1F] dark:text-white">{user.points}</span>
                   <span className="text-[9px] sm:text-[10px] font-bold text-[#2E6B34] dark:text-emerald-300 uppercase tracking-wide">Poin</span>
                 </button>
@@ -227,7 +234,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 <button
                   type="button"
                   onClick={() => setIsNotifOpen(true)}
-                  className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 dark:border-white/10 bg-white/90 dark:bg-[#152317] hover:bg-white text-[#2E6B34] dark:text-emerald-400 shadow-2xs hover:shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
+                  className="relative flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-xl border border-[#2E6B34]/20 dark:border-white/10 bg-white/90 dark:bg-[#152317] hover:bg-white dark:hover:bg-[#1c3020] text-[#2E6B34] dark:text-emerald-400 shadow-2xs hover:shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
                   title="Notifikasi Interaksi & Kegiatan Baru"
                 >
                   <Bell className="h-4 w-4 text-[#2E6B34] dark:text-emerald-400" />
@@ -244,7 +251,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
 
         {/* Elegant modern dynamic accent line */}
         <div className="relative h-[2px] w-full overflow-hidden bg-transparent">
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#2E6B34]/40 via-emerald-500/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#2E6B34]/40 dark:via-emerald-500/40 via-emerald-500/50 to-transparent" />
         </div>
         {/* Authentic Batak Ulos Ribbon Border Accent with Community Tint & Hover */}
         <BatakUlosRibbon heightClass="h-1.5" className="opacity-95" tintColor={brand.primaryColor} interactive={true} />

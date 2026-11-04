@@ -30,7 +30,6 @@ const recordCollections: SharedCollection[] = [
   'events',
   'locations',
   'reports',
-  'threads',
 ];
 
 let activeUser: User | null = null;
@@ -130,11 +129,12 @@ function recordPayload(collection: SharedCollection, value: unknown): Record<str
 
 function canWrite(collection: SharedCollection): boolean {
   if (!activeUser) return false;
+  if (collection === 'threads') return false; // Handled locally / separately
   if (activeUser.role === 'admin') return true;
   if (activeUser.role === 'pemimpin') {
-    return ['events', 'locations', 'reports', 'threads'].includes(collection);
+    return collection === 'events' || collection === 'locations' || collection === 'reports';
   }
-  return collection === 'locations' || collection === 'reports' || collection === 'threads';
+  return collection === 'locations' || collection === 'reports';
 }
 
 function recordOrganization(collection: SharedCollection): string | null {

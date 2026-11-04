@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -28,6 +28,21 @@ export const EventsPage: React.FC<EventsPageProps> = ({ isGuest, onRequireAuth }
   const [activeQrEvent, setActiveQrEvent] = useState<GreenEvent | null>(null);
   const [reminderToast, setReminderToast] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar');
+
+  // Real-time synchronization when admin schedules/edits events
+  useEffect(() => {
+    const handleEventsUpdate = () => {
+      setEvents(StorageService.getEvents());
+    };
+    window.addEventListener('mh-data-updated', handleEventsUpdate);
+    window.addEventListener('mh-shared-data-change', handleEventsUpdate);
+    window.addEventListener('storage', handleEventsUpdate);
+    return () => {
+      window.removeEventListener('mh-data-updated', handleEventsUpdate);
+      window.removeEventListener('mh-shared-data-change', handleEventsUpdate);
+      window.removeEventListener('storage', handleEventsUpdate);
+    };
+  }, []);
 
   // Calendar date selection
   const [currentMonth, setCurrentMonth] = useState(() => new Date(2026, 10, 1)); // November 2026 default
