@@ -64,7 +64,7 @@ export class AuthService {
     metadata: Record<string, unknown>,
   ): Promise<void> {
     const origin = this.getPublicOrigin();
-    const redirectTo = encodeURIComponent(`${origin}/auth/confirm`);
+    const redirectTo = encodeURIComponent(`${origin}/`);
     await this.request<AuthResponse>(
       `/signup?redirect_to=${redirectTo}`,
       {
@@ -93,7 +93,8 @@ export class AuthService {
   }
 
   static async sendLoginCode(email: string): Promise<void> {
-    await this.request('/otp', { email, create_user: false });
+    const redirectTo = encodeURIComponent(`${this.getPublicOrigin()}/`);
+    await this.request(`/otp?redirect_to=${redirectTo}`, { email, create_user: false });
   }
 
   static async verifyLoginCode(email: string, code: string): Promise<AuthUser> {

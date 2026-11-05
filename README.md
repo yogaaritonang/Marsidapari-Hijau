@@ -23,6 +23,28 @@ The frontend also needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Data
 changes will not sync across devices until the migration is applied and the app is
 connected to that same Supabase project.
 
+## Email OTP and confirmation links
+
+Signup confirmation and login OTP use separate Supabase email templates:
+
+- In **Authentication → Email Templates → Confirm signup**, include
+  `{{ .ConfirmationURL }}` as the confirmation link.
+- In **Authentication → Email Templates → Magic Link**, include
+  `{{ .Token }}` if users should be able to enter the six-digit code in the app.
+  Keep `{{ .ConfirmationURL }}` too if the template should also offer a clickable
+  sign-in link.
+
+The app sends signup and login redirects to its root URL so the single-page app can
+process the returned confirmation token. In Supabase **Authentication → URL
+Configuration**, set **Site URL** to the deployed app origin and add that origin to
+**Redirect URLs**. For local development, allow `http://localhost:3000/**` as well.
+
+If Supabase accepts a login request but no email arrives, check spam, the Supabase
+Auth logs/email delivery logs, and the project's SMTP setup and rate limits. The
+built-in SMTP service is restricted and rate-limited; configure custom SMTP for
+reliable delivery to users. The app cannot deliver or restore email from a template
+or SMTP configuration change in the repository.
+
 ## Membersihkan data akun terdaftar
 
 Skrip berikut menghapus data dan foto milik semua akun non-admin, termasuk pemimpin
