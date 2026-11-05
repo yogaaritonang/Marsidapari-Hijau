@@ -68,6 +68,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
     return map;
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [cheeringMemberId, setCheeringMemberId] = useState<string | null>(null);
   const [profilePhotoUrls, setProfilePhotoUrls] = useState<Record<string, string>>({});
   const [dataVersion, setDataVersion] = useState(0);
 
@@ -255,26 +256,30 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
       : getInitials(member.isAnonymous && member.id !== user.id ? 'Sahabat Ciptaan' : member.name);
   };
 
-  const handleCheer = (member: LeaderboardMember, e: React.MouseEvent) => {
+  const handleCheer = async (member: LeaderboardMember, e: React.MouseEvent) => {
     e.stopPropagation();
-    const current = cheersState[member.id] || member.cheers;
-    setCheersState((prev) => ({ ...prev, [member.id]: current + 1 }));
-
-    // Send persistent cheer & notification to target member
-    void SocialSyncService.cheerLeaderboard(
-      member.id,
-      member.isAnonymous ? 'Sahabat Ciptaan' : member.name,
-      user
-    );
-
-    const cheerPhrases = [
-      `Horas! Semangat gotong royong dikirimkan ke ${member.isAnonymous ? 'Sahabat Ciptaan' : member.name}! 🎉`,
-      `Puji Tuhan! Dukungan cinta kasih terkirim untuk aksi hijau ${member.isAnonymous ? 'Sahabat Ciptaan' : member.name}! 🌿`,
-      `Marsiadapari! Saling mendorong dalam pekerjaan baik! 🤝`,
-    ];
-    const picked = cheerPhrases[Math.floor(Math.random() * cheerPhrases.length)];
-    setToastMessage(picked);
-    setTimeout(() => setToastMessage(null), 3000);
+    if (cheeringMemberId) return;
+    setCheeringMemberId(member.id);
+    try {
+      const count = await SocialSyncService.cheerLeaderboard(
+        member.id,
+        user,
+      );
+      setCheersState((previous) => ({ ...previous, [member.id]: count }));
+      const cheerPhrases = [
+        `Horas! Semangat gotong royong dikirimkan ke ${member.isAnonymous ? 'Sahabat Ciptaan' : member.name}! 🎉`,
+        `Puji Tuhan! Dukungan cinta kasih terkirim untuk aksi hijau ${member.isAnonymous ? 'Sahabat Ciptaan' : member.name}! 🌿`,
+        'Marsiadapari! Saling mendorong dalam pekerjaan baik! 🤝',
+      ];
+      const picked = cheerPhrases[Math.floor(Math.random() * cheerPhrases.length)];
+      setToastMessage(picked);
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (error) {
+      setToastMessage(error instanceof Error ? error.message : 'Apresiasi gagal disimpan. Silakan coba lagi.');
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setCheeringMemberId(null);
+    }
   };
 
   // Top 3 Podium
@@ -709,7 +714,8 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
                   {/* Cheer button */}
                   <button
                     onClick={(e) => handleCheer(member, e)}
-                    className="p-2 rounded-xl bg-gray-50 border border-gray-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition flex items-center gap-1 text-[10px] font-bold text-gray-600 active:scale-95"
+                    disabled={cheeringMemberId !== null || member.id === user.id}
+                    className="p-2 rounded-xl bg-gray-50 border border-gray-200 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition flex items-center gap-1 text-[10px] font-bold text-gray-600 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
                     title="Kirim Semangat Gotong Royong"
                   >
                     <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-500/20" />
@@ -818,10 +824,11 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
             <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
               <button
                 onClick={(e) => {
-                  handleCheer(selectedMember, e);
-                  setSelectedMember(null);
+                  void handleCheer(selectedMember, e);
+                  if (selectedMember.id !== user.id) setSelectedMember(null);
                 }}
-                className="flex-1 py-2.5 bg-[#2E6B34] hover:bg-[#235328] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                disabled={cheeringMemberId !== null || selectedMember.id === user.id}
+                className="flex-1 py-2.5 bg-[#2E6B34] hover:bg-[#235328] text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Heart className="w-3.5 h-3.5 fill-white" />
                 Kirim Semangat ({cheersState[selectedMember.id] || selectedMember.cheers})

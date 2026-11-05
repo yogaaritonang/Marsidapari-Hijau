@@ -167,8 +167,13 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       onRequireAuth();
       return;
     }
-    await SocialSyncService.toggleLikeThread(threadId, user);
-    setThreads(StorageService.getThreads());
+    try {
+      await SocialSyncService.toggleLikeThread(threadId, user);
+      setThreads(StorageService.getThreads());
+    } catch (error) {
+      setThreads(StorageService.getThreads());
+      showToast(error instanceof Error ? error.message : 'Like gagal disimpan. Coba lagi.');
+    }
   };
 
   const handleSave = async (threadId: string) => {
@@ -200,9 +205,15 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
     };
 
     setReplyText((prev) => ({ ...prev, [threadId]: '' }));
-    await SocialSyncService.addThreadReply(threadId, reply);
-    setThreads(StorageService.getThreads());
-    showToast('💬 Balasan terkirim!');
+    try {
+      await SocialSyncService.addThreadReply(threadId, reply);
+      setThreads(StorageService.getThreads());
+      showToast('💬 Balasan terkirim!');
+    } catch (error) {
+      setThreads(StorageService.getThreads());
+      setReplyText((prev) => ({ ...prev, [threadId]: text }));
+      showToast(error instanceof Error ? error.message : 'Balasan gagal dikirim. Coba lagi.');
+    }
   };
 
   const handleDeletePost = async (threadId: string) => {

@@ -27,6 +27,9 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
   useEffect(() => {
     // Initial pull and periodic refresh
     void SocialSyncService.pullSocialData(user);
+    const handleNotificationRefresh = () => {
+      void SocialSyncService.refreshNotifications(user);
+    };
 
     const handleNotifUpdate = (e: Event) => {
       const detail = (e as CustomEvent<AppNotification[]>).detail;
@@ -35,15 +38,21 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
     };
 
     window.addEventListener('mh-notifications-updated', handleNotifUpdate);
+    window.addEventListener('mh-notifications-refresh', handleNotificationRefresh);
     const interval = setInterval(() => {
       void SocialSyncService.pullSocialData(user);
     }, 15000);
 
     return () => {
       window.removeEventListener('mh-notifications-updated', handleNotifUpdate);
+      window.removeEventListener('mh-notifications-refresh', handleNotificationRefresh);
       clearInterval(interval);
     };
   }, [user.id]);
+
+  useEffect(() => {
+    if (isNotifOpen) void SocialSyncService.refreshNotifications(user);
+  }, [isNotifOpen, user.id]);
 
   useEffect(() => {
     const handleBrandChange = (e?: Event) => {

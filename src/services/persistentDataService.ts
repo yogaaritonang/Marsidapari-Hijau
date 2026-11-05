@@ -384,13 +384,13 @@ export class PersistentDataService {
     const [directResult, broadcastResult] = await Promise.all([
       db
         .from('mh_social_notifications')
-        .select('payload,is_read,is_broadcast,read_by')
+        .select('id,recipient_user_id,sender_user_id,payload,is_read,is_broadcast,read_by,created_at')
         .eq('recipient_user_id', userId)
         .order('created_at', { ascending: false })
         .limit(100),
       db
         .from('mh_social_notifications')
-        .select('payload,is_read,is_broadcast,read_by')
+        .select('id,recipient_user_id,sender_user_id,payload,is_read,is_broadcast,read_by,created_at')
         .eq('is_broadcast', true)
         .order('created_at', { ascending: false })
         .limit(100),
@@ -399,13 +399,18 @@ export class PersistentDataService {
     if (broadcastResult.error) throw new Error(`Notifikasi umum gagal dimuat: ${broadcastResult.error.message}`);
     const currentUserId = StorageService.getCachedUser().id;
     return [...(directResult.data || []), ...(broadcastResult.data || [])]
-      .map((row) => ({
-        ...(row.payload as AppNotification),
-        recipientUserId: row.is_broadcast ? currentUserId : (row.payload as AppNotification).recipientUserId,
-        read: row.is_broadcast
-          ? (row.read_by as string[]).includes(currentUserId)
-          : row.is_read,
-      }))
+      .map((row) => {
+        const payload = row.payload as AppNotification;
+        const readBy = Array.isArray(row.read_by) ? row.read_by as string[] : [];
+        return {
+          ...payload,
+          id: row.id,
+          recipientUserId: row.is_broadcast ? currentUserId : row.recipient_user_id,
+          senderUserId: row.sender_user_id,
+          createdAt: row.created_at || payload.createdAt,
+          read: row.is_broadcast ? readBy.includes(currentUserId) : row.is_read,
+        };
+      })
       .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
       .slice(0, 100);
   }
@@ -451,7 +456,10 @@ export class PersistentDataService {
     return cheers;
   }
 
-  static async toggleCheer(targetUserId: string, senderUserId: string): Promise<Record<string, { count: number; users: string[] }>> {
+  static async toggleCheer(
+    targetUserId: string,
+    senderUserId: string,
+  ): Promise<{ cheers: Record<string, { count: number; users: string[] }>; added: boolean }> {
     const db = await getClient();
     const currentUserId = StorageService.getCachedUser().id;
     await assertActiveAccount(currentUserId);
@@ -462,10 +470,10 @@ export class PersistentDataService {
       throw new Error('ID anggota pada peringkat bukan ID akun Supabase yang valid.');
     }
     if (targetUserId === currentUserId) throw new Error('Anda tidak dapat mengirim apresiasi ke akun sendiri.');
-    const { error } = await db.rpc('mh_toggle_leaderboard_cheer', {
+    const { data: added, error } = await db.rpc('mh_toggle_leaderboard_cheer', {
       p_target_user_id: targetUserId,
     });
     if (error) throw new Error(`Apresiasi gagal disimpan: ${error.message}`);
-    return this.loadCheers();
+    return { cheers: await this.loadCheers(), added: added === true };
   }
 }

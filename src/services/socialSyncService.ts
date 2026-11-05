@@ -140,23 +140,10 @@ export class SocialSyncService {
     StorageService.toggleLikeThread(threadId, user.id);
     try {
       await SharedDataService.flushCollection('threads');
-      const thread = StorageService.getThreads().find((item) => item.id === threadId);
-      if (thread && thread.userId !== user.id) {
-        this.addNotification({
-          id: `like-${threadId}-${user.id}`,
-          recipientUserId: thread.userId,
-          senderUserId: user.id,
-          senderName: user.name,
-          type: 'thread_like',
-          targetId: threadId,
-          title: 'Postingan disukai',
-          message: `${user.name} menyukai postingan Anda.`,
-          createdAt: new Date().toISOString(),
-          read: false,
-        });
-      }
+      window.dispatchEvent(new CustomEvent('mh-notifications-refresh'));
     } catch (error) {
       reportSyncError(error);
+      throw error;
     }
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }
@@ -200,23 +187,10 @@ export class SocialSyncService {
     const updatedThreads = StorageService.getThreads();
     try {
       await SharedDataService.flushCollection('threads');
-      const thread = updatedThreads.find((item) => item.id === threadId);
-      if (thread && thread.userId !== reply.userId) {
-        this.addNotification({
-          id: `reply-${reply.id}`,
-          recipientUserId: thread.userId,
-          senderUserId: reply.userId,
-          senderName: reply.userName,
-          type: 'thread_reply',
-          targetId: threadId,
-          title: 'Balasan baru',
-          message: `${reply.userName} membalas postingan Anda.`,
-          createdAt: reply.createdAt,
-          read: false,
-        });
-      }
+      window.dispatchEvent(new CustomEvent('mh-notifications-refresh'));
     } catch (error) {
       reportSyncError(error);
+      throw error;
     }
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
   }
@@ -239,29 +213,17 @@ export class SocialSyncService {
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }
 
-  static async cheerLeaderboard(targetMemberId: string, targetMemberName: string, cheerer: User): Promise<number> {
+  static async cheerLeaderboard(targetMemberId: string, cheerer: User): Promise<number> {
     try {
-      const cheers = await PersistentDataService.toggleCheer(targetMemberId, cheerer.id);
+      const { cheers, added } = await PersistentDataService.toggleCheer(targetMemberId, cheerer.id);
       dispatchCheersUpdate(cheers);
-      const target = cheers[targetMemberId];
-      if (target?.users.includes(cheerer.id)) {
-        this.addNotification({
-          id: `cheer-${targetMemberId}-${cheerer.id}`,
-          recipientUserId: targetMemberId,
-          senderUserId: cheerer.id,
-          senderName: cheerer.name,
-          type: 'leaderboard_cheer',
-          targetId: targetMemberId,
-          title: 'Apresiasi baru',
-          message: `${cheerer.name} mengirimkan apresiasi untuk Anda.`,
-          createdAt: new Date().toISOString(),
-          read: false,
-        });
+      if (added) {
+        window.dispatchEvent(new CustomEvent('mh-notifications-refresh'));
       }
-      return target?.count || 0;
+      return cheers[targetMemberId]?.count || 0;
     } catch (error) {
       reportSyncError(error);
-      return this.getLocalCheers()[targetMemberId]?.count || 0;
+      throw error;
     }
   }
 
@@ -295,6 +257,17 @@ export class SocialSyncService {
     } catch (error) {
       console.warn('[SocialSyncService] Cache notifikasi rusak:', error);
       return [];
+    }
+  }
+
+  static async refreshNotifications(user: User): Promise<void> {
+    if (!user.id || StorageService.isGuestUserId(user.id)) return;
+    try {
+      const notifications = await PersistentDataService.loadNotifications(user.id);
+      const otherUsers = this.getLocalNotifications().filter((item) => item.recipientUserId !== user.id);
+      dispatchNotificationUpdate([...notifications, ...otherUsers]);
+    } catch (error) {
+      reportSyncError(error);
     }
   }
 
