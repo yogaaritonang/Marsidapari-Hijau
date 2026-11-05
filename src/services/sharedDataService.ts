@@ -62,6 +62,8 @@ let baseline = new Map<string, string>();
 let baselineOwners = new Map<string, string | null>();
 let baselineOrganizations = new Map<string, string | null>();
 let queue = Promise.resolve();
+let threadInteractionVersion = 0;
+const threadInteractionVersions = new Map<string, number>();
 let supabaseClient: SupabaseClient | null = null;
 let realtimeChannel: RealtimeChannel | null = null;
 let isApplyingRemoteChange = false;
@@ -601,6 +603,7 @@ export class SharedDataService {
 
   static applyThreadUpdate(post: ThreadPost): void {
     const key = makeKey('threads', post.id);
+    threadInteractionVersions.set(post.id, ++threadInteractionVersion);
     baseline.set(key, snapshotValue('threads', post));
     baselineOwners.set(key, post.userId);
     if (!baselineOrganizations.has(key)) {
@@ -621,6 +624,7 @@ export class SharedDataService {
   }
 
   static async refreshCollection(collection: SharedCollection): Promise<void> {
+    const threadVersionAtStart = threadInteractionVersion;
     let client = getSupabaseClient();
     if (!client || !accessToken) {
       const { AuthService } = await import('./authService');
@@ -634,6 +638,14 @@ export class SharedDataService {
     const values: unknown[] = [];
     const deletedIds = new Set<string>();
     for (const row of records) {
+      if (
+        collection === 'threads' &&
+        (threadInteractionVersions.get(row.record_id) || 0) > threadVersionAtStart
+      ) {
+        const latestLocalPost = StorageService.getThreads().find((thread) => thread.id === row.record_id);
+        if (latestLocalPost) values.push(latestLocalPost);
+        continue;
+      }
       if (row.payload?._deleted === true) {
         deletedIds.add(row.record_id);
         baseline.set(makeKey(collection, row.record_id), JSON.stringify(row.payload));

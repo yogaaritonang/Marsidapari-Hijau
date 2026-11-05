@@ -38,6 +38,7 @@ function dispatchCheersUpdate(cheers: Record<string, { count: number; users: str
 
 export class SocialSyncService {
   private static activeSync: Promise<boolean> | null = null;
+  private static notificationRefreshVersion = 0;
 
   static async syncMember(user: User): Promise<void> {
     if (!user.id || StorageService.isGuestUserId(user.id) || !user.communityId) return;
@@ -76,10 +77,7 @@ export class SocialSyncService {
       PersistentDataService.syncSubmissions(),
       PersistentDataService.syncEventRegistrations(),
       PersistentDataService.loadCheers().then(dispatchCheersUpdate),
-      PersistentDataService.loadNotifications(user.id).then((notifications) => {
-        const otherUsers = this.getLocalNotifications().filter((item) => item.recipientUserId !== user.id);
-        dispatchNotificationUpdate([...notifications, ...otherUsers]);
-      }),
+      this.refreshNotifications(user),
       PersistentDataService.refreshCommunityMemberCounts(),
     ];
     const results = await Promise.allSettled(operations);
@@ -259,8 +257,10 @@ export class SocialSyncService {
 
   static async refreshNotifications(user: User): Promise<void> {
     if (!user.id || StorageService.isGuestUserId(user.id)) return;
+    const refreshVersion = ++this.notificationRefreshVersion;
     try {
       const notifications = await PersistentDataService.loadNotifications(user.id);
+      if (refreshVersion !== this.notificationRefreshVersion) return;
       const otherUsers = this.getLocalNotifications().filter((item) => item.recipientUserId !== user.id);
       dispatchNotificationUpdate([...notifications, ...otherUsers]);
     } catch (error) {
