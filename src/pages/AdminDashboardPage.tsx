@@ -1067,9 +1067,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               {label}
             </button>
           ))}
-          <div className="hidden rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-5 text-amber-900 lg:block">
-            Pastikan status sinkronisasi di bagian atas halaman menunjukkan bahwa database bersama sudah tersambung.
-          </div>
         </nav>
 
         <main className="min-w-0 space-y-5 pb-10">
@@ -1728,7 +1725,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                       Kelola Khazanah Ekoteologi Batak Toba
                     </h2>
                     <p className="mt-1 text-xs text-gray-600 leading-relaxed max-w-3xl">
-                      Kelola artikel, renungan teologi penciptaan (Mandatum Creationis Kejadian 2:15, kearifan lokal Marsiadapari, kelestarian Danau Toba). Konten ini tersinkronisasi dan tampil di Beranda jemaat, mahasiswa, &amp; seluruh pengguna.
+                      Kelola artikel dan renungan teologi penciptaan (Mandatum Creationis Kejadian 2:15, kearifan lokal Marsiadapari, kelestarian Danau Toba) yang ditampilkan di Beranda jemaat, mahasiswa, &amp; seluruh pengguna.
                     </p>
                   </div>
                   <button

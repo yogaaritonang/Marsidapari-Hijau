@@ -315,10 +315,7 @@ export default function App() {
           void AuthService.getAccessToken()
             .then((token) => SharedDataService.connect(restoredUser, token))
             .catch((error: unknown) => {
-              const message = error instanceof Error ? error.message : 'Sesi database bersama tidak dapat diperbarui.';
-              window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-                detail: { state: 'error', message },
-              }));
+              console.warn('[App] Gagal memuat data akun:', error);
             });
         }
         else if (!cancelled) {
@@ -397,10 +394,7 @@ export default function App() {
       void AuthService.getAccessToken()
         .then((token) => SharedDataService.connect(updated, token))
         .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : 'Sesi database bersama tidak dapat diperbarui.';
-          window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-            detail: { state: 'error', message },
-          }));
+          console.warn('[App] Gagal memperbarui data akun:', error);
         });
     }
   };
@@ -623,10 +617,7 @@ export default function App() {
             void AuthService.getAccessToken()
               .then((token) => SharedDataService.connect(newUser, token))
               .catch((error: unknown) => {
-                const message = error instanceof Error ? error.message : 'Sesi database bersama tidak dapat diperbarui.';
-                window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-                  detail: { state: 'error', message },
-                }));
+                console.warn('[App] Gagal memuat data akun:', error);
               });
           }}
         />
@@ -799,10 +790,7 @@ export default function App() {
               void AuthService.getAccessToken()
                 .then((token) => SharedDataService.connect(newUser, token))
                 .catch((error: unknown) => {
-                  const message = error instanceof Error ? error.message : 'Sesi database bersama tidak dapat diperbarui.';
-                  window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-                    detail: { state: 'error', message },
-                  }));
+                  console.warn('[App] Gagal memuat data akun:', error);
                 });
             }}
           />

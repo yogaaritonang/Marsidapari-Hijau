@@ -303,10 +303,6 @@ export class StorageService {
         void import('./persistentDataService')
           .then(({ PersistentDataService }) => PersistentDataService.saveUserProfile(user))
           .catch((error: unknown) => {
-            const message = error instanceof Error ? error.message : 'Profil gagal disimpan ke Supabase.';
-            window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-              detail: { state: 'error', message },
-            }));
             console.error('[StorageService] Gagal menyimpan profil cloud:', error);
           });
       }
@@ -646,10 +642,6 @@ export class StorageService {
           list.filter((devotion) => devotion.isFavorite).map((devotion) => devotion.id),
         ))
         .catch((error: unknown) => {
-          const message = error instanceof Error ? error.message : 'Renungan favorit gagal disimpan.';
-          window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-            detail: { state: 'error', message },
-          }));
           console.error('[StorageService] Gagal menyimpan renungan favorit:', error);
         });
     }
@@ -800,10 +792,6 @@ export class StorageService {
     void import('./persistentDataService')
       .then(({ PersistentDataService }) => PersistentDataService.saveGarden(garden))
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'Progres kebun gagal disimpan ke Supabase.';
-        window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-          detail: { state: 'error', message },
-        }));
         console.error('[StorageService] Gagal menyimpan progres kebun:', error);
       });
   }
@@ -892,10 +880,6 @@ export class StorageService {
     void import('./persistentDataService')
       .then(({ PersistentDataService }) => PersistentDataService.toggleEventRegistration(eventId))
       .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'Pendaftaran kegiatan gagal disimpan.';
-        window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-          detail: { state: 'error', message },
-        }));
         console.error('[StorageService] Gagal menyimpan pendaftaran kegiatan:', error);
       });
   }

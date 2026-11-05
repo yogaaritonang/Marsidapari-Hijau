@@ -15,10 +15,6 @@ const NOTIFICATIONS_STORAGE_KEY = 'mh_notifications';
 const CHEERS_STORAGE_KEY = 'mh_leaderboard_cheers';
 
 function reportSyncError(error: unknown): void {
-  const message = error instanceof Error ? error.message : 'Sinkronisasi Supabase gagal.';
-  window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-    detail: { state: 'error', message },
-  }));
   console.error('[SocialSyncService]', error);
 }
 

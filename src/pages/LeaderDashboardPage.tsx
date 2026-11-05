@@ -466,7 +466,7 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
           {communitySaveSuccess && (
             <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              <span>Profil komunitas berhasil diperbarui dan tersinkronisasi ke seluruh aplikasi!</span>
+              <span>Profil komunitas berhasil diperbarui!</span>
             </div>
           )}
 

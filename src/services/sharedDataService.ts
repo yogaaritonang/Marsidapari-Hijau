@@ -23,8 +23,6 @@ export type SharedCollection =
   | 'threads'
   | 'ecotheology';
 
-export type SyncState = 'connecting' | 'synced' | 'error' | 'offline';
-
 export interface SharedRecord {
   collection: SharedCollection;
   record_id: string;
@@ -66,10 +64,6 @@ let queue = Promise.resolve();
 let supabaseClient: SupabaseClient | null = null;
 let realtimeChannel: RealtimeChannel | null = null;
 let isApplyingRemoteChange = false;
-
-function emitStatus(state: SyncState, message?: string) {
-  window.dispatchEvent(new CustomEvent('mh-shared-sync-status', { detail: { state, message } }));
-}
 
 function makeKey(collection: SharedCollection, id: string): string {
   return `${collection}:${id}`;
@@ -217,7 +211,6 @@ async function loadOrganizations(): Promise<OrganizationRecord[]> {
     .order('name', { ascending: true });
   if (error) {
     console.warn('[SharedDataService] Gagal memuat mh_organizations:', error.message);
-    emitStatus('error', `Gagal memuat komunitas dari Supabase: ${error.message}`);
     throw new Error(`Gagal memuat komunitas dari Supabase: ${error.message}`);
   }
   return (data || []) as OrganizationRecord[];
@@ -510,7 +503,7 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
 
     if (error) {
       console.warn(`[SharedDataService] pushChanges notice for ${collection}:`, error.message);
-      throw new Error(`Sinkronisasi database gagal (${collection}): ${error.message}`);
+      throw new Error(`Perubahan ${collection} gagal disimpan.`);
     }
 
     for (const change of changes) {
@@ -534,11 +527,8 @@ async function handleLocalChange(event: Event) {
   queue = queue.then(async () => {
     try {
       await pushChanges(detail.collection, detail.values);
-      emitStatus('synced');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Sinkronisasi database gagal.';
-      emitStatus('error', message);
-      console.warn('[SharedDataService] Database sync notice:', message);
+      console.warn('[SharedDataService] Gagal menyimpan perubahan:', error);
     }
   });
   await queue;
@@ -595,15 +585,13 @@ export class SharedDataService {
       .upsert(row, { onConflict: 'collection,record_id' });
 
     if (error) {
-      emitStatus('error', `Sinkronisasi Supabase gagal (${collection}): ${error.message}`);
       console.error(`[SharedDataService] Gagal upsert ${collection}:${recordId}:`, error);
-      throw new Error(`Sinkronisasi Supabase gagal (${collection}): ${error.message}`);
+      throw new Error(`Perubahan ${collection} gagal disimpan.`);
     }
 
     baseline.set(makeKey(collection, recordId), snapshotValue(collection, payload));
     baselineOwners.set(makeKey(collection, recordId), resolvedOwnerId);
     baselineOrganizations.set(makeKey(collection, recordId), row.organization_id);
-    emitStatus('synced');
   }
 
   static async flushCollection(collection: SharedCollection): Promise<void> {
@@ -699,14 +687,12 @@ export class SharedDataService {
       .from('mh_records')
       .upsert(softDeleteRow, { onConflict: 'collection,record_id' });
     if (error) {
-      emitStatus('error', `Gagal menghapus data (${collection}): ${error.message}`);
       throw new Error(`Gagal menghapus data (${collection}): ${error.message}`);
     }
 
     baseline.set(key, JSON.stringify(tombstone));
     baselineOwners.set(key, ownerId);
     baselineOrganizations.set(key, organizationId);
-    emitStatus('synced');
   }
 
   /**
@@ -730,7 +716,6 @@ export class SharedDataService {
         { onConflict: 'id' },
       );
       if (orgError) {
-        emitStatus('error', `Komunitas gagal disimpan: ${orgError.message}`);
         throw new Error(`Komunitas gagal disimpan: ${orgError.message}`);
       }
     }
@@ -756,7 +741,6 @@ export class SharedDataService {
         .delete()
         .match({ id: organizationId });
       if (error) {
-        emitStatus('error', `Komunitas gagal dihapus: ${error.message}`);
         throw new Error(`Komunitas gagal dihapus: ${error.message}`);
       }
     }
@@ -870,11 +854,9 @@ export class SharedDataService {
 
     const client = refreshSupabaseClient(token);
     if (!client) {
-      emitStatus('offline', 'Database Supabase belum dikonfigurasi. Menggunakan penyimpanan lokal.');
       return;
     }
 
-    emitStatus('connecting');
     try {
       const [remoteRecords, organizations] = await Promise.all([
         loadSharedRecords(client),
@@ -977,7 +959,6 @@ export class SharedDataService {
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             console.log('[SharedDataService] Realtime channel tersambung.');
-            emitStatus('synced');
           }
         });
 
@@ -988,11 +969,9 @@ export class SharedDataService {
       if (user.role === 'admin') {
         await this.publishMissingChallenges(client);
       }
-      emitStatus('synced');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal memuat data bersama Supabase.';
-      emitStatus('error', message);
-      console.error(message);
+      console.error('[SharedDataService] Gagal memuat data bersama:', message);
     }
   }
 

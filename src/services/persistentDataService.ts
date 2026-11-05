@@ -55,10 +55,6 @@ async function assertActiveAccount(expectedUserId: string): Promise<void> {
 }
 
 function emitCloudError(error: unknown): void {
-  const message = error instanceof Error ? error.message : 'Gagal menyimpan data ke Supabase.';
-  window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
-    detail: { state: 'error', message },
-  }));
   console.error('[PersistentDataService]', error);
 }
 
