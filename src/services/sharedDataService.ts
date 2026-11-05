@@ -934,11 +934,34 @@ export class SharedDataService {
       for (const collection of collectionsToMigrate) {
         await pushChanges(collection, storedRecords(collection));
       }
+      if (user.role === 'admin') {
+        await this.publishMissingChallenges(client);
+      }
       emitStatus('synced');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Gagal memuat data bersama Supabase.';
       emitStatus('error', message);
       console.error(message);
+    }
+  }
+
+  private static async publishMissingChallenges(client: SupabaseClient): Promise<void> {
+    const { data, error } = await client
+      .from('mh_records')
+      .select('record_id,payload')
+      .eq('collection', 'challenges');
+    if (error) throw new Error(`Tantangan yang belum tersinkron gagal diperiksa: ${error.message}`);
+
+    const remoteRecords = new Map(
+      (data || []).map((row) => [row.record_id as string, row.payload as Record<string, unknown>]),
+    );
+    const localChallenges = StorageService.getChallenges();
+    for (const challenge of localChallenges) {
+      const remote = remoteRecords.get(challenge.id);
+      if (remote) continue;
+
+      await this.upsertChallenge(challenge);
+      console.info(`[SharedDataService] Tantangan ${challenge.id} dipublikasikan ke Supabase.`);
     }
   }
 

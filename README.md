@@ -14,8 +14,11 @@ Supabase project (for example, through the Supabase SQL Editor):
 1. [`20261105000000_persistent_application_data.sql`](./supabase/migrations/20261105000000_persistent_application_data.sql)
 2. [`20261106000000_repair_storage_and_cheers.sql`](./supabase/migrations/20261106000000_repair_storage_and_cheers.sql)
 
-The second migration repairs the challenge-proof upload policy and moves leaderboard
-cheer writes to a database function that validates the signed-in account.
+The second migration repairs challenge-proof read/write policies (including the
+permissions required when an upload replaces an existing file) and moves leaderboard
+cheer writes to a database function that validates the signed-in account. If it was
+already applied before this update, run the updated migration again in the Supabase
+SQL Editor so the additional storage policy is created.
 The frontend also needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Data
 changes will not sync across devices until the migration is applied and the app is
 connected to that same Supabase project.

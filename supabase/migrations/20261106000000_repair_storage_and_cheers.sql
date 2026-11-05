@@ -11,6 +11,15 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+drop policy if exists "Users can view their own challenge proofs" on storage.objects;
+create policy "Users can view their own challenge proofs"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'mh-challenge-proofs'
+    and (select auth.uid()) is not null
+    and (storage.foldername(name))[1] = (select auth.uid()::text)
+  );
+
 drop policy if exists "Users can upload their own challenge proofs" on storage.objects;
 create policy "Users can upload their own challenge proofs"
   on storage.objects for insert to authenticated
