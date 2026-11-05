@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Activity,
   AlertCircle,
@@ -37,7 +37,7 @@ import {
   Send,
   X,
 } from 'lucide-react';
-import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion, EcotheologyArticle, AppNotification } from '../types';
+import { Challenge, ChallengeSubmission, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion, EcotheologyArticle, AppNotification } from '../types';
 import { StorageService } from '../services/storageService';
 import { SharedDataService } from '../services/sharedDataService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
@@ -95,6 +95,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const [challenges, setChallenges] = useState(StorageService.getChallenges());
   const [events, setEvents] = useState(StorageService.getEvents());
   const [reports, setReports] = useState(StorageService.getReports());
+  const [submissions, setSubmissions] = useState(StorageService.getSubmissions());
   const [threads, setThreads] = useState<ThreadPost[]>(() => StorageService.getThreads());
   const [threadFilter, setThreadFilter] = useState<'all' | 'ide' | 'keluhan'>('all');
   const [organizationName, setOrganizationName] = useState('');
@@ -102,6 +103,40 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
   const [challengeTitle, setChallengeTitle] = useState('');
   const [challengeDescription, setChallengeDescription] = useState('');
   const [notice, setNotice] = useState('');
+  const dailyActivity = useMemo(() => {
+    const dateKey = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setHours(0, 0, 0, 0);
+      date.setDate(date.getDate() - (6 - index));
+      return {
+        key: dateKey(date),
+        label: date.toLocaleDateString('id-ID', { weekday: 'short' }),
+        actions: 0,
+        reports: 0,
+      };
+    });
+    const activityByDate = new Map(days.map((day) => [day.key, day]));
+
+    const incrementForDate = (value: string, field: 'actions' | 'reports') => {
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return;
+      const day = activityByDate.get(dateKey(date));
+      if (day) day[field] += 1;
+    };
+
+    submissions
+      .filter((submission: ChallengeSubmission) => submission.verdict === 'valid')
+      .forEach((submission) => incrementForDate(submission.submittedAt, 'actions'));
+    reports.forEach((report) => incrementForDate(report.reportedAt, 'reports'));
+
+    return days;
+  }, [reports, submissions]);
 
   // Organization Editing State
   const [editingCommunity, setEditingCommunity] = useState<Community | null>(null);
@@ -225,12 +260,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         setChallenges(StorageService.getChallenges());
         setEvents(StorageService.getEvents());
         setReports(StorageService.getReports());
+        setSubmissions(StorageService.getSubmissions());
         setThreads(StorageService.getThreads());
         setDevotions(StorageService.getDevotions());
         setEcotheologyList(StorageService.getEcotheologyArticles());
         return;
       }
       if (collection === 'communities' || collection === 'submissions') setCommunities(StorageService.getCommunities());
+      if (collection === 'submissions') setSubmissions(StorageService.getSubmissions());
       if (collection === 'challenges') setChallenges(StorageService.getChallenges());
       if (collection === 'events') setEvents(StorageService.getEvents());
       if (collection === 'reports') setReports(StorageService.getReports());
@@ -1123,24 +1160,24 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 ))}
               </div>
 
-              {/* Graphic Chart: 7-Day Activity & Environmental Submissions Trend */}
+              {/* Real activity counts from verified submissions and submitted reports */}
               <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                   <div>
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5 text-[#2E6B34]" />
                       <h2 className="text-base font-bold text-gray-900">
-                        Grafik Aktivitas Gerakan Hijau &amp; Laporan Warga (7 Hari Terakhir)
+                        Aktivitas Terverifikasi &amp; Laporan Warga (7 Hari Terakhir)
                       </h2>
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      Visualisasi volume aksi konservasi Marsiadapari dan respon aduan lingkungan seputar Danau Toba.
+                      Jumlah bukti aksi yang disetujui dan laporan yang dibuat setiap hari.
                     </p>
                   </div>
                   <div className="flex items-center gap-3 text-xs font-semibold">
                     <span className="flex items-center gap-1.5 text-emerald-800">
                       <span className="h-3 w-3 rounded-sm bg-emerald-600 inline-block" />
-                      Aksi Gotong Royong
+                      Aksi Terverifikasi
                     </span>
                     <span className="flex items-center gap-1.5 text-amber-700">
                       <span className="h-3 w-3 rounded-sm bg-amber-500 inline-block" />
@@ -1149,126 +1186,98 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   </div>
                 </div>
 
-                {/* SVG Visual Chart */}
                 <div className="relative w-full h-56 sm:h-64 pt-2">
                   <svg className="w-full h-full" viewBox="0 0 700 220" preserveAspectRatio="none">
-                    <defs>
-                      <linearGradient id="actionGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#2E6B34" stopOpacity="0.85" />
-                        <stop offset="100%" stopColor="#2E6B34" stopOpacity="0.15" />
-                      </linearGradient>
-                      <linearGradient id="reportGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#D97706" stopOpacity="0.8" />
-                        <stop offset="100%" stopColor="#D97706" stopOpacity="0.1" />
-                      </linearGradient>
-                      <linearGradient id="areaCurve" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#A8D5A2" stopOpacity="0.3" />
-                        <stop offset="100%" stopColor="#A8D5A2" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-
-                    {/* Horizontal Grid lines */}
-                    <line x1="40" y1="30" x2="680" y2="30" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="80" x2="680" y2="80" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="130" x2="680" y2="130" stroke="#F3F4F6" strokeWidth="1" strokeDasharray="3 3" />
-                    <line x1="40" y1="180" x2="680" y2="180" stroke="#E5E7EB" strokeWidth="1.5" />
-
-                    {/* Axis Labels */}
-                    <text x="30" y="34" fontSize="10" fill="#9CA3AF" textAnchor="end">100</text>
-                    <text x="30" y="84" fontSize="10" fill="#9CA3AF" textAnchor="end">60</text>
-                    <text x="30" y="134" fontSize="10" fill="#9CA3AF" textAnchor="end">30</text>
-                    <text x="30" y="184" fontSize="10" fill="#9CA3AF" textAnchor="end">0</text>
-
-                    {/* Area under curve for soft glow */}
-                    <path
-                      d="M 85 180 L 85 110 Q 170 85 255 125 T 425 60 T 595 50 L 595 180 Z"
-                      fill="url(#areaCurve)"
-                    />
-
-                    {/* 7 Daily Data Bars & Polyline points */}
-                    {[
-                      { day: 'Senin', actions: 42, reports: 12, x: 85 },
-                      { day: 'Selasa', actions: 65, reports: 18, x: 170 },
-                      { day: 'Rabu', actions: 58, reports: 14, x: 255 },
-                      { day: 'Kamis', actions: 76, reports: 24, x: 340 },
-                      { day: 'Jumat', actions: 88, reports: 30, x: 425 },
-                      { day: 'Sabtu', actions: 110, reports: 45, x: 510 },
-                      { day: 'Minggu', actions: 95, reports: 22, x: 595 },
-                    ].map((col) => {
-                      const maxVal = 120;
-                      const actHeight = (col.actions / maxVal) * 140;
-                      const repHeight = (col.reports / maxVal) * 140;
-                      const actY = 180 - actHeight;
-                      const repY = 180 - repHeight;
+                    {(() => {
+                      const maxValue = Math.max(
+                        4,
+                        ...dailyActivity.flatMap((day) => [day.actions, day.reports]),
+                      );
+                      const scale = Math.ceil(maxValue / 4) * 4;
+                      const ticks = [scale, Math.round(scale * 2 / 3), Math.round(scale / 3), 0];
+                      const gridY = [30, 80, 130, 180];
 
                       return (
-                        <g key={col.day} className="cursor-pointer group">
-                          {/* Action bar */}
-                          <rect
-                            x={col.x - 14}
-                            y={actY}
-                            width="12"
-                            height={actHeight}
-                            rx="4"
-                            fill="url(#actionGrad)"
-                            className="transition-all hover:opacity-100 opacity-90"
-                          />
-                          {/* Report bar */}
-                          <rect
-                            x={col.x + 2}
-                            y={repY}
-                            width="12"
-                            height={repHeight}
-                            rx="4"
-                            fill="url(#reportGrad)"
-                            className="transition-all hover:opacity-100 opacity-90"
-                          />
-                          {/* Day text label */}
-                          <text
-                            x={col.x}
-                            y="200"
-                            fontSize="11"
-                            fontWeight="600"
-                            fill="#6B7280"
-                            textAnchor="middle"
-                          >
-                            {col.day}
-                          </text>
-                          {/* Count value label above bar */}
-                          <text
-                            x={col.x - 8}
-                            y={actY - 5}
-                            fontSize="9"
-                            fontWeight="bold"
-                            fill="#2E6B34"
-                            textAnchor="middle"
-                          >
-                            {col.actions}
-                          </text>
-                          <text
-                            x={col.x + 8}
-                            y={repY - 5}
-                            fontSize="9"
-                            fontWeight="bold"
-                            fill="#D97706"
-                            textAnchor="middle"
-                          >
-                            {col.reports}
-                          </text>
-                        </g>
-                      );
-                    })}
+                        <>
+                          {gridY.map((y, index) => (
+                            <g key={y}>
+                              <line
+                                x1="40"
+                                y1={y}
+                                x2="680"
+                                y2={y}
+                                stroke={index === gridY.length - 1 ? '#E5E7EB' : '#F3F4F6'}
+                                strokeWidth={index === gridY.length - 1 ? 1.5 : 1}
+                                strokeDasharray={index === gridY.length - 1 ? undefined : '3 3'}
+                              />
+                              <text x="30" y={y + 4} fontSize="10" fill="#9CA3AF" textAnchor="end">
+                                {ticks[index]}
+                              </text>
+                            </g>
+                          ))}
+                          {dailyActivity.map((day, index) => {
+                            const x = 85 + index * 85;
+                            const actionHeight = (day.actions / scale) * 140;
+                            const reportHeight = (day.reports / scale) * 140;
+                            const actionY = 180 - actionHeight;
+                            const reportY = 180 - reportHeight;
+                            const dateLabel = new Date(`${day.key}T00:00:00`).toLocaleDateString('id-ID', {
+                              day: 'numeric',
+                              month: 'short',
+                            });
 
-                    {/* Trend line connecting peaks */}
-                    <path
-                      d="M 77 131 L 162 104 L 247 112 L 332 91 L 417 77 L 502 51 L 587 69"
-                      fill="none"
-                      stroke="#2E6B34"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
+                            return (
+                              <g key={day.key}>
+                                <title>
+                                  {`${day.label}, ${dateLabel}: ${day.actions} aksi terverifikasi, ${day.reports} laporan`}
+                                </title>
+                                <rect
+                                  x={x - 14}
+                                  y={actionY}
+                                  width="12"
+                                  height={actionHeight}
+                                  rx="3"
+                                  fill="#2E6B34"
+                                  opacity="0.88"
+                                />
+                                <rect
+                                  x={x + 2}
+                                  y={reportY}
+                                  width="12"
+                                  height={reportHeight}
+                                  rx="3"
+                                  fill="#D97706"
+                                  opacity="0.82"
+                                />
+                                {day.actions > 0 && (
+                                  <text x={x - 8} y={Math.max(24, actionY - 5)} fontSize="9" fontWeight="bold" fill="#2E6B34" textAnchor="middle">
+                                    {day.actions}
+                                  </text>
+                                )}
+                                {day.reports > 0 && (
+                                  <text x={x + 8} y={Math.max(24, reportY - 5)} fontSize="9" fontWeight="bold" fill="#D97706" textAnchor="middle">
+                                    {day.reports}
+                                  </text>
+                                )}
+                                <text x={x} y="199" fontSize="10" fontWeight="600" fill="#6B7280" textAnchor="middle">
+                                  {day.label}
+                                </text>
+                                <text x={x} y="212" fontSize="9" fill="#9CA3AF" textAnchor="middle">
+                                  {dateLabel}
+                                </text>
+                              </g>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </svg>
                 </div>
+                <p className="text-xs text-gray-500">
+                  Total 7 hari: {dailyActivity.reduce((sum, day) => sum + day.actions, 0)} aksi terverifikasi
+                  {' · '}
+                  {dailyActivity.reduce((sum, day) => sum + day.reports, 0)} laporan masuk.
+                </p>
               </div>
 
               {/* Lintasan Kemajuan Komunitas (Community Race Tracks) */}
