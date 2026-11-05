@@ -144,6 +144,10 @@ export const DEFAULT_USER: User = {
 };
 
 export class StorageService {
+  static isGuestUserId(userId: string): boolean {
+    return userId === 'guest-preview' || userId.startsWith('guest-panitia-');
+  }
+
   static applyUserDataReset(userId: string, resetAt: string): void {
     const resetMarkerKey = `mh_data_reset_${userId}`;
     if (localStorage.getItem(resetMarkerKey) === resetAt) return;
@@ -266,7 +270,7 @@ export class StorageService {
    * Synchronizes and resets the user's consecutive day streak if a day was missed without entering (>24 jam).
    */
   static syncUserStreak(user: User): User {
-    if (!user || user.id === 'guest-preview') return user;
+    if (!user || this.isGuestUserId(user.id)) return user;
 
     const synced = UserService.recordDailyVisit(user);
     this.saveUser(synced);
@@ -275,7 +279,7 @@ export class StorageService {
 
   static getUser(): User {
     const user = this.getItem<User>(STORAGE_KEYS.USER, DEFAULT_USER);
-    if (user && user.id !== 'guest-preview') {
+    if (user && !this.isGuestUserId(user.id)) {
       return this.syncUserStreak(user);
     }
     return user;
@@ -289,7 +293,7 @@ export class StorageService {
     const previousUser = this.getCachedUser();
     if (previousUser.id !== user.id) cloudProfileSyncReady = false;
     this.setItem<User>(STORAGE_KEYS.USER, user);
-    if (user && user.id && user.id !== 'guest-preview') {
+    if (user && user.id && !this.isGuestUserId(user.id)) {
       try {
         localStorage.setItem(`mh_user_profile_${user.id}`, JSON.stringify(user));
       } catch {
@@ -324,7 +328,7 @@ export class StorageService {
 
   static applyAuthUserSnapshot(user: User): void {
     this.setItem<User>(STORAGE_KEYS.USER, user);
-    if (user.id && user.id !== 'guest-preview') {
+    if (user.id && !this.isGuestUserId(user.id)) {
       try {
         localStorage.setItem(`mh_user_profile_${user.id}`, JSON.stringify(user));
       } catch {
@@ -683,7 +687,7 @@ export class StorageService {
 
   static addSubmission(sub: ChallengeSubmission): void {
     const activeUser = this.getUser();
-    const submission = sub.userId === activeUser.id && activeUser.id !== 'guest-preview'
+    const submission = sub.userId === activeUser.id && !this.isGuestUserId(activeUser.id)
       ? {
           ...sub,
           userCommunity: sub.userCommunity || activeUser.communityName,
@@ -728,7 +732,7 @@ export class StorageService {
       notifyBadgeUnlocks(user.id, newlyUnlocked);
 
       // Async sync points to auth metadata so they persist across sessions
-      if (typeof window !== 'undefined' && user.id !== 'guest-preview') {
+      if (typeof window !== 'undefined' && !this.isGuestUserId(user.id)) {
         import('./authService').then(({ AuthService }) => {
           AuthService.updateProfileMetadata({
             points: user.points,
@@ -759,7 +763,7 @@ export class StorageService {
           const newlyUnlocked = awardPoints(user, sub.awardedPoints);
           this.saveUser(user);
           notifyBadgeUnlocks(user.id, newlyUnlocked);
-          if (typeof window !== 'undefined' && user.id !== 'guest-preview') {
+          if (typeof window !== 'undefined' && !this.isGuestUserId(user.id)) {
             import('./authService').then(({ AuthService }) => {
               AuthService.updateProfileMetadata({
                 points: user.points,
@@ -1041,7 +1045,7 @@ export class StorageService {
     const list = this.getThreads();
     const updated = list.filter((thread) => thread.id !== threadId);
     const userId = this.getCachedUser().id;
-    if (userId && userId !== 'guest-preview') {
+    if (userId && !this.isGuestUserId(userId)) {
       const deletedIds = this.getItem<string[]>(`mh_deleted_threads_${userId}`, []);
       if (!deletedIds.includes(threadId)) {
         this.setItem(`mh_deleted_threads_${userId}`, [...deletedIds, threadId]);

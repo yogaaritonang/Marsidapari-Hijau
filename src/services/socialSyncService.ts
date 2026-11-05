@@ -44,7 +44,7 @@ export class SocialSyncService {
   private static activeSync: Promise<boolean> | null = null;
 
   static async syncMember(user: User): Promise<void> {
-    if (!user.id || user.id === 'guest-preview' || !user.communityId) return;
+    if (!user.id || StorageService.isGuestUserId(user.id) || !user.communityId) return;
     try {
       const hydratedUser = await PersistentDataService.syncUserProfile(user);
       StorageService.saveUser(hydratedUser);
@@ -65,7 +65,7 @@ export class SocialSyncService {
   }
 
   static pullSocialData(user?: User | null): Promise<boolean> {
-    if (!user?.id || user.id === 'guest-preview') return Promise.resolve(false);
+    if (!user?.id || StorageService.isGuestUserId(user.id)) return Promise.resolve(false);
     if (this.activeSync) return this.activeSync;
     this.activeSync = this.performPullSocialData(user).finally(() => {
       this.activeSync = null;
@@ -280,6 +280,7 @@ export class SocialSyncService {
   }
 
   static async syncSubmission(submission: ChallengeSubmission): Promise<void> {
+    if (StorageService.isGuestUserId(submission.userId)) return;
     try {
       const saved = await PersistentDataService.saveSubmission(submission);
       if (!saved) return;
