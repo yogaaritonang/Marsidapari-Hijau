@@ -35,6 +35,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
   const [selectedCategory, setSelectedCategory] = useState<ThreadCategory>('ide');
   const [image, setImage] = useState<string>('');
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isPosting, setIsPosting] = useState(false);
   const [activeTab, setActiveTab] = useState<'semua' | ThreadCategory>('semua');
   const [replyOpenId, setReplyOpenId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState<{ [threadId: string]: string }>({});
@@ -84,6 +85,18 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      e.target.value = '';
+      showToast('Gunakan foto berformat JPG, PNG, atau WebP.');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      e.target.value = '';
+      showToast('Ukuran foto maksimal 10 MB.');
+      return;
+    }
+
     if (isGuest) {
       e.target.value = '';
       onRequireAuth();
@@ -96,8 +109,9 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       const { dataUrl } = await compressImage(file, 900, 900, 0.78);
       setImage(dataUrl);
       showToast('📸 Foto siap dibagikan!');
-    } catch {
-      showToast('Gagal memproses gambar. Coba format JPG atau PNG.');
+    } catch (error) {
+      console.error('[ThreadsPage] Gagal memproses foto:', error);
+      showToast(error instanceof Error ? error.message : 'Gagal memproses foto. Coba lagi.');
     } finally {
       setIsCompressing(false);
       e.target.value = '';
@@ -116,6 +130,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       return;
     }
 
+    setIsPosting(true);
     const newPost: ThreadPost = {
       id: `th-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       userId: user.id,
@@ -133,11 +148,18 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       replies: [],
     };
 
-    setCaption('');
-    setImage('');
-    await SocialSyncService.createThread(newPost);
-    setThreads(StorageService.getThreads());
-    showToast('✨ Utas berhasil diposting!');
+    try {
+      await SocialSyncService.createThread(newPost);
+      setCaption('');
+      setImage('');
+      setThreads(StorageService.getThreads());
+      showToast('✨ Utas berhasil diposting!');
+    } catch (error) {
+      console.error('[ThreadsPage] Gagal memposting utas:', error);
+      showToast(error instanceof Error ? error.message : 'Utas gagal diposting. Coba lagi.');
+    } finally {
+      setIsPosting(false);
+    }
   };
 
   const handleLike = async (threadId: string) => {
@@ -357,7 +379,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isGuest || isCompressing}
+                disabled={isGuest || isCompressing || isPosting}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-[#FAF6EC] px-2.5 py-1.5 text-xs font-bold text-[#2E6B34] hover:bg-emerald-50 active:scale-95 transition disabled:opacity-50"
               >
                 <Camera className="h-4 w-4 text-emerald-600" />
@@ -366,7 +388,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={handleImageUpload}
                 className="hidden"
               />
@@ -374,11 +396,11 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
 
             <button
               type="submit"
-              disabled={isGuest || (!caption.trim() && !image)}
+              disabled={isGuest || isCompressing || isPosting || (!caption.trim() && !image)}
               className="inline-flex items-center gap-1.5 rounded-xl bg-[#2E6B34] px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-[#235328] active:scale-95 transition disabled:opacity-40"
             >
               <Send className="h-3.5 w-3.5" />
-              <span>Posting</span>
+              <span>{isPosting ? 'Mengunggah...' : 'Posting'}</span>
             </button>
           </div>
         </form>

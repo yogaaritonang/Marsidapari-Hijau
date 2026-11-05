@@ -116,12 +116,6 @@ export class SocialSyncService {
       const savedPost = post.imageUrl
         ? { ...post, imageUrl: await PersistentDataService.uploadUserImage(post.imageUrl, user.id, `thread-${post.id}`) }
         : post;
-      const existing = StorageService.getThreads().some((item) => item.id === savedPost.id);
-      if (existing) {
-        StorageService.saveThreads(StorageService.getThreads().map((item) => item.id === savedPost.id ? savedPost : item));
-      } else {
-        StorageService.addThread(savedPost);
-      }
       await SharedDataService.upsertRecord(
         'threads',
         savedPost.id,
@@ -129,6 +123,12 @@ export class SocialSyncService {
         savedPost.userId,
         user.communityId,
       );
+      const existing = StorageService.getThreads().some((item) => item.id === savedPost.id);
+      if (existing) {
+        StorageService.saveThreads(StorageService.getThreads().map((item) => item.id === savedPost.id ? savedPost : item));
+      } else {
+        StorageService.addThread(savedPost);
+      }
       window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
     } catch (error) {
       reportSyncError(error);
