@@ -233,13 +233,13 @@ export class SocialSyncService {
       throw new Error('Anda tidak berwenang menghapus postingan pengguna lain.');
     }
 
-    StorageService.deleteThread(threadId);
     try {
       await SharedDataService.deleteRecord('threads', threadId);
     } catch (error) {
       reportSyncError(error);
       throw error;
     }
+    StorageService.deleteThread(threadId);
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }
 

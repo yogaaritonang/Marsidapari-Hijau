@@ -444,13 +444,24 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
     const id = key.slice(collection.length + 1);
     const ownerId = baselineOwners.get(key);
     const canDelete = activeUser?.role === 'admin' || (collection === 'threads' && ownerId === activeUser?.id);
-    if (canDelete && !current.has(id) && baseline.get(key) !== JSON.stringify({ id, _deleted: true })) {
+    let alreadyDeleted = false;
+    try {
+      alreadyDeleted = JSON.parse(baseline.get(key) || 'null')?._deleted === true;
+    } catch {
+      alreadyDeleted = false;
+    }
+    if (canDelete && !current.has(id) && !alreadyDeleted) {
+      const tombstone = {
+        id,
+        ...(collection === 'threads' && ownerId ? { userId: ownerId } : {}),
+        _deleted: true,
+      };
       changes.push({
         collection,
         record_id: id,
         owner_id: ownerId || activeUser?.id || null,
         organization_id: baselineOrganizations.get(key) || recordOrganization(collection),
-        payload: { id, _deleted: true },
+        payload: tombstone,
       });
     }
   }
@@ -634,7 +645,11 @@ export class SharedDataService {
       ? baselineOwners.get(key) || activeUser?.id || null
       : activeUser?.id || null;
     const organizationId = baselineOrganizations.get(key) || recordOrganization(collection);
-    const tombstone = { id: recordId, _deleted: true };
+    const tombstone = {
+      id: recordId,
+      ...(collection === 'threads' && ownerId ? { userId: ownerId } : {}),
+      _deleted: true,
+    };
     const softDeleteRow: SharedRecord = {
       collection,
       record_id: recordId,
