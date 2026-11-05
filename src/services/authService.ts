@@ -345,6 +345,10 @@ export class AuthService {
   }
 
   static getUserProfile(authUser: AuthUser): User {
+    const resetAt = authUser.app_metadata?.data_reset_at;
+    if (typeof resetAt === 'string') {
+      StorageService.applyUserDataReset(authUser.id, resetAt);
+    }
     const user = UserService.resolveProfileConflict(authUser, { clearStaleCache: true });
 
     // Pastikan jika komunitas baru dari pemimpin terdaftar di communities

@@ -355,10 +355,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     }
   };
 
-  const deleteThread = (id: string) => {
-    StorageService.deleteThread(id);
-    setThreads(StorageService.getThreads());
-    notify('Postingan berhasil dihapus.');
+  const deleteThread = async (id: string) => {
+    try {
+      await SocialSyncService.deleteThread(id);
+      setThreads(StorageService.getThreads());
+      notify('Postingan berhasil dihapus.');
+    } catch (error) {
+      notify(error instanceof Error ? `Postingan gagal dihapus: ${error.message}` : 'Postingan gagal dihapus.');
+    }
   };
 
   const updateThreadStatus = (id: string, status: 'aktif' | 'ditindaklanjuti' | 'selesai') => {

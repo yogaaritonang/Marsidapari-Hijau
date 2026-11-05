@@ -144,6 +144,73 @@ export const DEFAULT_USER: User = {
 };
 
 export class StorageService {
+  static applyUserDataReset(userId: string, resetAt: string): void {
+    const resetMarkerKey = `mh_data_reset_${userId}`;
+    if (localStorage.getItem(resetMarkerKey) === resetAt) return;
+
+    const cachedUser = this.getCachedUser();
+    if (cachedUser.id === userId) localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(`mh_user_profile_${userId}`);
+    localStorage.removeItem(`mh_pending_badges_${userId}`);
+    localStorage.removeItem(`mh_deleted_threads_${userId}`);
+
+    this.setItem<ChallengeSubmission[]>(
+      STORAGE_KEYS.SUBMISSIONS,
+      this.getSubmissions().filter((submission) => submission.userId !== userId),
+    );
+    this.setItem<ThreadPost[]>(
+      STORAGE_KEYS.THREADS,
+      this.getThreads()
+        .filter((thread) => thread.userId !== userId)
+        .map((thread) => {
+          const likedBy = thread.likedBy?.filter((id) => id !== userId);
+          return {
+            ...thread,
+            ...(likedBy ? { likedBy, likes: likedBy.length } : {}),
+            savedBy: thread.savedBy?.filter((id) => id !== userId),
+            replies: thread.replies?.filter((reply) => reply.userId !== userId),
+          };
+        }),
+    );
+    this.setItem<EnvironmentalReport[]>(
+      STORAGE_KEYS.REPORTS,
+      this.getItem<EnvironmentalReport[]>(STORAGE_KEYS.REPORTS, [])
+        .filter((report) => report.userId !== userId),
+    );
+    this.setItem<MapMarkerLocation[]>(
+      STORAGE_KEYS.LOCATIONS,
+      this.getItem<MapMarkerLocation[]>(STORAGE_KEYS.LOCATIONS, SEED_LOCATIONS)
+        .filter((location) => location.submittedBy !== userId),
+    );
+
+    try {
+      const notifications = JSON.parse(localStorage.getItem('mh_notifications') || '[]') as Array<{
+        recipientUserId?: string;
+        senderUserId?: string;
+      }>;
+      localStorage.setItem(
+        'mh_notifications',
+        JSON.stringify(notifications.filter((item) => item.recipientUserId !== userId && item.senderUserId !== userId)),
+      );
+    } catch {
+      localStorage.removeItem('mh_notifications');
+    }
+
+    localStorage.removeItem('mh_leaderboard_cheers');
+    localStorage.removeItem(STORAGE_KEYS.GARDEN);
+    this.setItem(
+      STORAGE_KEYS.DEVOTIONS,
+      this.getDevotions().map((devotion) => ({ ...devotion, isFavorite: false })),
+    );
+    localStorage.setItem(resetMarkerKey, resetAt);
+    cloudProfileSyncReady = false;
+  }
+
+  static isThreadDeletedLocally(userId: string, threadId: string): boolean {
+    const deletedIds = this.getItem<string[]>(`mh_deleted_threads_${userId}`, []);
+    return deletedIds.includes(threadId);
+  }
+
   static getPreviewGarden(): GardenState {
     return {
       stage: 'Tunas',
@@ -973,6 +1040,13 @@ export class StorageService {
   static deleteThread(threadId: string): void {
     const list = this.getThreads();
     const updated = list.filter((thread) => thread.id !== threadId);
+    const userId = this.getCachedUser().id;
+    if (userId && userId !== 'guest-preview') {
+      const deletedIds = this.getItem<string[]>(`mh_deleted_threads_${userId}`, []);
+      if (!deletedIds.includes(threadId)) {
+        this.setItem(`mh_deleted_threads_${userId}`, [...deletedIds, threadId]);
+      }
+    }
     this.saveThreads(updated);
   }
 

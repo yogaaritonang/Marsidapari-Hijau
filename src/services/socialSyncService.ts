@@ -226,11 +226,19 @@ export class SocialSyncService {
   }
 
   static async deleteThread(threadId: string): Promise<void> {
+    const user = StorageService.getCachedUser();
+    const thread = StorageService.getThreads().find((item) => item.id === threadId);
+    if (!thread) return;
+    if (thread.userId !== user.id && user.role !== 'admin') {
+      throw new Error('Anda tidak berwenang menghapus postingan pengguna lain.');
+    }
+
     StorageService.deleteThread(threadId);
     try {
-      await SharedDataService.flushCollection('threads');
+      await SharedDataService.deleteRecord('threads', threadId);
     } catch (error) {
       reportSyncError(error);
+      throw error;
     }
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }

@@ -597,12 +597,15 @@ export class SharedDataService {
 
     const localRecords = storedRecords(collection);
     if (collection === 'threads') {
+      const activeUserId = activeUser?.id;
       const visibleIds = new Set(values.map(rowId).filter((id): id is string => Boolean(id)));
       const ownLocalThreads = localRecords.filter((value) =>
         isRecord(value) &&
-        value.userId === activeUser?.id &&
+        typeof activeUserId === 'string' &&
+        value.userId === activeUserId &&
         !visibleIds.has(String(value.id)) &&
-        !deletedIds.has(String(value.id)),
+        !deletedIds.has(String(value.id)) &&
+        !StorageService.isThreadDeletedLocally(activeUserId, String(value.id)),
       );
       values.push(...ownLocalThreads);
     }
@@ -626,12 +629,18 @@ export class SharedDataService {
     if (!client) throw new Error('Supabase belum terhubung. Perubahan belum tersimpan ke database.');
 
     // 1. Soft-delete payload agar client lain menerima realtime update seketika
+    const key = makeKey(collection, recordId);
+    const ownerId = collection === 'threads'
+      ? baselineOwners.get(key) || activeUser?.id || null
+      : activeUser?.id || null;
+    const organizationId = baselineOrganizations.get(key) || recordOrganization(collection);
+    const tombstone = { id: recordId, _deleted: true };
     const softDeleteRow: SharedRecord = {
       collection,
       record_id: recordId,
-      owner_id: activeUser?.id || null,
-      organization_id: recordOrganization(collection),
-      payload: { id: recordId, _deleted: true },
+      owner_id: ownerId,
+      organization_id: organizationId,
+      payload: tombstone,
       updated_at: new Date().toISOString(),
     };
 
@@ -643,9 +652,9 @@ export class SharedDataService {
       throw new Error(`Gagal menghapus data (${collection}): ${error.message}`);
     }
 
-    baseline.delete(makeKey(collection, recordId));
-    baselineOwners.delete(makeKey(collection, recordId));
-    baselineOrganizations.delete(makeKey(collection, recordId));
+    baseline.set(key, JSON.stringify(tombstone));
+    baselineOwners.set(key, ownerId);
+    baselineOrganizations.set(key, organizationId);
     emitStatus('synced');
   }
 

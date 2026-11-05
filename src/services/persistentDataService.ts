@@ -45,6 +45,15 @@ async function getClient(): Promise<SupabaseClient> {
   return client;
 }
 
+async function assertActiveAccount(expectedUserId: string): Promise<void> {
+  const { AuthService } = await import('./authService');
+  const authUser = await AuthService.getCurrentUser();
+  if (!authUser) throw new Error('Sesi Supabase tidak aktif. Silakan masuk kembali.');
+  if (authUser.id !== expectedUserId) {
+    throw new Error('Akun aplikasi berbeda dengan sesi Supabase. Keluar lalu masuk kembali sebelum menyimpan data.');
+  }
+}
+
 function emitCloudError(error: unknown): void {
   const message = error instanceof Error ? error.message : 'Gagal menyimpan data ke Supabase.';
   window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
@@ -60,6 +69,7 @@ function profileSyncSnapshot(user: User, garden: GardenState): string {
 export class PersistentDataService {
   static async uploadUserImage(dataUrl: string, userId: string, recordId: string): Promise<string> {
     if (!dataUrl.startsWith('data:')) return dataUrl;
+    await assertActiveAccount(userId);
     const imageResponse = await fetch(dataUrl);
     const image = await imageResponse.blob();
     if (image.size > 5 * 1024 * 1024) {
@@ -253,6 +263,7 @@ export class PersistentDataService {
   static async saveSubmission(submission: ChallengeSubmission): Promise<ChallengeSubmission | null> {
     const user = StorageService.getCachedUser();
     if (!user.id || user.id === 'guest-preview') throw new Error('Silakan masuk untuk menyimpan aksi.');
+    await assertActiveAccount(user.id);
     const db = await getClient();
     const { data: existing, error: existingError } = await db
       .from('mh_submissions')
@@ -442,17 +453,19 @@ export class PersistentDataService {
 
   static async toggleCheer(targetUserId: string, senderUserId: string): Promise<Record<string, { count: number; users: string[] }>> {
     const db = await getClient();
-    const { data: existing, error: readError } = await db
-      .from('mh_leaderboard_cheers')
-      .select('target_user_id')
-      .eq('target_user_id', targetUserId)
-      .eq('sender_user_id', senderUserId)
-      .maybeSingle();
-    if (readError) throw new Error(`Apresiasi gagal diperiksa: ${readError.message}`);
-    const result = existing
-      ? await db.from('mh_leaderboard_cheers').delete().eq('target_user_id', targetUserId).eq('sender_user_id', senderUserId)
-      : await db.from('mh_leaderboard_cheers').insert({ target_user_id: targetUserId, sender_user_id: senderUserId });
-    if (result.error) throw new Error(`Apresiasi gagal disimpan: ${result.error.message}`);
+    const currentUserId = StorageService.getCachedUser().id;
+    await assertActiveAccount(currentUserId);
+    if (senderUserId !== currentUserId) {
+      throw new Error('Akun pengirim apresiasi tidak sama dengan akun yang sedang masuk.');
+    }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetUserId)) {
+      throw new Error('ID anggota pada peringkat bukan ID akun Supabase yang valid.');
+    }
+    if (targetUserId === currentUserId) throw new Error('Anda tidak dapat mengirim apresiasi ke akun sendiri.');
+    const { error } = await db.rpc('mh_toggle_leaderboard_cheer', {
+      p_target_user_id: targetUserId,
+    });
+    if (error) throw new Error(`Apresiasi gagal disimpan: ${error.message}`);
     return this.loadCheers();
   }
 }
