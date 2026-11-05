@@ -353,6 +353,33 @@ export class StorageService {
     this.setItem<boolean>(STORAGE_KEYS.ONBOARDED, val);
   }
 
+  static clearGuestSession(): void {
+    const user = this.getCachedUser();
+    if (!this.isGuestUserId(user.id)) return;
+
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.ONBOARDED);
+    localStorage.removeItem(STORAGE_KEYS.GARDEN);
+    this.setItem<ChallengeSubmission[]>(
+      STORAGE_KEYS.SUBMISSIONS,
+      this.getSubmissions().filter((submission) => submission.userId !== user.id),
+    );
+    this.setItem<ThreadPost[]>(
+      STORAGE_KEYS.THREADS,
+      this.getThreads()
+        .filter((thread) => thread.userId !== user.id)
+        .map((thread) => {
+          const likedBy = thread.likedBy?.filter((id) => id !== user.id);
+          return {
+            ...thread,
+            ...(likedBy ? { likedBy, likes: likedBy.length } : {}),
+            savedBy: thread.savedBy?.filter((id) => id !== user.id),
+            replies: thread.replies?.filter((reply) => reply.userId !== user.id),
+          };
+        }),
+    );
+  }
+
   static getPendingBadgeUnlocks(userId: string): string[] {
     return this.getItem<string[]>(`mh_pending_badges_${userId}`, []);
   }

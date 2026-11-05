@@ -71,6 +71,13 @@ export default function App() {
     ];
     return requestedTab && availableTabs.includes(requestedTab) ? requestedTab : 'home';
   });
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('tab') === currentTab) return;
+    url.searchParams.set('tab', currentTab);
+    window.history.replaceState(window.history.state, '', `${url.pathname}${url.search}${url.hash}`);
+  }, [currentTab]);
   const [verifyChallenge, setVerifyChallenge] = useState<Challenge | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [emailConfirmationNotice, setEmailConfirmationNotice] = useState<{
@@ -320,10 +327,11 @@ export default function App() {
         }
         else if (!cancelled) {
           const localUser = StorageService.getUser();
-          if (localUser && localUser.id && localUser.id !== 'guest-preview') {
+          if (localUser && localUser.id && !StorageService.isGuestUserId(localUser.id)) {
             setUser(localUser);
             setIsOnboarded(true);
           } else {
+            StorageService.clearGuestSession();
             setUser(DEFAULT_USER);
             setIsOnboarded(false);
           }
@@ -586,6 +594,7 @@ export default function App() {
     : 'home';
 
   const handleLogout = () => {
+    StorageService.clearGuestSession();
     AuthService.signOut();
     SharedDataService.disconnect();
     StorageService.setOnboarded(false);

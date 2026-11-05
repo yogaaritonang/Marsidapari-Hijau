@@ -322,6 +322,33 @@ export class AuthService {
     StorageService.resetPersistentSync();
   }
 
+  static async signOutOtherSessions(): Promise<void> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) throw new Error('Sesi masuk tidak ditemukan. Silakan masuk kembali.');
+    await this.request<void>('/logout?scope=others', undefined, accessToken, 'POST');
+  }
+
+  static async deleteAccount(): Promise<void> {
+    const accessToken = await this.getAccessToken();
+    const authUser = await this.getCurrentUser();
+    if (!accessToken || !authUser) {
+      throw new Error('Sesi masuk tidak ditemukan. Silakan masuk kembali sebelum menghapus akun.');
+    }
+
+    const response = await fetch('/api/account/delete', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer '.concat(accessToken) },
+    });
+    const payload = await response.json().catch(() => null) as { error?: string } | null;
+    if (!response.ok) {
+      throw new Error(payload?.error || 'Akun gagal dihapus. Silakan coba kembali.');
+    }
+
+    StorageService.applyUserDataReset(authUser.id, new Date().toISOString());
+    this.clearSession();
+    StorageService.resetPersistentSync();
+  }
+
   static async getAccessToken(): Promise<string | null> {
     const session = this.readSession();
     if (!session) return null;
@@ -477,6 +504,7 @@ export class AuthService {
       throw new Error(`${message} (HTTP ${response.status}).${emailRateLimitHint}`);
     }
 
-    return response.json() as Promise<T>;
+    const responseText = await response.text();
+    return (responseText ? JSON.parse(responseText) : undefined) as T;
   }
 }

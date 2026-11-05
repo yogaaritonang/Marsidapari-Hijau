@@ -45,6 +45,19 @@ built-in SMTP service is restricted and rate-limited; configure custom SMTP for
 reliable delivery to users. The app cannot deliver or restore email from a template
 or SMTP configuration change in the repository.
 
+## Pengaturan dan penghapusan akun
+
+Pengguna dapat mengakhiri sesi di perangkat lain dari halaman Profil. Penghapusan
+akun menghapus akun autentikasi beserta data dan foto yang dimiliki pengguna. Untuk
+mengaktifkannya, konfigurasi `SUPABASE_SERVICE_ROLE_KEY` hanya di environment server
+(misalnya `.env.local` untuk pengembangan); jangan gunakan awalan `VITE_`, kirim ke
+browser, atau commit kunci tersebut. Server memakai kunci ini untuk menghapus akun
+dan objek Storage setelah memverifikasi sesi pengguna.
+
+Akun admin dan pemimpin yang masih memiliki komunitas tidak dapat dihapus melalui
+fitur ini agar data pengelolaan dan komunitas tidak ikut terhapus. Pengalihan
+kepemilikan komunitas harus dilakukan oleh administrator terlebih dahulu.
+
 ## Membersihkan data akun terdaftar
 
 Skrip berikut menghapus data dan foto milik semua akun non-admin, termasuk pemimpin

@@ -35,6 +35,10 @@ export const BottomNav: React.FC<BottomNavProps> = ({ currentTab, onChangeTab, u
             <button
               key={tab.id}
               onClick={() => onChangeTab(tab.id)}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                window.location.reload();
+              }}
               className={`touch-target relative flex flex-1 flex-col items-center justify-center rounded-xl px-0.5 py-1.5 transition-all duration-200 md:px-2 md:py-2.5 ${
                 isActive
                   ? 'text-[#2E6B34] dark:text-emerald-400 font-bold'

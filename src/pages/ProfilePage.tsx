@@ -17,6 +17,8 @@ import {
   Save,
   Share2,
   LogOut,
+  ShieldCheck,
+  Smartphone,
   Moon,
   Sun,
   Compass,
@@ -58,6 +60,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
   const [emailBusy, setEmailBusy] = useState(false);
   const [emailMessage, setEmailMessage] = useState<string | null>(null);
   const [emailError, setEmailError] = useState<string | null>(null);
+  const [sessionsBusy, setSessionsBusy] = useState(false);
+  const [sessionsMessage, setSessionsMessage] = useState<string | null>(null);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [showDeleteAccount, setShowDeleteAccount] = useState(false);
+  const [deleteConfirmationEmail, setDeleteConfirmationEmail] = useState('');
+  const [deleteAccountBusy, setDeleteAccountBusy] = useState(false);
+  const [deleteAccountError, setDeleteAccountError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const photoInputRef = React.useRef<HTMLInputElement>(null);
   const [communities, setCommunities] = useState<Community[]>(() => StorageService.getCommunities());
@@ -278,6 +287,40 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       setPhotoError(error instanceof Error ? error.message : 'Foto profil gagal dihapus.');
     } finally {
       setPhotoBusy(false);
+    }
+  };
+
+  const handleSignOutOtherSessions = async () => {
+    setSessionsBusy(true);
+    setSessionsError(null);
+    setSessionsMessage(null);
+    try {
+      await AuthService.signOutOtherSessions();
+      setSessionsMessage('Sesi akun di perangkat lain telah diakhiri. Perangkat ini tetap masuk.');
+    } catch (error) {
+      setSessionsError(error instanceof Error ? error.message : 'Sesi perangkat lain gagal diakhiri.');
+    } finally {
+      setSessionsBusy(false);
+    }
+  };
+
+  const handleDeleteAccount = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (deleteConfirmationEmail.trim().toLowerCase() !== user.contact.trim().toLowerCase()) {
+      setDeleteAccountError('Email tidak cocok dengan email akun ini.');
+      return;
+    }
+
+    setDeleteAccountBusy(true);
+    setDeleteAccountError(null);
+    try {
+      await AuthService.deleteAccount();
+      setShowDeleteAccount(false);
+      onLogout();
+    } catch (error) {
+      setDeleteAccountError(error instanceof Error ? error.message : 'Akun gagal dihapus. Silakan coba kembali.');
+    } finally {
+      setDeleteAccountBusy(false);
     }
   };
 
@@ -779,6 +822,63 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
       </div>
 
+      <section className="rounded-3xl bg-white border border-gray-200/90 p-4 shadow-xs space-y-3 text-xs">
+        <h4 className="font-bold text-[#7A5230] uppercase tracking-wider text-[10px]">
+          Keamanan &amp; Sesi Akun
+        </h4>
+        <div className="flex items-start gap-2.5">
+          <Smartphone className="mt-0.5 h-4 w-4 shrink-0 text-[#2E6B34]" />
+          <div className="min-w-0 flex-1">
+            <span className="font-bold block text-gray-800">Perangkat yang masuk</span>
+            <span className="text-[10px] text-gray-500">
+              Akhiri sesi akun di perangkat lain. Perangkat ini akan tetap masuk.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => void handleSignOutOtherSessions()}
+            disabled={sessionsBusy || StorageService.isGuestUserId(user.id)}
+            className="min-h-9 shrink-0 rounded-xl border border-[#2E6B34]/25 bg-[#F3F7EF] px-3 text-[10px] font-bold text-[#2E6B34] hover:bg-[#E9F1E5] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {sessionsBusy ? 'Memproses...' : 'Akhiri sesi lain'}
+          </button>
+        </div>
+        {sessionsMessage && (
+          <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-[11px] text-emerald-800">
+            {sessionsMessage}
+          </p>
+        )}
+        {sessionsError && (
+          <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-[11px] text-red-800">
+            {sessionsError}
+          </p>
+        )}
+
+        <div className="border-t border-gray-100 pt-3">
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-red-600" />
+            <div className="min-w-0 flex-1">
+              <span className="font-bold block text-red-800">Hapus akun secara permanen</span>
+              <span className="text-[10px] text-gray-500">
+                Akun, data pribadi, aktivitas, unggahan, dan foto milik Anda akan dihapus. Tindakan ini tidak dapat dibatalkan.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setDeleteAccountError(null);
+                setDeleteConfirmationEmail('');
+                setShowDeleteAccount(true);
+              }}
+              disabled={StorageService.isGuestUserId(user.id)}
+              className="min-h-9 shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 text-[10px] font-bold text-red-700 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Hapus akun
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* App Version & Credits */}
       <div className="text-center py-2 text-xs text-gray-400 space-y-1">
         <p className="font-semibold text-gray-600">
@@ -828,6 +928,63 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
               Tutup
             </button>
           </div>
+        </div>
+      )}
+
+      {showDeleteAccount && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation">
+          <form
+            onSubmit={(event) => void handleDeleteAccount(event)}
+            className="w-full max-w-sm space-y-4 rounded-3xl border border-red-200 bg-[#FAF6EC] p-5 shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-title"
+          >
+            <div className="space-y-2">
+              <h3 id="delete-account-title" className="text-base font-bold text-red-800">
+                Hapus akun secara permanen?
+              </h3>
+              <p className="text-xs leading-relaxed text-gray-700">
+                Profil, poin, aktivitas, unggahan, dan foto akun ini akan dihapus dari aplikasi. Data komunitas dan pengaturan aplikasi tidak ikut dihapus. Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-[#354235]">
+                Ketik email akun untuk konfirmasi: {user.contact}
+              </span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={deleteConfirmationEmail}
+                onChange={(event) => setDeleteConfirmationEmail(event.target.value)}
+                className="min-h-11 w-full rounded-xl border border-red-200 bg-white px-3 text-sm outline-none focus:border-red-500 focus:ring-4 focus:ring-red-500/10"
+              />
+            </label>
+            {deleteAccountError && (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-2.5 text-xs text-red-800">
+                {deleteAccountError}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={deleteAccountBusy}
+                onClick={() => setShowDeleteAccount(false)}
+                className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-3 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={deleteAccountBusy}
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-red-700 px-3 text-xs font-bold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {deleteAccountBusy && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                {deleteAccountBusy ? 'Menghapus...' : 'Ya, hapus akun'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
