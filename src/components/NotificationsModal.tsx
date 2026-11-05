@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Heart, MessageCircle, Bookmark, Trophy, X, CheckCheck, Sparkles } from 'lucide-react';
+import { Bell, Heart, MessageCircle, Bookmark, Trophy, X, CheckCheck } from 'lucide-react';
 import { AppNotification } from '../types';
 import { SocialSyncService } from '../services/socialSyncService';
 
@@ -89,7 +89,7 @@ export const NotificationsModal: React.FC<NotificationsModalProps> = ({
           {userNotifications.length === 0 ? (
             <div className="py-12 text-center text-gray-500 space-y-2">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-                <Sparkles className="h-6 w-6" />
+                <Bell className="h-6 w-6" />
               </div>
               <p className="text-sm font-semibold text-gray-700">Belum ada notifikasi baru</p>
               <p className="text-xs text-gray-500 max-w-xs mx-auto">

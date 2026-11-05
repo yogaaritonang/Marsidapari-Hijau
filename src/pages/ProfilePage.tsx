@@ -19,7 +19,7 @@ import {
   LogOut,
   Moon,
   Sun,
-  Sparkles,
+  Compass,
   ChevronRight,
 } from 'lucide-react';
 import { User, Community } from '../types';
@@ -603,7 +603,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({
       <div className="rounded-3xl bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/60 dark:from-[#17261B] dark:via-[#132216] dark:to-[#17261B] border border-emerald-300/80 dark:border-white/10 p-4 shadow-xs flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-            <Sparkles className="w-5 h-5 text-amber-300" />
+            <Compass className="w-5 h-5 text-emerald-200" />
           </div>
           <div>
             <h4 className="font-bold text-xs font-poppins text-[#1F2A1F] dark:text-white">

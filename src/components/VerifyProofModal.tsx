@@ -4,7 +4,6 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  Sparkles,
   Camera,
   RotateCw,
   Trees,
@@ -269,7 +268,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
               {analyzing && (
                 <div className="p-4 bg-white rounded-2xl border border-[#2E6B34]/30 text-center space-y-2 animate-pulse">
                   <div className="w-10 h-10 rounded-full bg-[#A8D5A2]/30 text-[#2E6B34] mx-auto flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 animate-spin" />
+                    <RotateCw className="w-5 h-5 animate-spin" />
                   </div>
                   <h4 className="text-xs font-bold text-[#2E6B34] font-poppins">
                     Sistem sedang memeriksa bukti gotong royong...
@@ -287,7 +286,7 @@ export const VerifyProofModal: React.FC<VerifyProofModalProps> = ({
                   onClick={handleStartAnalysis}
                   className="w-full py-3 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-40 transition active:scale-95 shadow-md flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4 text-[#A8D5A2]" />
+                  <CheckCircle2 className="w-4 h-4 text-[#A8D5A2]" />
                   <span>Verifikasi Bukti Otomatis</span>
                 </button>
               )}

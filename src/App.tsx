@@ -13,6 +13,7 @@ import { CheckCircle2, Mail } from 'lucide-react';
 import { AuthService } from './services/authService';
 import { SharedDataService } from './services/sharedDataService';
 import { SocialSyncService } from './services/socialSyncService';
+import { PushNotificationService } from './services/pushNotificationService';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -171,6 +172,23 @@ export default function App() {
     window.addEventListener('mh-badges-unlocked', handleBadgeUnlocks);
     return () => window.removeEventListener('mh-badges-unlocked', handleBadgeUnlocks);
   }, [user.id]);
+
+  // Request Service Worker notification permission upon first user interaction
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        const handleFirstInteraction = () => {
+          PushNotificationService.requestPermission().catch(() => {});
+        };
+        window.addEventListener('click', handleFirstInteraction, { once: true });
+        window.addEventListener('touchend', handleFirstInteraction, { once: true });
+        return () => {
+          window.removeEventListener('click', handleFirstInteraction);
+          window.removeEventListener('touchend', handleFirstInteraction);
+        };
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const syncBrandInfo = () => {
@@ -551,14 +569,17 @@ export default function App() {
     }
 
     return (
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={currentTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-          className="w-full"
+          initial={{ opacity: 0, y: 14, scale: 0.995, filter: 'blur(3px)' }}
+          animate={{ opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, y: -10, scale: 0.995, filter: 'blur(2px)' }}
+          transition={{
+            duration: 0.28,
+            ease: [0.16, 1, 0.3, 1],
+          }}
+          className="w-full will-change-transform"
         >
           {content}
         </motion.div>
@@ -665,6 +686,12 @@ export default function App() {
           isGuest={!isOnboarded}
           onNavigateTab={setCurrentTab}
           onOpenAuth={openAuthentication}
+          onGuestLogin={(guestUser) => {
+            setUser(guestUser);
+            setIsOnboarded(true);
+            setSuccessToast('✨ Masuk sebagai Tamu Panitia Penilai! Seluruh fitur terbuka.');
+            setTimeout(() => setSuccessToast(null), 3500);
+          }}
         />
 
         {/* Email Confirmation Notice Banner */}

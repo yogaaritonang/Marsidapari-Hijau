@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import {
   Camera,
   Trash2,
-  Sparkles,
   MapPin,
   RotateCw,
   CheckCircle2,
@@ -154,8 +153,8 @@ export const WasteScannerPage: React.FC<WasteScannerPageProps> = ({ onOpenMap, i
       {/* Scanning State */}
       {scanning && (
         <div className="p-5 bg-white rounded-3xl border border-[#2E6B34]/30 text-center space-y-2 animate-pulse shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-cyan-50 text-cyan-700 mx-auto flex items-center justify-center">
-            <Sparkles className="w-6 h-6 animate-spin" />
+          <div className="w-12 h-12 rounded-full bg-emerald-50 text-[#2E6B34] mx-auto flex items-center justify-center">
+            <RotateCw className="w-6 h-6 animate-spin" />
           </div>
           <h4 className="text-sm font-bold text-[#2E6B34] font-poppins">
             Sistem cerdas sedang mengenali kategori sampah...

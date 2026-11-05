@@ -1,18 +1,38 @@
-import { MapMarkerLocation, User } from '../types';
+import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
+import {
+  Challenge,
+  Community,
+  Devotion,
+  EnvironmentalReport,
+  GreenEvent,
+  MapMarkerLocation,
+  User,
+} from '../types';
 import { StorageService } from './storageService';
+import { PushNotificationService } from './pushNotificationService';
 
-type SharedCollection = 'brand' | 'challenges' | 'communities' | 'devotions' | 'events' | 'locations' | 'reports' | 'threads';
-type SyncState = 'connecting' | 'synced' | 'error' | 'offline';
+export type SharedCollection =
+  | 'brand'
+  | 'challenges'
+  | 'communities'
+  | 'devotions'
+  | 'events'
+  | 'locations'
+  | 'reports'
+  | 'threads';
 
-interface SharedRecord {
+export type SyncState = 'connecting' | 'synced' | 'error' | 'offline';
+
+export interface SharedRecord {
   collection: SharedCollection;
   record_id: string;
   owner_id?: string | null;
   organization_id: string | null;
   payload: Record<string, unknown>;
+  updated_at?: string;
 }
 
-interface OrganizationRecord {
+export interface OrganizationRecord {
   id: string;
   name: string;
   category: string;
@@ -36,6 +56,9 @@ let activeUser: User | null = null;
 let accessToken: string | null = null;
 let baseline = new Map<string, string>();
 let queue = Promise.resolve();
+let supabaseClient: SupabaseClient | null = null;
+let realtimeChannel: RealtimeChannel | null = null;
+let isApplyingRemoteChange = false;
 
 function emitStatus(state: SyncState, message?: string) {
   window.dispatchEvent(new CustomEvent('mh-shared-sync-status', { detail: { state, message } }));
@@ -129,44 +152,63 @@ function recordPayload(collection: SharedCollection, value: unknown): Record<str
 
 function canWrite(collection: SharedCollection): boolean {
   if (!activeUser) return false;
-  if (collection === 'threads') return false; // Handled locally / separately
+  if (collection === 'threads') return true;
   if (activeUser.role === 'admin') return true;
   if (activeUser.role === 'pemimpin') {
-    return collection === 'events' || collection === 'locations' || collection === 'reports';
+    return collection === 'events' || collection === 'locations' || collection === 'reports' || collection === 'communities';
   }
   return collection === 'locations' || collection === 'reports';
 }
 
 function recordOrganization(collection: SharedCollection): string | null {
   if (collection === 'events' || collection === 'reports') return activeUser?.communityId || null;
-  if (collection === 'communities' && activeUser?.role === 'pemimpin') return activeUser.communityId;
+  if (collection === 'communities') return activeUser?.communityId || null;
   return null;
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  if (!supabaseUrl || !supabaseAnonKey || !accessToken) {
-    throw new Error('Koneksi database bersama belum siap. Masuk kembali setelah konfigurasi Supabase selesai.');
+function getSupabaseClient(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  if (!supabaseClient) {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      global: {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      },
+    });
   }
+  return supabaseClient;
+}
 
-  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: supabaseAnonKey,
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
+function refreshSupabaseClient(token: string | null): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  accessToken = token;
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
     },
   });
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Sinkronisasi database gagal (HTTP ${response.status}): ${body || response.statusText}`);
-  }
-  const body = await response.text();
-  return body ? JSON.parse(body) as T : undefined as T;
+  return supabaseClient;
 }
 
 async function loadOrganizations(): Promise<OrganizationRecord[]> {
-  return request<OrganizationRecord[]>('mh_organizations?select=id,name,category,location,owner_id&order=name.asc');
+  const client = getSupabaseClient();
+  if (!client) return [];
+  const { data, error } = await client
+    .from('mh_organizations')
+    .select('id,name,category,location,owner_id')
+    .order('name', { ascending: true });
+  if (error) {
+    console.warn('[SharedDataService] Gagal memuat mh_organizations:', error.message);
+    return [];
+  }
+  return (data || []) as OrganizationRecord[];
 }
 
 function mergeOrganizations(organizations: OrganizationRecord[]) {
@@ -188,11 +230,123 @@ function mergeOrganizations(organizations: OrganizationRecord[]) {
       description: existing?.description ?? 'Organisasi hijau Marsiadapari Hijau.',
     });
   }
-  StorageService.applySharedSnapshot('communities', [...byId.values()]);
+  const mergedList = [...byId.values()];
+  StorageService.applySharedSnapshot('communities', mergedList);
+}
+
+/**
+ * Tangani perubahan real-time dari tabel Supabase mh_records
+ */
+function handleRemoteRecordChange(change: {
+  eventType: string;
+  new: Record<string, unknown> | null;
+  old: Record<string, unknown> | null;
+}) {
+  const newRow = change.new as Partial<SharedRecord> | null;
+  const oldRow = change.old as Partial<SharedRecord> | null;
+  const collection = (newRow?.collection || oldRow?.collection) as SharedCollection | undefined;
+  const recordId = (newRow?.record_id || oldRow?.record_id) as string | undefined;
+
+  if (!collection || !recordId || !recordCollections.includes(collection)) return;
+
+  const payload = newRow?.payload as Record<string, unknown> | undefined;
+  const isDeleted = change.eventType === 'DELETE' || payload?._deleted === true;
+
+  isApplyingRemoteChange = true;
+  try {
+    if (collection === 'brand') {
+      if (payload && !isDeleted) {
+        StorageService.saveBrandSettings(payload as any);
+        window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: payload }));
+      }
+      return;
+    }
+
+    const current = storedRecords(collection);
+    let updated: unknown[];
+
+    if (isDeleted) {
+      updated = current.filter((item) => rowId(item) !== recordId);
+      baseline.delete(makeKey(collection, recordId));
+    } else if (payload) {
+      const existingIndex = current.findIndex((item) => rowId(item) === recordId);
+      if (existingIndex >= 0) {
+        updated = [...current];
+        updated[existingIndex] = payload;
+      } else {
+        updated = [payload, ...current];
+        // Jika ada tantangan baru dari database real-time
+        if (collection === 'challenges' && typeof payload.title === 'string') {
+          PushNotificationService.notifyNewChallenge(payload as unknown as Challenge).catch(() => {});
+        }
+      }
+      baseline.set(makeKey(collection, recordId), JSON.stringify(payload));
+    } else {
+      return;
+    }
+
+    saveCollection(collection, updated);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection, values: updated } }));
+  } finally {
+    isApplyingRemoteChange = false;
+  }
+}
+
+/**
+ * Tangani perubahan real-time dari tabel Supabase mh_organizations
+ */
+function handleRemoteOrgChange(change: {
+  eventType: string;
+  new: Record<string, unknown> | null;
+  old: Record<string, unknown> | null;
+}) {
+  const org = (change.new || change.old) as Partial<OrganizationRecord> | null;
+  if (!org || !org.id) return;
+
+  isApplyingRemoteChange = true;
+  try {
+    const current = StorageService.getCommunities();
+    let updated: Community[];
+
+    if (change.eventType === 'DELETE') {
+      updated = current.filter((c) => c.id !== org.id);
+    } else {
+      const existing = current.find((c) => c.id === org.id);
+      const merged: Community = {
+        id: org.id,
+        name: org.name || existing?.name || 'Komunitas Tanpa Nama',
+        category: (org.category as Community['category']) || existing?.category || 'Komunitas Warga',
+        location: org.location || existing?.location || 'Tapanuli Utara',
+        memberCount: existing?.memberCount ?? 1,
+        totalPoints: existing?.totalPoints ?? 0,
+        treesPlanted: existing?.treesPlanted ?? 0,
+        treeTarget: existing?.treeTarget ?? 200,
+        actionCount: existing?.actionCount ?? 0,
+        actionTarget: existing?.actionTarget ?? 500,
+        description: existing?.description ?? 'Organisasi hijau Marsiadapari Hijau.',
+      };
+      const index = current.findIndex((c) => c.id === org.id);
+      if (index >= 0) {
+        updated = [...current];
+        updated[index] = merged;
+      } else {
+        updated = [...current, merged];
+      }
+    }
+
+    StorageService.applySharedSnapshot('communities', updated);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities', values: updated } }));
+  } finally {
+    isApplyingRemoteChange = false;
+  }
 }
 
 async function pushChanges(collection: SharedCollection, values: unknown[]) {
+  if (isApplyingRemoteChange) return;
   if (!canWrite(collection)) return;
+  const client = getSupabaseClient();
+  if (!client) return;
+
   const current = new Map<string, unknown>();
   for (const value of values) {
     const id = rowId(value);
@@ -204,24 +358,13 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
     const key = makeKey(collection, id);
     const serialized = snapshotValue(collection, value);
     if (baseline.get(key) === serialized) continue;
-    if (
-      collection === 'locations' &&
-      activeUser?.role === 'anggota' &&
-      (baseline.has(key) ||
-        !isRecord(value) ||
-        !['bank_sampah', 'tanam_pohon', 'bersih_danau', 'mata_air'].includes(String(value.category)) ||
-        value.approvalStatus !== 'pending' ||
-        (value.submittedBy && value.submittedBy !== activeUser.id))
-    ) continue;
 
     const recordOwnerId =
       collection === 'reports'
         ? (activeUser?.id || null)
         : collection === 'locations' && isRecord(value) && typeof value.submittedBy === 'string'
         ? value.submittedBy
-        : collection === 'threads'
-        ? (activeUser?.id || null)
-        : null;
+        : activeUser?.id || null;
 
     changes.push({
       collection,
@@ -239,7 +382,7 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
       changes.push({
         collection,
         record_id: id,
-        owner_id: null,
+        owner_id: activeUser?.id || null,
         organization_id: recordOrganization(collection),
         payload: { id, _deleted: true },
       });
@@ -248,11 +391,18 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
 
   if (changes.length === 0) return;
   try {
-    await request('mh_records?on_conflict=collection,record_id', {
-      method: 'POST',
-      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-      body: JSON.stringify(changes),
-    });
+    const { error } = await client
+      .from('mh_records')
+      .upsert(changes, { onConflict: 'collection,record_id' });
+
+    if (error) {
+      console.warn(`[SharedDataService] pushChanges notice for ${collection}:`, error.message);
+      if (activeUser?.role === 'admin') {
+        throw new Error(`Sinkronisasi database gagal: ${error.message}`);
+      }
+      return;
+    }
+
     for (const change of changes) {
       const key = makeKey(collection, change.record_id);
       baseline.set(
@@ -261,16 +411,15 @@ async function pushChanges(collection: SharedCollection, values: unknown[]) {
       );
     }
   } catch (err) {
-    console.warn(`[SharedDataService] pushChanges skipped or limited by RLS for ${collection}:`, err);
-    // Do not throw if local data is preserved and user lacks permission to write system-wide table
-    if (activeUser?.role !== 'admin') {
-      return;
+    if (activeUser?.role === 'admin') {
+      throw err;
     }
-    throw err;
+    console.warn(`[SharedDataService] pushChanges skipped:`, err);
   }
 }
 
 async function handleLocalChange(event: Event) {
+  if (isApplyingRemoteChange) return;
   const detail = (event as CustomEvent<{ collection: SharedCollection; values: unknown[] }>).detail;
   if (!detail || !recordCollections.includes(detail.collection)) return;
   queue = queue.then(async () => {
@@ -293,29 +442,217 @@ export class SharedDataService {
     return Boolean(supabaseUrl && supabaseAnonKey);
   }
 
+  static getClient(): SupabaseClient | null {
+    return getSupabaseClient();
+  }
+
+  /**
+   * Operasi UPSERT record langsung ke tabel mh_records di Supabase
+   * Mengirim perubahan ke cloud database sehingga dapat dilihat publik/seluruh pengguna.
+   */
+  static async upsertRecord(
+    collection: SharedCollection,
+    recordId: string,
+    payload: Record<string, unknown>,
+    ownerId?: string | null,
+    organizationId?: string | null,
+  ): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) {
+      console.warn('[SharedDataService] Supabase client tidak tersedia, melewati upsertRecord.');
+      return;
+    }
+
+    const sanitizedPayload = recordPayload(collection, payload);
+    const row: SharedRecord = {
+      collection,
+      record_id: recordId,
+      owner_id: ownerId !== undefined ? ownerId : (activeUser?.id || null),
+      organization_id: organizationId !== undefined ? organizationId : recordOrganization(collection),
+      payload: sanitizedPayload,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await client
+      .from('mh_records')
+      .upsert(row, { onConflict: 'collection,record_id' });
+
+    if (error) {
+      console.error(`[SharedDataService] Gagal upsert ${collection}:${recordId}:`, error);
+      throw new Error(`Sinkronisasi Supabase gagal (${collection}): ${error.message}`);
+    }
+
+    baseline.set(makeKey(collection, recordId), snapshotValue(collection, payload));
+    emitStatus('synced');
+  }
+
+  /**
+   * Operasi DELETE record langsung di tabel mh_records di Supabase
+   * Menggunakan soft delete payload _deleted: true agar tertangkap event WebSocket realtime
+   * dan menghapus row dari Supabase.
+   */
+  static async deleteRecord(collection: SharedCollection, recordId: string): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    // 1. Soft-delete payload agar client lain menerima realtime update seketika
+    const softDeleteRow: SharedRecord = {
+      collection,
+      record_id: recordId,
+      owner_id: activeUser?.id || null,
+      organization_id: recordOrganization(collection),
+      payload: { id: recordId, _deleted: true },
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      await client
+        .from('mh_records')
+        .upsert(softDeleteRow, { onConflict: 'collection,record_id' });
+    } catch (e: unknown) {
+      console.warn('[SharedDataService] soft-delete warning:', e);
+    }
+
+    // 2. Hard delete jika izin RLS memungkinkan
+    try {
+      await client
+        .from('mh_records')
+        .delete()
+        .match({ collection, record_id: recordId });
+    } catch {
+      // Ignored if RLS prevents hard delete
+    }
+
+    baseline.delete(makeKey(collection, recordId));
+    emitStatus('synced');
+  }
+
+  /**
+   * CRUD: Upsert Organisasi ke tabel mh_organizations dan mh_records ('communities')
+   */
+  static async upsertOrganization(community: Community, ownerId?: string | null): Promise<void> {
+    const client = getSupabaseClient();
+    if (!client) return;
+
+    const validOwnerId = ownerId || activeUser?.id;
+    // Tulis ke mh_organizations jika owner_id tersedia
+    if (validOwnerId) {
+      const { error: orgError } = await client.from('mh_organizations').upsert(
+        {
+          id: community.id,
+          name: community.name,
+          category: community.category,
+          location: community.location || 'Tapanuli Utara',
+          owner_id: validOwnerId,
+        },
+        { onConflict: 'id' },
+      );
+      if (orgError) {
+        console.warn('[SharedDataService] mh_organizations upsert:', orgError.message);
+      }
+    }
+
+    // Selalu simpan snapshot lengkap komunitas ke mh_records ('communities')
+    await this.upsertRecord(
+      'communities',
+      community.id,
+      community as unknown as Record<string, unknown>,
+      validOwnerId || null,
+      community.id,
+    );
+  }
+
+  /**
+   * CRUD: Hapus Organisasi dari tabel mh_organizations dan mh_records
+   */
+  static async deleteOrganization(organizationId: string): Promise<void> {
+    const client = getSupabaseClient();
+    if (client) {
+      try {
+        await client
+          .from('mh_organizations')
+          .delete()
+          .match({ id: organizationId });
+      } catch (e: unknown) {
+        console.warn('[SharedDataService] delete org error:', e);
+      }
+    }
+    await this.deleteRecord('communities', organizationId);
+  }
+
+  /**
+   * CRUD: Tantangan (Challenges)
+   */
+  static async upsertChallenge(challenge: Challenge): Promise<void> {
+    await this.upsertRecord('challenges', challenge.id, challenge as unknown as Record<string, unknown>);
+  }
+
+  static async deleteChallenge(challengeId: string): Promise<void> {
+    await this.deleteRecord('challenges', challengeId);
+  }
+
+  /**
+   * CRUD: Kegiatan Hijau (Events)
+   */
+  static async upsertEvent(event: GreenEvent): Promise<void> {
+    await this.upsertRecord('events', event.id, event as unknown as Record<string, unknown>);
+  }
+
+  static async deleteEvent(eventId: string): Promise<void> {
+    await this.deleteRecord('events', eventId);
+  }
+
+  /**
+   * CRUD: Renungan Harian (Devotions)
+   */
+  static async upsertDevotion(devotion: Devotion): Promise<void> {
+    await this.upsertRecord('devotions', devotion.id, devotion as unknown as Record<string, unknown>);
+  }
+
+  static async deleteDevotion(devotionId: string): Promise<void> {
+    await this.deleteRecord('devotions', devotionId);
+  }
+
+  /**
+   * CRUD: Laporan Lingkungan (Reports)
+   */
+  static async upsertReport(report: EnvironmentalReport): Promise<void> {
+    await this.upsertRecord('reports', report.id, report as unknown as Record<string, unknown>);
+  }
+
+  static async deleteReport(reportId: string): Promise<void> {
+    await this.deleteRecord('reports', reportId);
+  }
+
+  /**
+   * CRUD: Titik Peta (Locations)
+   */
+  static async upsertLocation(location: MapMarkerLocation): Promise<void> {
+    await this.upsertRecord('locations', location.id, location as unknown as Record<string, unknown>);
+  }
+
+  static async deleteLocation(locationId: string): Promise<void> {
+    await this.deleteRecord('locations', locationId);
+  }
+
+  /**
+   * Muat titik peta dari database Supabase
+   */
   static async refreshMapLocations(): Promise<MapMarkerLocation[]> {
-    if (!supabaseUrl || !supabaseAnonKey) return StorageService.getMapLocations();
+    const client = getSupabaseClient();
+    if (!client) return StorageService.getMapLocations();
 
-    const query = new URLSearchParams({
-      select: accessToken ? 'payload,owner_id' : 'payload',
-      collection: 'eq.locations',
-    });
-    const response = accessToken
-      ? await request<SharedRecord[]>(`mh_records?${query}`)
-      : await fetch(`${supabaseUrl}/rest/v1/mh_records?${query}`, {
-          headers: {
-            apikey: supabaseAnonKey,
-            Authorization: `Bearer ${supabaseAnonKey}`,
-          },
-        }).then(async (result) => {
-          if (!result.ok) {
-            const body = await result.text();
-            throw new Error(`Titik peta gagal dimuat (HTTP ${result.status}): ${body || result.statusText}`);
-          }
-          return await result.json() as SharedRecord[];
-        });
+    const { data, error } = await client
+      .from('mh_records')
+      .select('payload,owner_id')
+      .eq('collection', 'locations');
 
-    const locations = response
+    if (error) {
+      console.warn('[SharedDataService] Titik peta gagal dimuat:', error.message);
+      return StorageService.getMapLocations();
+    }
+
+    const locations = (data || [])
       .filter((record) => record.payload?._deleted !== true && isMapLocation(record.payload))
       .map((record) => {
         const location = record.payload as unknown as MapMarkerLocation;
@@ -324,9 +661,10 @@ export class SharedDataService {
         }
         return location;
       });
+
     if (activeUser) {
-      const localPending = StorageService.getMapLocations().filter((location) =>
-        location.approvalStatus === 'pending' && location.submittedBy === activeUser?.id,
+      const localPending = StorageService.getMapLocations().filter(
+        (location) => location.approvalStatus === 'pending' && location.submittedBy === activeUser?.id,
       );
       const byId = new Map(locations.map((location) => [location.id, location]));
       for (const location of localPending) {
@@ -339,25 +677,35 @@ export class SharedDataService {
     return locations;
   }
 
+  /**
+   * Inisialisasi koneksi sinkronisasi & aktifkan subscription real-time WebSocket
+   */
   static async connect(user: User, token: string | null): Promise<void> {
     this.disconnect();
     activeUser = user;
     accessToken = token;
-    if (!this.isConfigured() || !token) {
-      emitStatus('offline', 'Database bersama belum terhubung. Perubahan tersimpan di perangkat ini.');
+
+    const client = refreshSupabaseClient(token);
+    if (!client) {
+      emitStatus('offline', 'Database Supabase belum dikonfigurasi. Menggunakan penyimpanan lokal.');
       return;
     }
 
     emitStatus('connecting');
     try {
-      const [remoteRecords, organizations] = await Promise.all([
-        request<SharedRecord[]>('mh_records?select=collection,record_id,owner_id,organization_id,payload'),
+      const [remoteRecordsRes, organizations] = await Promise.all([
+        client
+          .from('mh_records')
+          .select('collection,record_id,owner_id,organization_id,payload'),
         loadOrganizations(),
       ]);
+
+      const remoteRecords = (remoteRecordsRes.data || []) as SharedRecord[];
       const grouped = new Map<SharedCollection, Map<string, unknown>>();
       const deleted = new Map<SharedCollection, Set<string>>();
-      for (const collection of recordCollections) grouped.set(collection, new Map());
-      for (const collection of recordCollections) deleted.set(collection, new Set());
+      for (const col of recordCollections) grouped.set(col, new Map());
+      for (const col of recordCollections) deleted.set(col, new Set());
+
       for (const record of remoteRecords) {
         if (!grouped.has(record.collection)) continue;
         if (record.payload?._deleted === true) {
@@ -365,34 +713,60 @@ export class SharedDataService {
           baseline.set(makeKey(record.collection, record.record_id), JSON.stringify(record.payload));
           continue;
         }
-        const payload = record.collection === 'locations' &&
+        const payload =
+          record.collection === 'locations' &&
           record.payload.approvalStatus === 'pending' &&
           record.owner_id
-          ? { ...record.payload, submittedBy: record.owner_id }
-          : record.payload;
+            ? { ...record.payload, submittedBy: record.owner_id }
+            : record.payload;
         grouped.get(record.collection)!.set(record.record_id, payload);
         baseline.set(makeKey(record.collection, record.record_id), JSON.stringify(payload));
       }
 
-      for (const collection of recordCollections) {
+      for (const col of recordCollections) {
         const merged = new Map<string, unknown>();
-        for (const value of storedRecords(collection)) {
+        for (const value of storedRecords(col)) {
           const id = rowId(value);
-          if (id && !deleted.get(collection)!.has(id)) merged.set(id, value);
+          if (id && !deleted.get(col)!.has(id)) merged.set(id, value);
         }
-        for (const [id, value] of grouped.get(collection)!) merged.set(id, value);
-        saveCollection(collection, [...merged.values()]);
+        for (const [id, value] of grouped.get(col)!) merged.set(id, value);
+        saveCollection(col, [...merged.values()]);
       }
       mergeOrganizations(organizations);
 
-      for (const collection of recordCollections) {
-        for (const value of storedRecords(collection)) {
+      for (const col of recordCollections) {
+        for (const value of storedRecords(col)) {
           const id = rowId(value);
-          if (id && !baseline.has(makeKey(collection, id))) {
-            baseline.set(makeKey(collection, id), snapshotValue(collection, value));
+          if (id && !baseline.has(makeKey(col, id))) {
+            baseline.set(makeKey(col, id), snapshotValue(col, value));
           }
         }
       }
+
+      // Aktifkan Real-Time WebSocket Channel
+      realtimeChannel = client
+        .channel('public:mh_realtime_changes')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'mh_records' },
+          (payload) => {
+            handleRemoteRecordChange(payload);
+          },
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'mh_organizations' },
+          (payload) => {
+            handleRemoteOrgChange(payload);
+          },
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('[SharedDataService] Realtime channel tersambung.');
+            emitStatus('synced');
+          }
+        });
+
       window.addEventListener('mh-shared-data-change', handleLocalChange);
       emitStatus('synced');
     } catch (error) {
@@ -404,6 +778,10 @@ export class SharedDataService {
 
   static disconnect() {
     window.removeEventListener('mh-shared-data-change', handleLocalChange);
+    if (realtimeChannel) {
+      void realtimeChannel.unsubscribe();
+      realtimeChannel = null;
+    }
     activeUser = null;
     accessToken = null;
     baseline = new Map();

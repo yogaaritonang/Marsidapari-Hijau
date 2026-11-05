@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Volume2, VolumeX, Waves, Sparkles, Sliders } from 'lucide-react';
+import { Volume2, VolumeX, Waves, Sliders } from 'lucide-react';
 
 interface AmbientAudioPlayerProps {
   tintColor?: string;

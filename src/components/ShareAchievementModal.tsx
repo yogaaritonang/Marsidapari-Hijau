@@ -5,7 +5,6 @@ import {
   Copy,
   Check,
   Send,
-  Sparkles,
   Award,
   Trees,
   Trash2,
@@ -83,7 +82,7 @@ export const ShareAchievementModal: React.FC<ShareAchievementModalProps> = ({
         {/* Modal Header */}
         <div className="pr-8">
           <span className="inline-flex items-center gap-1 text-[11px] font-extrabold uppercase tracking-wider text-[#2E6B34] dark:text-emerald-400">
-            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <Award className="h-3.5 w-3.5 text-emerald-500" />
             Ajak Sahabat &amp; Jemaat
           </span>
           <h3 className="text-lg font-bold font-poppins text-[#1F2A1F] dark:text-white">

@@ -5,7 +5,6 @@ import {
   MapPin,
   BookOpen,
   Calendar,
-  Sparkles,
   Trees,
   Droplet,
   Trash2,

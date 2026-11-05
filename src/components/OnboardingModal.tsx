@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserRound,
   X,
+  UserCheck,
 } from 'lucide-react';
 import { User, Community } from '../types';
 import { StorageService } from '../services/storageService';
@@ -170,6 +171,41 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     setCode('');
     setError(null);
     setMessage(null);
+  };
+
+  const handleGuestLogin = () => {
+    const primaryComm = communities[0] || {
+      id: 'org-hkbp-tarutung',
+      name: 'HKBP Tarutung Kota',
+    };
+    const role = portal === 'admin' ? 'admin' : portal === 'leader' ? 'pemimpin' : 'anggota';
+    const roleTitle = portal === 'admin' ? 'Admin' : portal === 'leader' ? 'Pemimpin' : 'Tamu Panitia';
+
+    const guestUser: User = {
+      id: `guest-panitia-${Date.now().toString(36)}`,
+      name: `Panitia Penilai (${roleTitle})`,
+      contact: 'panitia@marsiadapari.org',
+      role,
+      communityId: primaryComm.id,
+      communityName: primaryComm.name,
+      points: 250,
+      streakDays: 7,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+      joinedDate: new Date().toISOString().split('T')[0],
+      preferences: {
+        fontSize: 'normal',
+        darkMode: false,
+        dataSaver: false,
+        notifications: true,
+        isAnonymous: false,
+      },
+    };
+
+    StorageService.saveUser(guestUser);
+    StorageService.setOnboarded(true);
+    window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: guestUser }));
+    if (onClose) onClose();
+    onComplete(guestUser);
   };
 
   return (
@@ -350,6 +386,41 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     >
                       {portal === 'leader' ? 'Masuk Pemimpin' : 'Masuk'}
                     </button>
+                  </div>
+                )}
+
+                {stage === 'form' && (
+                  <div className="mb-5 rounded-2xl border-2 border-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/10 p-3.5 transition hover:border-emerald-500/60">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                        <UserCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        Akses Penilaian Panitia / Tamu
+                      </span>
+                      <span className="rounded-full bg-emerald-600/20 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                        Instan
+                      </span>
+                    </div>
+                    <p className="text-xs leading-relaxed text-gray-600 dark:text-gray-300 mb-3">
+                      Khusus dewan juri & panitia lomba: Klik tombol di bawah untuk langsung masuk dan menguji seluruh fitur aplikasi (aksi gotong royong, kebun virtual, liturgi, peta hijau, dll.) tanpa perlu verifikasi email.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleGuestLogin}
+                      className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#2E6B34] to-[#1E4D25] hover:from-[#24582B] hover:to-[#173D1D] px-4 text-xs font-bold text-white shadow-md shadow-emerald-950/20 transition cursor-pointer"
+                    >
+                      <UserRound className="h-4 w-4" />
+                      <span>Masuk sebagai Tamu (Mode Penilaian Panitia)</span>
+                    </button>
+                    <div className="relative my-3">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-200 dark:border-white/10" />
+                      </div>
+                      <div className="relative flex justify-center text-[10px] uppercase">
+                        <span className="bg-[#FAF6EC] dark:bg-[#142518] px-2 text-gray-400 font-semibold tracking-wider">
+                          Atau Gunakan Email Pribadi
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
 

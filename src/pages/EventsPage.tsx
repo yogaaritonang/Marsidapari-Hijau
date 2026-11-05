@@ -12,7 +12,6 @@ import {
   ChevronLeft,
   ChevronRight,
   List,
-  Sparkles,
   CalendarCheck,
 } from 'lucide-react';
 import { GreenEvent } from '../types';

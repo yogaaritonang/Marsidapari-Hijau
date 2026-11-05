@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Sparkles, Bot, ArrowRight } from 'lucide-react';
+import { X, Send, Leaf, Bot, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, ChatMessage } from '../types';
 import { AIService } from '../services/aiService';
@@ -176,7 +176,7 @@ export const FloatingChatbot: React.FC<FloatingChatbotProps> = ({ user, onOpenCh
                   <div>
                     <h3 className="text-sm font-bold font-poppins leading-tight flex items-center gap-1.5">
                       Sahabat Ciptaan
-                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <Leaf className="w-3.5 h-3.5 text-emerald-300" />
                     </h3>
                     <p className="text-[11px] text-[#A8D5A2] leading-none mt-0.5">
                       Asisten Ekoteologi Kristen Danau Toba

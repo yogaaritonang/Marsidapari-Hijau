@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   Trees,
   Droplet,
-  Sparkles,
   Award,
   ChevronRight,
   Heart,

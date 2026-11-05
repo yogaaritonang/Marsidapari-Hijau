@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, X, Smartphone, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Download, X, Smartphone, CheckCircle2 } from 'lucide-react';
 import { usePWAInstall } from './usePWAInstall';
 
 export const PWAInstallButton: React.FC<{ className?: string }> = ({ className = '' }) => {

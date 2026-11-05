@@ -6,7 +6,6 @@ import {
   Image as ImageIcon,
   Send,
   X,
-  Sparkles,
   AlertCircle,
   Lightbulb,
   CheckCircle2,
@@ -389,7 +388,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
       <div className="space-y-3">
         {filteredThreads.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-[#2E6B34]/30 bg-white/70 p-8 text-center text-gray-500">
-            <Sparkles className="mx-auto h-8 w-8 text-[#2E6B34]/40 mb-2" />
+            <MessageCircle className="mx-auto h-8 w-8 text-[#2E6B34]/40 mb-2" />
             <p className="text-sm font-bold text-gray-700">Belum ada utas di kategori ini</p>
             <p className="text-xs text-gray-500 mt-1">Jadilah yang pertama membagikan ide atau foto aksi!</p>
           </div>

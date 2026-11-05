@@ -16,7 +16,6 @@ import {
   Save,
   MapPin,
   Calendar,
-  Sparkles,
   Award,
   RefreshCw,
 } from 'lucide-react';

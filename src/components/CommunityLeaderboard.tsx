@@ -14,7 +14,6 @@ import {
   EyeOff,
   Heart,
   ChevronRight,
-  Sparkles,
   Info,
   X,
   Share2,
@@ -288,7 +287,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
       {toastMessage && (
         <div className="fixed top-18 left-4 right-4 z-50 p-3 bg-gradient-to-r from-[#2E6B34] to-[#1E4A23] text-white rounded-2xl shadow-xl flex items-center justify-between gap-2 border border-emerald-400 text-xs font-semibold animate-in slide-in-from-top-4 duration-300">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-amber-300 shrink-0 animate-spin" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-300 shrink-0" />
             <span>{toastMessage}</span>
           </div>
           <button
@@ -374,7 +373,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
         {userAbove ? (
           <div className="p-2.5 rounded-2xl bg-white/90 border border-[#2E6B34]/20 flex items-center justify-between text-xs text-gray-700">
             <div className="flex items-center gap-1.5 text-[11px]">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <Trophy className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span>
                 Hanya butuh{' '}
                 <strong className="text-[#2E6B34]">

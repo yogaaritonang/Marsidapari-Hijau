@@ -3,7 +3,6 @@ import {
   AlertTriangle,
   Camera,
   MapPin,
-  Sparkles,
   CheckCircle2,
   Clock,
   Plus,
@@ -383,7 +382,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
                     disabled={polishingWithAi || !rawNotes.trim()}
                     className="text-[11px] font-bold text-[#2E6B34] hover:underline flex items-center gap-1 disabled:opacity-40 cursor-pointer"
                   >
-                    <Sparkles className="w-3 h-3 text-amber-500" />
+                    <CheckCircle2 className="w-3 h-3 text-[#2E6B34]" />
                     <span>{polishingWithAi ? 'Merumuskan...' : 'Rapikan Deskripsi Otomatis'}</span>
                   </button>
                 </div>

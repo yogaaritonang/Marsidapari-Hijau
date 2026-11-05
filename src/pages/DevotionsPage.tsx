@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   BookOpen,
-  Sparkles,
+  Leaf,
   Bookmark,
   BookmarkCheck,
   Flame,
@@ -106,7 +106,7 @@ export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChal
           onClick={() => setShowAiModal(true)}
           className="touch-target inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-[#2E6B34] to-[#1F4B23] text-white text-xs font-bold hover:shadow-md transition active:scale-95 shadow-xs"
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+          <Leaf className="w-3.5 h-3.5 text-emerald-200" />
           <span>Buat untukku</span>
         </button>
       </div>
@@ -301,7 +301,7 @@ export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChal
           <div className="w-full max-w-sm rounded-3xl bg-[#FAF6EC] border border-[#2E6B34]/25 p-5 shadow-2xl space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-gray-200">
               <div className="flex items-center gap-2 text-[#2E6B34]">
-                <Sparkles className="w-5 h-5 text-amber-500" />
+                <BookOpen className="w-5 h-5 text-[#2E6B34]" />
                 <h3 className="text-sm font-bold font-poppins">
                   Buat Renungan untukku
                 </h3>
@@ -355,7 +355,7 @@ export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChal
                 onClick={handleGenerateCustom}
                 className="flex-1 py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-50 transition active:scale-95 shadow-md flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <BookOpen className="w-3.5 h-3.5 text-emerald-200" />
                 <span>{generating ? 'Menyusun Renungan...' : 'Susun Renungan Otomatis'}</span>
               </button>
             </div>

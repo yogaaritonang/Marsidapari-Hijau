@@ -8,7 +8,6 @@ import {
   Users,
   CheckCircle2,
   ArrowRight,
-  Sparkles,
 } from 'lucide-react';
 import { GreenEvent } from '../types';
 import { StorageService } from '../services/storageService';

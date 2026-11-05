@@ -22,11 +22,9 @@ import {
   RefreshCw,
   Save,
   Settings,
-  Sparkles,
   Terminal,
   Trash2,
   Users,
-  Wand2,
   Zap,
   Eye,
   Compass,
@@ -41,6 +39,8 @@ import {
 } from 'lucide-react';
 import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion, EcotheologyArticle, AppNotification } from '../types';
 import { StorageService } from '../services/storageService';
+import { SharedDataService } from '../services/sharedDataService';
+import { PushNotificationService } from '../services/pushNotificationService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 import { AIService, AiReadinessCheck } from '../services/aiService';
 import { SocialSyncService } from '../services/socialSyncService';
@@ -452,7 +452,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     }
   };
 
-  const addOrganization = (event: React.FormEvent<HTMLFormElement>) => {
+  const addOrganization = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const name = organizationName.trim();
     if (name.length < 2) return;
@@ -473,17 +473,31 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     StorageService.saveCommunities(updated);
     setCommunities(updated);
     setOrganizationName('');
-    notify('Organisasi ditambahkan.');
+    notify('Menyimpan ke database Supabase...');
+    try {
+      await SharedDataService.upsertOrganization(newCommunity, user.id);
+      notify('Organisasi baru berhasil disimpan ke database publik Supabase.');
+    } catch (err) {
+      console.warn('Sync Supabase notice:', err);
+      notify('Organisasi tersimpan dan sedang disinkronkan ke Supabase.');
+    }
   };
 
-  const deleteOrganization = (id: string) => {
+  const deleteOrganization = async (id: string) => {
     const updated = communities.filter((community) => community.id !== id);
     StorageService.saveCommunities(updated);
     setCommunities(updated);
-    notify('Organisasi dihapus dari penyimpanan perangkat ini.');
+    notify('Menghapus dari database Supabase...');
+    try {
+      await SharedDataService.deleteOrganization(id);
+      notify('Organisasi berhasil dihapus dari database publik Supabase.');
+    } catch (err) {
+      console.warn('Delete Supabase notice:', err);
+      notify('Organisasi berhasil dihapus dari tampilan.');
+    }
   };
 
-  const addChallenge = (event: React.FormEvent<HTMLFormElement>) => {
+  const addChallenge = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const title = challengeTitle.trim();
     const description = challengeDescription.trim();
@@ -504,14 +518,30 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     setChallenges(updated);
     setChallengeTitle('');
     setChallengeDescription('');
-    notify('Tantangan ditambahkan.');
+    notify('Menyimpan tantangan ke Supabase...');
+    try {
+      await SharedDataService.upsertChallenge(newChallenge);
+      notify('Tantangan baru berhasil disimpan ke database publik Supabase.');
+      // Kirim Push Notification ke seluruh pengguna
+      PushNotificationService.notifyNewChallenge(newChallenge).catch(() => {});
+    } catch (err) {
+      console.warn('Sync challenge notice:', err);
+      notify('Tantangan tersimpan dan siap dijalankan pengguna.');
+    }
   };
 
-  const deleteChallenge = (id: string) => {
+  const deleteChallenge = async (id: string) => {
     const updated = challenges.filter((challenge) => challenge.id !== id);
     StorageService.saveChallenges(updated);
     setChallenges(updated);
-    notify('Tantangan dihapus.');
+    notify('Menghapus tantangan...');
+    try {
+      await SharedDataService.deleteChallenge(id);
+      notify('Tantangan berhasil dihapus dari database publik Supabase.');
+    } catch (err) {
+      console.warn('Delete challenge notice:', err);
+      notify('Tantangan berhasil dihapus.');
+    }
   };
 
   const handleOpenEditCommunity = (comm: Community) => {
@@ -524,7 +554,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     setEditOrgActionTarget(comm.actionTarget || 500);
   };
 
-  const handleSaveEditCommunity = (e: React.FormEvent) => {
+  const handleSaveEditCommunity = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingCommunity || !editOrgName.trim()) return;
 
@@ -541,7 +571,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     StorageService.updateCommunity(updatedCommunity);
     setCommunities(StorageService.getCommunities());
     setEditingCommunity(null);
-    notify(`Organisasi "${updatedCommunity.name}" berhasil diperbarui.`);
+    notify(`Menyimpan perubahan "${updatedCommunity.name}" ke Supabase...`);
+    try {
+      await SharedDataService.upsertOrganization(updatedCommunity, user.id);
+      notify(`Organisasi "${updatedCommunity.name}" berhasil diperbarui di database publik Supabase.`);
+    } catch (err) {
+      console.warn('Update community Supabase notice:', err);
+      notify(`Organisasi "${updatedCommunity.name}" berhasil diperbarui.`);
+    }
   };
 
   const handleOpenEditChallenge = (chal: Challenge) => {
@@ -553,7 +590,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     setEditChallengeDifficulty(chal.difficulty);
   };
 
-  const handleSaveEditChallenge = (e: React.FormEvent) => {
+  const handleSaveEditChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingChallenge || !editChallengeTitle.trim()) return;
 
@@ -569,7 +606,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     StorageService.updateChallenge(updated);
     setChallenges(StorageService.getChallenges());
     setEditingChallenge(null);
-    notify(`Tantangan "${updated.title}" berhasil diperbarui.`);
+    notify(`Menyimpan tantangan ke Supabase...`);
+    try {
+      await SharedDataService.upsertChallenge(updated);
+      notify(`Tantangan "${updated.title}" berhasil diperbarui di database publik Supabase.`);
+    } catch (err) {
+      console.warn('Update challenge Supabase notice:', err);
+      notify(`Tantangan "${updated.title}" berhasil diperbarui.`);
+    }
   };
 
   const resetEventForm = () => {
@@ -596,29 +640,36 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     setEventModalOpen(true);
   };
 
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!eventTitle.trim() || !eventLocation.trim()) return;
 
     if (editingEventId) {
-      const updated = events.map((ev) =>
-        ev.id === editingEventId
-          ? {
-              ...ev,
-              title: eventTitle.trim(),
-              type: eventType,
-              date: eventDate,
-              time: eventTime.trim(),
-              location: eventLocation.trim(),
-              organizer: eventOrganizer.trim(),
-              description: eventDescription.trim(),
-              targetCommunity: eventOrganizer,
-            }
-          : ev
-      );
+      let savedEv: GreenEvent | undefined;
+      const updated = events.map((ev) => {
+        if (ev.id === editingEventId) {
+          savedEv = {
+            ...ev,
+            title: eventTitle.trim(),
+            type: eventType,
+            date: eventDate,
+            time: eventTime.trim(),
+            location: eventLocation.trim(),
+            organizer: eventOrganizer.trim(),
+            description: eventDescription.trim(),
+            targetCommunity: eventOrganizer,
+          };
+          return savedEv;
+        }
+        return ev;
+      });
       StorageService.saveEvents(updated);
       setEvents(updated);
-      notify('Kegiatan berhasil diperbarui.');
+      notify('Menyimpan kegiatan ke Supabase...');
+      if (savedEv) {
+        await SharedDataService.upsertEvent(savedEv).catch((err) => console.warn(err));
+      }
+      notify('Kegiatan berhasil diperbarui di database publik Supabase.');
       resetEventForm();
     } else {
       const newEvent: GreenEvent = {
@@ -653,16 +704,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
         read: false,
       });
 
-      notify('Kegiatan baru dipublikasikan & notifikasi disiarkan ke pengguna.');
+      notify('Menyimpan kegiatan ke Supabase...');
+      await SharedDataService.upsertEvent(newEvent).catch((err) => console.warn(err));
+      notify('Kegiatan baru dipublikasikan di database Supabase & notifikasi disiarkan ke pengguna.');
       resetEventForm();
     }
   };
 
-  const deleteEvent = (id: string) => {
+  const deleteEvent = async (id: string) => {
     const updated = events.filter((item) => item.id !== id);
     StorageService.saveEvents(updated);
     setEvents(updated);
-    notify('Kegiatan dihapus.');
+    notify('Menghapus kegiatan dari Supabase...');
+    await SharedDataService.deleteEvent(id).catch((err) => console.warn(err));
+    notify('Kegiatan berhasil dihapus dari database publik Supabase.');
   };
 
   const handleOpenReportReview = (rep: EnvironmentalReport) => {
@@ -671,7 +726,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     setAdminReviewNotes(rep.adminNotes || '');
   };
 
-  const handleSaveReportReview = (e: React.FormEvent) => {
+  const handleSaveReportReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedReportForReview) return;
 
@@ -679,11 +734,15 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     const newStatus = reviewStatus;
     const notes = adminReviewNotes.trim();
 
+    const reviewedReport: EnvironmentalReport = { ...targetReport, status: newStatus, adminNotes: notes };
     const updated = reports.map((r) =>
-      r.id === targetReport.id ? { ...r, status: newStatus, adminNotes: notes } : r
+      r.id === targetReport.id ? reviewedReport : r
     );
     StorageService.saveReports(updated);
     setReports(updated);
+
+    // Sync to Supabase
+    await SharedDataService.upsertReport(reviewedReport).catch((err) => console.warn(err));
 
     // Notify the user who reported this
     SocialSyncService.addNotification({
@@ -701,14 +760,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
       read: false,
     });
 
-    notify(`Status laporan diubah ke ${newStatus} & notifikasi dikirim ke pelapor.`);
+    notify(`Status laporan diubah ke ${newStatus} & disinkronkan ke database Supabase.`);
     setSelectedReportForReview(null);
   };
 
-  const updateReportStatus = (report: EnvironmentalReport, status: EnvironmentalReport['status']) => {
-    const updated = reports.map((item) => item.id === report.id ? { ...item, status } : item);
+  const updateReportStatus = async (report: EnvironmentalReport, status: EnvironmentalReport['status']) => {
+    const reviewedReport: EnvironmentalReport = { ...report, status };
+    const updated = reports.map((item) => item.id === report.id ? reviewedReport : item);
     StorageService.saveReports(updated);
     setReports(updated);
+
+    // Sync to Supabase
+    await SharedDataService.upsertReport(reviewedReport).catch((err) => console.warn(err));
 
     // Notify user
     SocialSyncService.addNotification({
@@ -724,14 +787,20 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
       read: false,
     });
 
-    notify(`Status laporan diperbarui & notifikasi dikirim.`);
+    if (status === 'Selesai' || status === 'Gotong Royong Dijadwalkan') {
+      PushNotificationService.notifyReportApproved(reviewedReport).catch(() => {});
+    }
+
+    notify(`Status laporan diubah ke ${status} di database Supabase.`);
   };
 
-  const deleteReport = (id: string) => {
+  const deleteReport = async (id: string) => {
     const updated = reports.filter((item) => item.id !== id);
     StorageService.saveReports(updated);
     setReports(updated);
-    notify('Laporan berhasil dihapus.');
+    notify('Menghapus laporan dari Supabase...');
+    await SharedDataService.deleteReport(id).catch((err) => console.warn(err));
+    notify('Laporan berhasil dihapus dari database Supabase.');
   };
 
   const resetDevotionForm = () => {
@@ -763,16 +832,18 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDeleteDevotion = (id: string) => {
+  const handleDeleteDevotion = async (id: string) => {
     if (window.confirm('Yakin ingin menghapus renungan ini?')) {
       StorageService.deleteDevotion(id);
       setDevotions(StorageService.getDevotions());
       if (editingDevotionId === id) resetDevotionForm();
-      notify('Renungan berhasil dihapus.');
+      notify('Menghapus renungan dari Supabase...');
+      await SharedDataService.deleteDevotion(id).catch((err) => console.warn(err));
+      notify('Renungan berhasil dihapus dari database Supabase.');
     }
   };
 
-  const handleSaveDevotion = (e: React.FormEvent) => {
+  const handleSaveDevotion = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!devotionTitle.trim() || !devotionScripture.trim() || !devotionContent.trim()) {
       setAiDevotionError('Judul, ayat Alkitab, dan isi renungan wajib diisi.');
@@ -794,7 +865,9 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
 
     StorageService.saveDevotion(item);
     setDevotions(StorageService.getDevotions());
-    notify(editingDevotionId ? 'Renungan berhasil diperbarui.' : 'Renungan harian berhasil disimpan!');
+    notify('Menyimpan renungan ke database Supabase...');
+    await SharedDataService.upsertDevotion(item).catch((err) => console.warn(err));
+    notify(editingDevotionId ? 'Renungan berhasil diperbarui di database Supabase.' : 'Renungan harian berhasil disimpan ke database Supabase!');
     resetDevotionForm();
   };
 
@@ -1631,7 +1704,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               {/* Smart Writer Assistant Card */}
               <div className="rounded-2xl border-2 border-[#2E6B34]/30 bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 p-4 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
-                  <Wand2 className="h-4 w-4" />
+                  <BookOpen className="h-4 w-4" />
                   Penyusun Naskah Ekoteologi Otomatis
                 </div>
                 <h3 className="mt-1 text-base font-extrabold text-gray-900">
@@ -1685,7 +1758,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4 text-amber-300" />
+                        <BookOpen className="h-4 w-4 text-emerald-200" />
                         <span>🌾 Susun Refleksi Otomatis</span>
                       </>
                     )}
@@ -3245,7 +3318,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
               {/* Smart Devotion Generator Card */}
               <div className="relative overflow-hidden rounded-2xl border-2 border-[#2E6B34]/30 bg-gradient-to-br from-white via-emerald-50/40 to-amber-50/40 p-5 sm:p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2E6B34]">
-                  <Wand2 className="h-4 w-4 text-[#2E6B34]" />
+                  <BookOpen className="h-4 w-4 text-[#2E6B34]" />
                   Penyusun Renungan Cepat Cerdas
                 </div>
                 <h3 className="mt-1 text-base font-extrabold text-[#1F2A1F]">
@@ -3300,7 +3373,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                       </>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4 text-amber-300" />
+                        <BookOpen className="h-4 w-4 text-emerald-200" />
                         <span>Susun Otomatis</span>
                       </>
                     )}

@@ -24,6 +24,7 @@ import {
 } from '../data/seedData';
 import { POINT_BADGES } from '../data/badges';
 import { UserService } from './userService';
+import { PushNotificationService } from './pushNotificationService';
 
 const CIPHER_KEY = 'marsiadapari-hijau-iakn-toba-2026';
 
@@ -363,6 +364,12 @@ export class StorageService {
     window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'challenges', values: list } }));
   }
 
+  static deleteChallenge(id: string): void {
+    const list = this.getChallenges().filter((c) => c.id !== id);
+    this.saveChallenges(list);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'challenges', values: list } }));
+  }
+
   /**
    * Menghitung total pohon tertanam secara dinamis untuk komunitas pengguna atau seluruh gerakan
    * Tersinkronisasi dengan aksi/challenge yang telah diselesaikan dan diverifikasi.
@@ -579,6 +586,13 @@ export class StorageService {
           this.saveCommunities(communities);
         }
         window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
+
+        // Trigger Service Worker Push Notification untuk bukti yang disetujui
+        PushNotificationService.notifySubmissionApproved({
+          challengeTitle: sub.challengeTitle,
+          awardedPoints: sub.awardedPoints,
+          userName: sub.userName,
+        }).catch((err) => console.warn('[PushNotification] Error notifying submission approval:', err));
       }
     }
   }
@@ -695,6 +709,22 @@ export class StorageService {
   static addEvent(newEvent: GreenEvent): void {
     const events = this.getEvents();
     events.unshift(newEvent);
+    this.saveEvents(events);
+  }
+
+  static updateEvent(updated: GreenEvent): void {
+    const events = this.getEvents();
+    const index = events.findIndex((e) => e.id === updated.id);
+    if (index >= 0) {
+      events[index] = { ...events[index], ...updated };
+    } else {
+      events.unshift(updated);
+    }
+    this.saveEvents(events);
+  }
+
+  static deleteEvent(id: string): void {
+    const events = this.getEvents().filter((e) => e.id !== id);
     this.saveEvents(events);
   }
 

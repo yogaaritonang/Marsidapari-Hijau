@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ScrollText,
-  Sparkles,
   Copy,
   Printer,
   BookOpen,
@@ -172,7 +171,7 @@ export const LiturgyPage: React.FC<LiturgyPageProps> = ({ user }) => {
           onClick={handleGenerate}
           className="w-full py-2.5 rounded-xl bg-[#2E6B34] text-white text-xs font-bold hover:bg-[#235328] disabled:opacity-50 transition active:scale-95 shadow-md flex items-center justify-center gap-1.5"
         >
-          <Sparkles className="w-4 h-4 text-amber-300" />
+          <BookOpen className="w-4 h-4 text-emerald-200" />
           <span>{generating ? 'Menyusun Naskah Liturgi...' : 'Susun Doa / Liturgi Ciptaan'}</span>
         </button>
       </div>

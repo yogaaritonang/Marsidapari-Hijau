@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Leaf, Award, Sun, Moon, CloudSun, Sunrise, Bell } from 'lucide-react';
+import { Leaf, Award, Sun, Moon, CloudSun, Sunrise, Bell, UserCheck } from 'lucide-react';
 import { User, BrandSettings, AppNotification } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { StorageService } from '../services/storageService';
@@ -14,9 +14,10 @@ interface NavbarProps {
   isGuest: boolean;
   onNavigateTab: (tab: string) => void;
   onOpenAuth: (mode: 'register' | 'login') => void;
+  onGuestLogin?: (guestUser: User) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, onOpenAuth }) => {
+export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, onOpenAuth, onGuestLogin }) => {
   const [brand, setBrand] = useState<BrandSettings>(() => StorageService.getBrandSettings());
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
@@ -109,6 +110,40 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
   const rank = getRankTitle(user.points);
   const impact = StorageService.getUserImpact(user);
 
+  const handleQuickGuestLogin = () => {
+    const comms = StorageService.getCommunities();
+    const primaryComm = comms[0] || {
+      id: 'org-hkbp-tarutung',
+      name: 'HKBP Tarutung Kota',
+    };
+    const guestUser: User = {
+      id: `guest-panitia-${Date.now().toString(36)}`,
+      name: 'Panitia Penilai (Tamu)',
+      contact: 'panitia@marsiadapari.org',
+      role: 'anggota',
+      communityId: primaryComm.id,
+      communityName: primaryComm.name,
+      points: 250,
+      streakDays: 7,
+      lastActiveDate: new Date().toISOString().split('T')[0],
+      joinedDate: new Date().toISOString().split('T')[0],
+      preferences: {
+        fontSize: 'normal',
+        darkMode: false,
+        dataSaver: false,
+        notifications: true,
+        isAnonymous: false,
+      },
+    };
+
+    StorageService.saveUser(guestUser);
+    StorageService.setOnboarded(true);
+    window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: guestUser }));
+    if (onGuestLogin) {
+      onGuestLogin(guestUser);
+    }
+  };
+
   return (
     <>
       <header
@@ -144,11 +179,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                   alt={brand.name || 'Logo'}
                   className="max-h-10 max-w-10 object-contain drop-shadow-sm"
                 />
-                {/* Active status indicator dot */}
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-[#FAF6EC] dark:border-[#0F2A15]"></span>
-                </span>
               </div>
             ) : (
               <div
@@ -157,10 +187,6 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
                 }`}
               >
                 <Leaf className="w-5 h-5 text-[#A8D5A2]" />
-                <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border-2 border-[#FAF6EC] dark:border-[#0F2A15]"></span>
-                </span>
               </div>
             )}
 
@@ -198,7 +224,7 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             </div>
           </div>
 
-          {/* Right Action Cluster: PWA icon, Poin & Notifikasi */}
+          {/* Right Action Cluster: PWA icon, Masuk Tamu, Poin & Notifikasi */}
           <div
             className={`flex shrink-0 items-center gap-1.5 sm:gap-2 transition-opacity duration-300 ${
               isScrolledDown ? 'opacity-30 pointer-events-none sm:opacity-75 sm:pointer-events-auto' : 'opacity-100'
@@ -210,14 +236,46 @@ export const Navbar: React.FC<NavbarProps> = ({ user, isGuest, onNavigateTab, on
             </div>
 
             {isGuest ? (
-              <button
-                onClick={() => onOpenAuth('login')}
-                className="rounded-xl bg-[#2E6B34] hover:bg-[#235328] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
-              >
-                Masuk
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {/* Tombol Masuk Tamu Langsung di Navbar */}
+                <button
+                  type="button"
+                  onClick={handleQuickGuestLogin}
+                  className="flex items-center gap-1.5 rounded-xl border-2 border-emerald-500/70 bg-gradient-to-r from-emerald-500/20 to-emerald-600/15 dark:from-emerald-500/25 dark:to-emerald-600/20 hover:from-emerald-500/30 hover:to-emerald-600/25 px-2.5 py-1.5 text-xs font-bold text-emerald-900 dark:text-emerald-200 shadow-xs transition hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
+                  title="Masuk sebagai Tamu (Mode Penilaian Panitia)"
+                >
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="hidden xs:inline">Masuk Tamu</span>
+                  <span className="xs:hidden">Tamu</span>
+                </button>
+
+                <button
+                  onClick={() => onOpenAuth('login')}
+                  className="rounded-xl bg-[#2E6B34] hover:bg-[#235328] px-3 py-1.5 text-xs font-bold text-white shadow-xs transition active:scale-95 shrink-0 cursor-pointer"
+                >
+                  Masuk
+                </button>
+              </div>
             ) : (
               <>
+                {/* Mode Tamu Badge if active */}
+                {user.id.startsWith('guest-panitia') ? (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-100/90 dark:bg-emerald-950/80 border border-emerald-400/60 px-2 py-0.5 rounded-full shrink-0">
+                    <UserCheck className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    Mode Tamu Panitia
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleQuickGuestLogin}
+                    className="hidden lg:flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-300 transition cursor-pointer shrink-0"
+                    title="Uji coba sebagai Tamu Penilai Lomba"
+                  >
+                    <UserCheck className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span>Mode Tamu</span>
+                  </button>
+                )}
+
                 {/* Live Green Points Badge */}
                 <button
                   type="button"

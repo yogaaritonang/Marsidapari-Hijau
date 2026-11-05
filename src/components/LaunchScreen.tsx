@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Leaf, Sparkles, BookOpen, ChevronRight } from 'lucide-react';
+import { Leaf, BookOpen, ChevronRight } from 'lucide-react';
 import { BrandSettings } from '../types';
 import { StorageService } from '../services/storageService';
 import { BatakGorgaBorder, BatakUlosRibbon } from './BatakPattern';
