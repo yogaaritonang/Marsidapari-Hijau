@@ -698,6 +698,34 @@ export class StorageService {
       .filter((submission) => !['sub-1', 'sub-2', 'sub-3', 'sub-4'].includes(submission.id));
   }
 
+  static normalizeSubmission(
+    submission: ChallengeSubmission,
+    communityId?: string | null,
+  ): ChallengeSubmission {
+    const communities = this.getCommunities();
+    const matchedCommunity = communities.find((community) =>
+      community.id === (communityId || submission.userCommunityId) ||
+      community.id === submission.userCommunity ||
+      community.name.trim().toLocaleLowerCase() === submission.userCommunity?.trim().toLocaleLowerCase(),
+    );
+    const challenge = this.getChallenges().find((item) => item.id === submission.challengeId);
+    const configuredTrees = challenge?.estimatedImpact.trees;
+
+    return {
+      ...submission,
+      ...(communityId || submission.userCommunityId || matchedCommunity?.id
+        ? { userCommunityId: communityId || submission.userCommunityId || matchedCommunity?.id }
+        : {}),
+      ...(matchedCommunity?.name ? { userCommunity: matchedCommunity.name } : {}),
+      impact: {
+        wasteKg: submission.impact?.wasteKg || 0,
+        trees: configuredTrees ?? submission.impact?.trees ?? 0,
+        waterLiters: submission.impact?.waterLiters || 0,
+        electricityKwh: submission.impact?.electricityKwh || 0,
+      },
+    };
+  }
+
   static saveSubmissions(submissions: ChallengeSubmission[]): void {
     this.setItem<ChallengeSubmission[]>(STORAGE_KEYS.SUBMISSIONS, submissions);
     window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: submissions }));
@@ -713,14 +741,15 @@ export class StorageService {
           userCommunityId: sub.userCommunityId || activeUser.communityId,
         }
       : sub;
+    const normalizedSubmission = this.normalizeSubmission(submission);
     const list = this.getSubmissions();
-    if (list.some((item) => item.id === submission.id)) return;
-    list.unshift(submission);
+    if (list.some((item) => item.id === normalizedSubmission.id)) return;
+    list.unshift(normalizedSubmission);
     this.saveSubmissions(list);
 
-    if (submission.verdict === 'valid') {
+    if (normalizedSubmission.verdict === 'valid') {
       const user = this.getUser();
-      const newlyUnlocked = awardPoints(user, submission.awardedPoints);
+      const newlyUnlocked = awardPoints(user, normalizedSubmission.awardedPoints);
 
       const today = this.getTodayDateString();
       const lastChallenge = user.lastChallengeDate;
@@ -761,7 +790,7 @@ export class StorageService {
         }).catch((error: unknown) => console.warn('[StorageService] Tidak dapat memperbarui poin akun:', error));
       }
 
-      this.addGardenExp(submission.awardedPoints);
+      this.addGardenExp(normalizedSubmission.awardedPoints);
 
       window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
     }

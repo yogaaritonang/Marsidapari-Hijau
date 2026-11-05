@@ -237,7 +237,9 @@ export class PersistentDataService {
 
     const remote = new Map<string, ChallengeSubmission>();
     for (const row of remoteRows) {
-      if (row.payload && row.id) remote.set(row.id, row.payload);
+      if (row.payload && row.id) {
+        remote.set(row.id, StorageService.normalizeSubmission(row.payload, row.community_id));
+      }
     }
 
     const activeUserId = StorageService.getCachedUser().id;
@@ -267,7 +269,7 @@ export class PersistentDataService {
     const db = await getClient();
     const { data: existing, error: existingError } = await db
       .from('mh_submissions')
-      .select('id,user_id,payload')
+      .select('id,user_id,community_id,payload')
       .eq('id', submission.id)
       .maybeSingle();
     if (existingError) throw new Error(`Status aksi gagal diperiksa: ${existingError.message}`);
@@ -278,7 +280,12 @@ export class PersistentDataService {
       throw new Error('Aksi hanya dapat disimpan oleh pengirim atau peninjau yang berwenang.');
     }
 
-    let payload = submission;
+    const communityId = existing?.community_id || submission.userCommunityId || user.communityId || 'umum';
+    if (existing?.user_id === user.id) {
+      return StorageService.normalizeSubmission(existing.payload as ChallengeSubmission, communityId);
+    }
+
+    let payload = StorageService.normalizeSubmission(submission, communityId);
     if (isOwner && payload.imageThumbnail.startsWith('data:')) {
       const imageResponse = await fetch(payload.imageThumbnail);
       const image = await imageResponse.blob();
@@ -293,7 +300,7 @@ export class PersistentDataService {
         .upload(path, image, { contentType: image.type || 'image/jpeg', upsert: true });
       if (uploadError) throw new Error(`Foto bukti gagal disimpan: ${uploadError.message}`);
       payload = {
-        ...submission,
+        ...payload,
         imageThumbnail: db.storage.from('mh-challenge-proofs').getPublicUrl(path).data.publicUrl,
       };
     }
@@ -301,7 +308,7 @@ export class PersistentDataService {
     const row = {
       id: payload.id,
       user_id: user.id,
-      community_id: payload.userCommunityId || user.communityId || 'umum',
+      community_id: communityId,
       verdict: payload.verdict,
       awarded_points: payload.awardedPoints,
       submitted_at: payload.submittedAt,
@@ -309,7 +316,6 @@ export class PersistentDataService {
       updated_at: new Date().toISOString(),
     };
     if (existing) {
-      if (existing.user_id === user.id) return existing.payload as ChallengeSubmission;
       const { data: reviewed, error: reviewError } = await db
         .from('mh_submissions')
         .update({
