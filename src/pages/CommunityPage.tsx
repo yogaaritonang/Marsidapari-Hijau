@@ -61,6 +61,22 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
       actionTarget: 0,
       description: '',
     };
+  const rankedCommunities = [...communities].sort((a, b) => {
+    const pointsDifference =
+      (b.totalPoints + (b.verifiedPoints || 0)) -
+      (a.totalPoints + (a.verifiedPoints || 0));
+    if (pointsDifference !== 0) return pointsDifference;
+
+    const treesDifference =
+      (b.treesPlanted + (b.verifiedTrees || 0)) -
+      (a.treesPlanted + (a.verifiedTrees || 0));
+    if (treesDifference !== 0) return treesDifference;
+
+    const actionsDifference =
+      (b.actionCount + (b.verifiedActions || 0)) -
+      (a.actionCount + (a.verifiedActions || 0));
+    return actionsDifference || a.name.localeCompare(b.name, 'id');
+  });
 
   // Submissions needing review
   const pendingReviews = submissions.filter((s) => s.verdict === 'perlu_tinjauan');
@@ -183,7 +199,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
               : 'text-gray-600 hover:text-gray-900'
           }`}
         >
-          ⚔️ Antar-Gereja
+          ⚔️ Antar Komunitas
         </button>
       </div>
 
@@ -303,7 +319,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
         </div>
       )}
 
-      {/* Tab Content 3: Antar-Gereja / Fakultas */}
+      {/* Tab Content 3: Antar Komunitas */}
       {activeTab === 'antar_kelompok' && (
         <div className="space-y-3">
           <div className="p-3 bg-gradient-to-r from-[#2E6B34] to-[#1B4320] text-white rounded-3xl shadow-sm space-y-1">
@@ -319,7 +335,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
           </div>
 
           <div className="space-y-2">
-            {communities.map((comm, idx) => (
+            {rankedCommunities.map((comm, idx) => (
               <div
                 key={comm.id}
                 className="p-3.5 bg-white rounded-2xl border border-gray-200 shadow-xs flex items-center justify-between gap-3"
