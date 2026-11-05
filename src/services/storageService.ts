@@ -776,12 +776,6 @@ export class StorageService {
 
         window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
 
-        // Trigger Service Worker Push Notification untuk bukti yang disetujui
-        PushNotificationService.notifySubmissionApproved({
-          challengeTitle: sub.challengeTitle,
-          awardedPoints: sub.awardedPoints,
-          userName: sub.userName,
-        }).catch((err) => console.warn('[PushNotification] Error notifying submission approval:', err));
       }
     }
   }

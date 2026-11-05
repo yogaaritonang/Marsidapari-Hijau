@@ -36,26 +36,6 @@ import { WelcomeTourModal } from './components/WelcomeTourModal';
 import confetti from 'canvas-confetti';
 
 type AppPortal = 'user' | 'leader' | 'admin';
-type SharedSyncState = 'connecting' | 'synced' | 'error' | 'offline';
-
-function SharedSyncNotice({ state, message }: { state: SharedSyncState; message: string | null }) {
-  if (state === 'synced') return null;
-  const text = message || (state === 'connecting'
-    ? 'Menghubungkan database bersama...'
-    : 'Data belum tersinkron ke perangkat lain.');
-  return (
-    <div
-      role={state === 'error' ? 'alert' : 'status'}
-      className={`border-b px-4 py-2 text-center text-xs font-semibold ${
-        state === 'error'
-          ? 'border-red-200 bg-red-50 text-red-800'
-          : 'border-amber-200 bg-amber-50 text-amber-900'
-      }`}
-    >
-      {text}
-    </div>
-  );
-}
 
 function getPortalFromPath(): AppPortal {
   const pathname = window.location.pathname.replace(/\/+$/, '') || '/';
@@ -72,9 +52,25 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
-  const [sharedSyncState, setSharedSyncState] = useState<SharedSyncState>('synced');
-  const [sharedSyncMessage, setSharedSyncMessage] = useState<string | null>(null);
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  const [currentTab, setCurrentTab] = useState<string>(() => {
+    const requestedTab = new URLSearchParams(window.location.search).get('tab');
+    const availableTabs = [
+      'home',
+      'devotions',
+      'challenges',
+      'waste-scan',
+      'garden',
+      'impact',
+      'community',
+      'map',
+      'reports',
+      'events',
+      'liturgy',
+      'threads',
+      'profile',
+    ];
+    return requestedTab && availableTabs.includes(requestedTab) ? requestedTab : 'home';
+  });
   const [verifyChallenge, setVerifyChallenge] = useState<Challenge | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const [emailConfirmationNotice, setEmailConfirmationNotice] = useState<{
@@ -99,28 +95,6 @@ export default function App() {
     const handleOpenTour = () => setIsTourOpen(true);
     window.addEventListener('mh-open-tour', handleOpenTour);
     return () => window.removeEventListener('mh-open-tour', handleOpenTour);
-  }, []);
-
-  useEffect(() => {
-    let timer: NodeJS.Timeout | null = null;
-    const handleSyncStatus = (event: Event) => {
-      const detail = (event as CustomEvent<{ state: SharedSyncState; message?: string }>).detail;
-      setSharedSyncState(detail.state);
-      setSharedSyncMessage(detail.message || null);
-
-      if (detail.state === 'error' && detail.message) {
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          setSharedSyncMessage(null);
-          setSharedSyncState('synced');
-        }, 5000);
-      }
-    };
-    window.addEventListener('mh-shared-sync-status', handleSyncStatus);
-    return () => {
-      if (timer) clearTimeout(timer);
-      window.removeEventListener('mh-shared-sync-status', handleSyncStatus);
-    };
   }, []);
 
   useEffect(() => {
@@ -356,7 +330,6 @@ export default function App() {
             setUser(DEFAULT_USER);
             setIsOnboarded(false);
           }
-          setSharedSyncState('synced');
         }
       } catch (error) {
         if (!cancelled) {
@@ -621,8 +594,6 @@ export default function App() {
   const handleLogout = () => {
     AuthService.signOut();
     SharedDataService.disconnect();
-    setSharedSyncState('offline');
-    setSharedSyncMessage('Masuk kembali untuk menyambungkan database bersama.');
     StorageService.setOnboarded(false);
     setUser(DEFAULT_USER);
     setIsOnboarded(false);
@@ -664,18 +635,12 @@ export default function App() {
   }
 
   if (portal === 'admin' && user.role === 'admin') {
-    return (
-      <>
-        {isOnboarded && <SharedSyncNotice state={sharedSyncState} message={sharedSyncMessage} />}
-        <AdminDashboardPage user={user} onLogout={handleLogout} />
-      </>
-    );
+    return <AdminDashboardPage user={user} onLogout={handleLogout} />;
   }
 
   if (portal === 'leader' && user.role === 'pemimpin') {
     return (
       <div className="min-h-dvh bg-[#FAF6EC] dark:bg-[#0F2A15]">
-        {isOnboarded && <SharedSyncNotice state={sharedSyncState} message={sharedSyncMessage} />}
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-[#2E6B34]/15 dark:border-[#2E6B34]/30 bg-[#FAF6EC]/95 dark:bg-[#0F2A15]/95 px-4 py-3 backdrop-blur sm:px-6">
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-[#1F2A1F] dark:text-white">{user.communityName}</p>
@@ -697,7 +662,6 @@ export default function App() {
       <div className="app-container flex flex-col">
         {/* Offline Connectivity Notification */}
         <OfflineIndicator />
-        {isOnboarded && <SharedSyncNotice state={sharedSyncState} message={sharedSyncMessage} />}
 
         {/* Global Toast */}
         {successToast && (

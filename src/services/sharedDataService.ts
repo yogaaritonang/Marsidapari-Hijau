@@ -286,6 +286,8 @@ function handleRemoteRecordChange(change: {
 
   const payload = newRow?.payload as Record<string, unknown> | undefined;
   const isDeleted = change.eventType === 'DELETE' || payload?._deleted === true;
+  const key = makeKey(collection, recordId);
+  const hadRemoteBaseline = baseline.has(key);
 
   isApplyingRemoteChange = true;
   try {
@@ -313,8 +315,29 @@ function handleRemoteRecordChange(change: {
       } else {
         updated = [payload, ...current];
         // Jika ada tantangan baru dari database real-time
-        if (collection === 'challenges' && typeof payload.title === 'string') {
+        if (
+          collection === 'challenges' &&
+          change.eventType === 'INSERT' &&
+          !hadRemoteBaseline &&
+          activeUser?.role !== 'admin' &&
+          typeof payload.title === 'string'
+        ) {
           PushNotificationService.notifyNewChallenge(payload as unknown as Challenge).catch(() => {});
+        }
+      }
+      if (
+        collection === 'reports' &&
+        change.eventType === 'UPDATE' &&
+        payload.userId === activeUser?.id &&
+        ['Gotong Royong Dijadwalkan', 'Selesai'].includes(String(payload.status))
+      ) {
+        const previous = current.find((item) => rowId(item) === recordId) as EnvironmentalReport | undefined;
+        if (
+          previous &&
+          previous.status !== payload.status &&
+          !['Gotong Royong Dijadwalkan', 'Selesai'].includes(previous.status)
+        ) {
+          PushNotificationService.notifyReportApproved(payload as unknown as EnvironmentalReport).catch(() => {});
         }
       }
       baseline.set(makeKey(collection, recordId), JSON.stringify(payload));
@@ -392,8 +415,21 @@ function handleRemoteSubmissionChange(change: {
   } | null;
   if (!row?.id) return;
 
-  const submissions = StorageService.getSubmissions().filter((item) => item.id !== row.id);
-  if (change.eventType !== 'DELETE' && row.payload) submissions.unshift(row.payload);
+  const currentSubmissions = StorageService.getSubmissions();
+  const previous = currentSubmissions.find((item) => item.id === row.id);
+  const submissions = currentSubmissions.filter((item) => item.id !== row.id);
+  if (change.eventType !== 'DELETE' && row.payload) {
+    submissions.unshift(row.payload);
+    if (
+      change.eventType === 'UPDATE' &&
+      row.user_id === activeUser?.id &&
+      row.payload.verdict === 'valid' &&
+      previous &&
+      previous.verdict !== 'valid'
+    ) {
+      PushNotificationService.notifySubmissionApproved(row.payload).catch(() => {});
+    }
+  }
   StorageService.saveSubmissions(submissions);
 
   if (row.user_id === activeUser?.id) {

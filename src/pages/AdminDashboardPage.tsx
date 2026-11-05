@@ -40,7 +40,6 @@ import {
 import { Challenge, Community, EnvironmentalReport, GreenEvent, User, ThreadPost, Devotion, EcotheologyArticle, AppNotification } from '../types';
 import { StorageService } from '../services/storageService';
 import { SharedDataService } from '../services/sharedDataService';
-import { PushNotificationService } from '../services/pushNotificationService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 import { AIService, AiReadinessCheck } from '../services/aiService';
 import { SocialSyncService } from '../services/socialSyncService';
@@ -558,8 +557,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     try {
       await SharedDataService.upsertChallenge(newChallenge);
       notify('Tantangan baru berhasil disimpan ke database publik Supabase.');
-      // Kirim Push Notification ke seluruh pengguna
-      PushNotificationService.notifyNewChallenge(newChallenge).catch(() => {});
     } catch (err) {
       console.warn('Sync challenge notice:', err);
       notify('Tantangan tersimpan dan siap dijalankan pengguna.');
@@ -822,10 +819,6 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
       createdAt: new Date().toISOString(),
       read: false,
     });
-
-    if (status === 'Selesai' || status === 'Gotong Royong Dijadwalkan') {
-      PushNotificationService.notifyReportApproved(reviewedReport).catch(() => {});
-    }
 
     notify(`Status laporan diubah ke ${status} di database Supabase.`);
   };

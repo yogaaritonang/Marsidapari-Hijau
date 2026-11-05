@@ -1,23 +1,22 @@
 // Service Worker event listener for notifications & push handling
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const requestedUrl = (event.notification.data && event.notification.data.url) || '/';
+  let targetUrl;
+  try {
+    targetUrl = new URL(requestedUrl, self.location.origin);
+    if (targetUrl.origin !== self.location.origin) targetUrl = new URL('/', self.location.origin);
+  } catch {
+    targetUrl = new URL('/', self.location.origin);
+  }
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // If an existing window is open, focus it and navigate
       for (const client of windowClients) {
-        if ('focus' in client) {
-          if ('navigate' in client) {
-            client.navigate(targetUrl);
-          }
-          return client.focus();
-        }
+        if (new URL(client.url).origin !== self.location.origin) continue;
+        return client.navigate(targetUrl.href).then((navigatedClient) => navigatedClient?.focus());
       }
-      // If no window is open, open a new window to the target URL
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
+      return self.clients.openWindow ? self.clients.openWindow(targetUrl.href) : undefined;
     })
   );
 });

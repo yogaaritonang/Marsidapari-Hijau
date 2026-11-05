@@ -37,6 +37,8 @@ export class PushNotificationService {
    */
   static async requestPermission(): Promise<NotificationPermission> {
     if (!this.isSupported()) return 'denied';
+    if (Notification.permission !== 'default') return Notification.permission;
+    if (this.permissionRequested) return Notification.permission;
     try {
       this.permissionRequested = true;
       const permission = await Notification.requestPermission();
@@ -53,13 +55,7 @@ export class PushNotificationService {
   static async sendNotification(payload: NotificationPayload): Promise<boolean> {
     if (!this.isSupported()) return false;
 
-    // Jika belum diizinkan, coba minta izin sekali secara otomatis
-    if (Notification.permission === 'default' && !this.permissionRequested) {
-      const granted = await this.requestPermission();
-      if (granted !== 'granted') return false;
-    } else if (Notification.permission !== 'granted') {
-      return false;
-    }
+    if (Notification.permission !== 'granted') return false;
 
     const options: NotificationOptions & { vibrate?: number[] } = {
       body: payload.body,
@@ -132,6 +128,7 @@ export class PushNotificationService {
    * Notifikasi saat bukti aksi / laporan tantangan pengguna sudah dikonfirmasi & disetujui admin
    */
   static async notifySubmissionApproved(submission: {
+    id?: string;
     challengeTitle?: string;
     awardedPoints?: number;
     userName?: string;
@@ -142,7 +139,7 @@ export class PushNotificationService {
     return this.sendNotification({
       title: '✅ Bukti Aksi Dikonfirmasi!',
       body: `Hebat! Bukti aksi untuk "${title}" telah disetujui oleh admin. ${points}`,
-      tag: `submission-approved-${Date.now()}`,
+      tag: `submission-approved-${submission.id || submission.challengeTitle || 'challenge'}`,
       data: {
         url: '/?tab=impact',
         type: 'submission_approved',
@@ -154,13 +151,15 @@ export class PushNotificationService {
    * Notifikasi saat laporan lingkungan disetujui admin
    */
   static async notifyReportApproved(report: {
+    id?: string;
     title: string;
     locationName?: string;
+    status?: string;
   }): Promise<boolean> {
     return this.sendNotification({
       title: '📢 Laporan Lingkungan Disetujui!',
       body: `Laporan Anda mengenai "${report.title}" telah diverifikasi dan diteruskan ke aksi komunitas.`,
-      tag: `report-approved-${Date.now()}`,
+      tag: `report-approved-${report.id || report.title}-${report.status || 'updated'}`,
       data: {
         url: '/?tab=reports',
         type: 'report_approved',
