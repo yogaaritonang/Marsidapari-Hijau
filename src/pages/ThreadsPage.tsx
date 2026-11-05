@@ -195,7 +195,7 @@ export const ThreadsPage: React.FC<ThreadsPageProps> = ({ user, isGuest, onRequi
     if (!text) return;
 
     const reply: ThreadReply = {
-      id: `rep-${Date.now()}`,
+      id: `rep-${crypto.randomUUID()}`,
       userId: user.id,
       userName: user.name,
       userRole: user.role,

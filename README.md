@@ -16,6 +16,7 @@ Supabase project (for example, through the Supabase SQL Editor):
 3. [`20261106010000_fix_thread_media_storage_policies.sql`](./supabase/migrations/20261106010000_fix_thread_media_storage_policies.sql)
 4. [`20261106020000_fix_leaderboard_cheer_notifications.sql`](./supabase/migrations/20261106020000_fix_leaderboard_cheer_notifications.sql)
 5. [`20261106030000_add_thread_interaction_notifications.sql`](./supabase/migrations/20261106030000_add_thread_interaction_notifications.sql)
+6. [`20261106040000_make_thread_interactions_atomic.sql`](./supabase/migrations/20261106040000_make_thread_interactions_atomic.sql)
 
 The second migration repairs challenge-proof read/write policies (including the
 permissions required when an upload replaces an existing file) and moves leaderboard
@@ -25,8 +26,10 @@ SQL Editor so the additional storage policy is created. The third migration adds
 read policy required by Supabase Storage upserts for existing Threads photos.
 The fourth migration records leaderboard appreciation and its recipient notification
 atomically in the database. The fifth migration adds database-side notifications for
-new likes and replies on Threads posts. Apply both to the same Supabase project as the
-application.
+new likes and replies on Threads posts. The sixth migration changes likes and comments
+to atomic database operations so concurrent updates and page polling cannot overwrite
+new interactions; it also creates their notifications in the same transaction.
+Apply all migrations to the same Supabase project as the application.
 The frontend also needs `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. Data
 changes will not sync across devices until the migration is applied and the app is
 connected to that same Supabase project.

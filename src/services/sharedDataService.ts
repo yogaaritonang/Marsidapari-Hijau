@@ -7,6 +7,7 @@ import {
   EnvironmentalReport,
   GreenEvent,
   MapMarkerLocation,
+  ThreadPost,
   User,
 } from '../types';
 import { StorageService } from './storageService';
@@ -596,6 +597,27 @@ export class SharedDataService {
 
   static async flushCollection(collection: SharedCollection): Promise<void> {
     await pushChanges(collection, storedRecords(collection));
+  }
+
+  static applyThreadUpdate(post: ThreadPost): void {
+    const key = makeKey('threads', post.id);
+    baseline.set(key, snapshotValue('threads', post));
+    baselineOwners.set(key, post.userId);
+    if (!baselineOrganizations.has(key)) {
+      baselineOrganizations.set(key, activeUser?.communityId || null);
+    }
+    const threads = StorageService.getThreads();
+    const index = threads.findIndex((thread) => thread.id === post.id);
+    const updated = index >= 0
+      ? threads.map((thread) => thread.id === post.id ? post : thread)
+      : [post, ...threads];
+    isApplyingRemoteChange = true;
+    try {
+      StorageService.applySharedSnapshot('threads', updated);
+      window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updated }));
+    } finally {
+      isApplyingRemoteChange = false;
+    }
   }
 
   static async refreshCollection(collection: SharedCollection): Promise<void> {

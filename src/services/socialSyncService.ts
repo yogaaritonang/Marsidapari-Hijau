@@ -137,15 +137,14 @@ export class SocialSyncService {
   }
 
   static async toggleLikeThread(threadId: string, user: User): Promise<void> {
-    StorageService.toggleLikeThread(threadId, user.id);
     try {
-      await SharedDataService.flushCollection('threads');
+      const updatedPost = await PersistentDataService.toggleThreadLike(threadId, user.id);
+      SharedDataService.applyThreadUpdate(updatedPost);
       window.dispatchEvent(new CustomEvent('mh-notifications-refresh'));
     } catch (error) {
       reportSyncError(error);
       throw error;
     }
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }
 
   static async syncEcotheologyArticles(articles: EcotheologyArticle[]): Promise<void> {
@@ -183,16 +182,14 @@ export class SocialSyncService {
   }
 
   static async addThreadReply(threadId: string, reply: ThreadReply): Promise<void> {
-    StorageService.addThreadReply(threadId, reply);
-    const updatedThreads = StorageService.getThreads();
     try {
-      await SharedDataService.flushCollection('threads');
+      const updatedPost = await PersistentDataService.addThreadReply(threadId, reply, reply.userId);
+      SharedDataService.applyThreadUpdate(updatedPost);
       window.dispatchEvent(new CustomEvent('mh-notifications-refresh'));
     } catch (error) {
       reportSyncError(error);
       throw error;
     }
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
   }
 
   static async deleteThread(threadId: string): Promise<void> {

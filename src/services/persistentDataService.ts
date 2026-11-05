@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { AppNotification, ChallengeSubmission, GardenState, User } from '../types';
+import { AppNotification, ChallengeSubmission, GardenState, ThreadPost, ThreadReply, User } from '../types';
 import { StorageService } from './storageService';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '');
@@ -454,6 +454,34 @@ export class PersistentDataService {
       };
     }
     return cheers;
+  }
+
+  static async toggleThreadLike(threadId: string, userId: string): Promise<ThreadPost> {
+    const db = await getClient();
+    await assertActiveAccount(userId);
+    const { data, error } = await db.rpc('mh_toggle_thread_like', {
+      p_thread_id: threadId,
+    });
+    if (error) throw new Error(`Like gagal disimpan: ${error.message}`);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || (data as { id?: unknown }).id !== threadId) {
+      throw new Error('Server tidak mengembalikan postingan yang diperbarui.');
+    }
+    return data as ThreadPost;
+  }
+
+  static async addThreadReply(threadId: string, reply: ThreadReply, userId: string): Promise<ThreadPost> {
+    const db = await getClient();
+    await assertActiveAccount(userId);
+    if (reply.userId !== userId) throw new Error('Akun balasan tidak sama dengan akun yang sedang masuk.');
+    const { data, error } = await db.rpc('mh_add_thread_reply', {
+      p_thread_id: threadId,
+      p_reply: reply,
+    });
+    if (error) throw new Error(`Komentar gagal disimpan: ${error.message}`);
+    if (!data || typeof data !== 'object' || Array.isArray(data) || (data as { id?: unknown }).id !== threadId) {
+      throw new Error('Server tidak mengembalikan postingan yang diperbarui.');
+    }
+    return data as ThreadPost;
   }
 
   static async toggleCheer(
