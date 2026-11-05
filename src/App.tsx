@@ -344,7 +344,7 @@ export default function App() {
   }, [portal]);
 
   useEffect(() => {
-    if (!isOnboarded || user.id === 'guest-preview') return;
+    if (!isOnboarded || StorageService.isGuestUserId(user.id)) return;
     let active = true;
     const syncAccountData = async () => {
       const currentUser = StorageService.getUser();

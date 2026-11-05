@@ -65,6 +65,7 @@ function profileSyncSnapshot(user: User, garden: GardenState): string {
 export class PersistentDataService {
   static async uploadUserImage(dataUrl: string, userId: string, recordId: string): Promise<string> {
     if (!dataUrl.startsWith('data:')) return dataUrl;
+    if (StorageService.isGuestUserId(userId)) return dataUrl;
     await assertActiveAccount(userId);
     const imageResponse = await fetch(dataUrl);
     const image = await imageResponse.blob();
@@ -83,6 +84,7 @@ export class PersistentDataService {
   }
 
   static async syncUserProfile(user: User): Promise<User> {
+    if (!user.id || StorageService.isGuestUserId(user.id)) return user;
     const db = await getClient();
     const { data, error } = await db
       .from('mh_user_profiles')
@@ -122,7 +124,7 @@ export class PersistentDataService {
   }
 
   static async saveUserProfile(user: User): Promise<void> {
-    if (!user.id || user.id === 'guest-preview') return;
+    if (!user.id || StorageService.isGuestUserId(user.id)) return;
     const garden = StorageService.getGardenState();
     const favoriteDevotionIds = StorageService.getDevotions()
       .filter((devotion) => devotion.isFavorite)
@@ -150,7 +152,7 @@ export class PersistentDataService {
 
   static async saveGarden(garden: GardenState): Promise<void> {
     const user = StorageService.getCachedUser();
-    if (!user.id || user.id === 'guest-preview') return;
+    if (!user.id || StorageService.isGuestUserId(user.id)) return;
     const db = await getClient();
     const { data: existing, error: readError } = await db
       .from('mh_user_profiles')
@@ -171,7 +173,7 @@ export class PersistentDataService {
 
   static async saveFavoriteDevotions(ids: string[]): Promise<void> {
     const user = StorageService.getCachedUser();
-    if (!user.id || user.id === 'guest-preview') return;
+    if (!user.id || StorageService.isGuestUserId(user.id)) return;
     const db = await getClient();
     const { data: existing, error: readError } = await db
       .from('mh_user_profiles')
@@ -191,7 +193,7 @@ export class PersistentDataService {
   }
 
   static async syncMembership(user: User): Promise<void> {
-    if (!user.id || user.id === 'guest-preview' || !user.communityId) return;
+    if (!user.id || StorageService.isGuestUserId(user.id) || !user.communityId) return;
     const db = await getClient();
     const { error } = await db.from('mh_community_memberships').upsert({
       user_id: user.id,
@@ -203,6 +205,7 @@ export class PersistentDataService {
   }
 
   static async refreshCommunityMemberCounts(): Promise<void> {
+    if (StorageService.isGuestUserId(StorageService.getCachedUser().id)) return;
     const db = await getClient();
     const { data, error } = await db.rpc('mh_community_member_counts');
     if (error) throw new Error(`Jumlah anggota komunitas gagal dimuat: ${error.message}`);
@@ -216,6 +219,7 @@ export class PersistentDataService {
   }
 
   static async syncSubmissions(): Promise<void> {
+    if (StorageService.isGuestUserId(StorageService.getCachedUser().id)) return;
     const db = await getClient();
     const remoteRows: StoredSubmission[] = [];
     const pageSize = 1000;
@@ -258,7 +262,7 @@ export class PersistentDataService {
 
   static async saveSubmission(submission: ChallengeSubmission): Promise<ChallengeSubmission | null> {
     const user = StorageService.getCachedUser();
-    if (!user.id || user.id === 'guest-preview') throw new Error('Silakan masuk untuk menyimpan aksi.');
+    if (!user.id || StorageService.isGuestUserId(user.id) || StorageService.isGuestUserId(submission.userId)) return null;
     await assertActiveAccount(user.id);
     const db = await getClient();
     const { data: existing, error: existingError } = await db
@@ -332,7 +336,7 @@ export class PersistentDataService {
 
   static async syncEventRegistrations(): Promise<void> {
     const user = StorageService.getCachedUser();
-    if (!user.id || user.id === 'guest-preview') return;
+    if (!user.id || StorageService.isGuestUserId(user.id)) return;
     const db = await getClient();
     const [countsResult, registrationsResult] = await Promise.all([
       db.rpc('mh_event_registration_counts'),
@@ -357,7 +361,7 @@ export class PersistentDataService {
 
   static async toggleEventRegistration(eventId: string): Promise<void> {
     const user = StorageService.getCachedUser();
-    if (!user.id || user.id === 'guest-preview') {
+    if (!user.id || StorageService.isGuestUserId(user.id)) {
       throw new Error('Silakan masuk untuk mendaftar kegiatan.');
     }
     const db = await getClient();
