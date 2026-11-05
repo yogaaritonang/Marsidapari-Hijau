@@ -9,6 +9,7 @@ interface SocialStore {
   brand: BrandSettings | null;
   threads: ThreadPost[];
   submissions: ChallengeSubmission[];
+  members: Record<string, string>;
   cheers: Record<string, { count: number; users: string[] }>;
   notifications: AppNotification[];
   ecotheology: EcotheologyArticle[];
@@ -118,6 +119,7 @@ function loadPersistedStore(): SocialStore {
     brand: null,
     threads: [], // No dummy thread posts - only real user posts!
     submissions: [...INITIAL_COMMUNITY_SUBMISSIONS],
+    members: {},
     cheers: {},
     notifications: [],
     ecotheology: [...SEED_ECOTHEOLOGY],
@@ -161,6 +163,7 @@ function loadPersistedStore(): SocialStore {
             brand: parsed.brand || null,
             threads: [...threadMap.values()],
             submissions: [...subMap.values()],
+            members: parsed.members && typeof parsed.members === 'object' ? parsed.members : {},
             cheers: parsed.cheers || {},
             notifications: Array.isArray(parsed.notifications) ? parsed.notifications : [],
             ecotheology: [...ecoMap.values()],
@@ -176,6 +179,13 @@ function loadPersistedStore(): SocialStore {
 }
 
 let store: SocialStore = loadPersistedStore();
+
+function getCommunityMemberCounts(): Record<string, number> {
+  return Object.values(store.members).reduce<Record<string, number>>((counts, communityId) => {
+    counts[communityId] = (counts[communityId] || 0) + 1;
+    return counts;
+  }, {});
+}
 
 export function getSocialBrand(): BrandSettings | null {
   return store.brand;
@@ -213,6 +223,9 @@ export default async function socialSyncHandler(req: Request, res: Response) {
 
   // GET: Fetch all shared social data or user-specific notifications
   if (req.method === 'GET') {
+    if (req.query.membersOnly === 'true') {
+      return res.status(200).json({ communityMemberCounts: getCommunityMemberCounts() });
+    }
     const userId = req.query.userId as string | undefined;
     const userNotifications = userId
       ? store.notifications.filter((n) => n.recipientUserId === userId)
@@ -222,6 +235,7 @@ export default async function socialSyncHandler(req: Request, res: Response) {
       brand: store.brand,
       threads: store.threads,
       submissions: store.submissions,
+      communityMemberCounts: getCommunityMemberCounts(),
       cheers: store.cheers,
       notifications: userNotifications,
       ecotheology: store.ecotheology || [...SEED_ECOTHEOLOGY],
@@ -243,6 +257,17 @@ export default async function socialSyncHandler(req: Request, res: Response) {
     const { action, payload, userId } = body || {};
 
     switch (action) {
+      case 'sync_member': {
+        const memberId = typeof payload?.userId === 'string' ? payload.userId.trim() : '';
+        const communityId = typeof payload?.communityId === 'string' ? payload.communityId.trim() : '';
+        if (!memberId || !communityId) {
+          return res.status(400).json({ error: 'ID pengguna dan komunitas diperlukan.' });
+        }
+        store.members[memberId] = communityId;
+        void persistStore();
+        const communityMemberCounts = getCommunityMemberCounts();
+        return res.status(200).json({ success: true, communityMemberCounts });
+      }
       case 'update_brand': {
         const brandPayload = payload as BrandSettings;
         if (brandPayload && typeof brandPayload === 'object') {
@@ -416,7 +441,11 @@ export default async function socialSyncHandler(req: Request, res: Response) {
         if (!submission || !submission.id) {
           return res.status(400).json({ error: 'Data submission tidak valid.' });
         }
-        store.submissions = [submission, ...store.submissions.filter((s) => s.id !== submission.id)];
+        const existing = store.submissions.find((item) => item.id === submission.id);
+        const savedSubmission = existing?.verdict === 'valid' && submission.verdict !== 'valid'
+          ? existing
+          : submission;
+        store.submissions = [savedSubmission, ...store.submissions.filter((s) => s.id !== submission.id)];
         void persistStore();
         return res.status(200).json({ success: true, submissions: store.submissions });
       }

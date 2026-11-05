@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Award,
   Trash2,
@@ -44,6 +44,7 @@ export const ImpactPage: React.FC<ImpactPageProps> = ({ user, onOpenChallenge })
   const [showHowCalculated, setShowHowCalculated] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
   const [shareToast, setShareToast] = useState(false);
+  const [communityDataVersion, setCommunityDataVersion] = useState(0);
 
   // Visualization sub-tab & filter states
   const [chartView, setChartView] = useState<'user_growth' | 'community_participation'>('user_growth');
@@ -59,6 +60,18 @@ export const ImpactPage: React.FC<ImpactPageProps> = ({ user, onOpenChallenge })
   const [quizFinished, setQuizFinished] = useState(false);
 
   const impact = StorageService.getUserImpact(user);
+
+  useEffect(() => {
+    const refreshCommunityData = () => setCommunityDataVersion((version) => version + 1);
+    window.addEventListener('mh-data-updated', refreshCommunityData);
+    window.addEventListener('mh-shared-data-change', refreshCommunityData);
+    window.addEventListener('storage', refreshCommunityData);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshCommunityData);
+      window.removeEventListener('mh-shared-data-change', refreshCommunityData);
+      window.removeEventListener('storage', refreshCommunityData);
+    };
+  }, []);
 
   // 1. Data Pertumbuhan Poin Hijau Pengguna (Harian & Akumulatif)
   const daysCount = Number(timeRange);
@@ -127,13 +140,13 @@ export const ImpactPage: React.FC<ImpactPageProps> = ({ user, onOpenChallenge })
     return comms.slice(0, 5).map((comm) => ({
       name: comm.name.length > 16 ? comm.name.slice(0, 14) + '…' : comm.name,
       fullName: comm.name,
-      totalPoin: comm.totalPoints || 0,
-      aksiSelesai: comm.actionCount || Math.round((comm.totalPoints || 120) / 14),
-      pohonTertanam: comm.treesPlanted || Math.round((comm.totalPoints || 120) / 22),
-      anggota: comm.memberCount || 1,
+      totalPoin: (comm.totalPoints || 0) + (comm.verifiedPoints || 0),
+      aksiSelesai: (comm.actionCount || 0) + (comm.verifiedActions || 0),
+      pohonTertanam: (comm.treesPlanted || 0) + (comm.verifiedTrees || 0),
+      anggota: StorageService.getCommunityMemberCount(comm),
       targetPohon: comm.treeTarget || 200,
     }));
-  }, []);
+  }, [communityDataVersion]);
 
   // 3. Tren Partisipasi Berkala Komunitas Per Bulan (Mei - Okt 2026)
   const monthlyCommunityTrend = useMemo(

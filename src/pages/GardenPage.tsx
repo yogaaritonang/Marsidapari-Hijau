@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Trees,
   Droplet,
@@ -23,9 +23,21 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
   const [garden, setGarden] = useState<GardenState>(
     user.id === 'guest-preview' ? StorageService.getPreviewGarden() : StorageService.getGardenState(),
   );
-  const [communities] = useState<Community[]>(StorageService.getCommunities());
+  const [communities, setCommunities] = useState<Community[]>(() => StorageService.getCommunities());
   const [wateringAnim, setWateringAnim] = useState(false);
   const [waterMsg, setWaterMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const refreshCommunities = () => setCommunities(StorageService.getCommunities());
+    window.addEventListener('mh-data-updated', refreshCommunities);
+    window.addEventListener('mh-shared-data-change', refreshCommunities);
+    window.addEventListener('storage', refreshCommunities);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshCommunities);
+      window.removeEventListener('mh-shared-data-change', refreshCommunities);
+      window.removeEventListener('storage', refreshCommunities);
+    };
+  }, []);
 
   const userCommunity =
     communities.find((c) => c.id === user.communityId) || {
@@ -41,6 +53,8 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
       actionTarget: 0,
       description: '',
     };
+  const communityTrees = userCommunity.treesPlanted + (userCommunity.verifiedTrees || 0);
+  const communityActions = userCommunity.actionCount + (userCommunity.verifiedActions || 0);
 
   const handleWater = () => {
     if (user.id === 'guest-preview') {
@@ -233,7 +247,7 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
             </span>
             <span className="text-xs font-extrabold text-[#2E6B34]">
               {userCommunity.treeTarget > 0
-                ? `${userCommunity.treesPlanted} dari ${userCommunity.treeTarget} Pohon`
+                ? `${communityTrees} dari ${userCommunity.treeTarget} Pohon`
                 : 'Belum ada data'}
             </span>
           </div>
@@ -243,7 +257,7 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
               className="bg-gradient-to-r from-[#2E6B34] to-[#3B8EA5] h-full rounded-full transition-all duration-700"
               style={{
                 width: userCommunity.treeTarget > 0
-                  ? `${Math.min(100, Math.round((userCommunity.treesPlanted / userCommunity.treeTarget) * 100))}%`
+                  ? `${Math.min(100, Math.round((communityTrees / userCommunity.treeTarget) * 100))}%`
                   : '0%',
               }}
             />
@@ -253,13 +267,13 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
             <div className="bg-white p-2 rounded-xl border border-gray-200">
               <span className="text-[10px] text-gray-500 block">Total Aksi Hijau</span>
               <span className="text-sm font-extrabold text-[#2E6B34]">
-                {userCommunity.actionCount} Aksi
+                {communityActions} Aksi
               </span>
             </div>
             <div className="bg-white p-2 rounded-xl border border-gray-200">
               <span className="text-[10px] text-gray-500 block">Anggota Aktif</span>
               <span className="text-sm font-extrabold text-[#7A5230]">
-                {userCommunity.memberCount} Orang
+                {StorageService.getCommunityMemberCount(userCommunity)} Orang
               </span>
             </div>
           </div>
@@ -289,10 +303,10 @@ export const GardenPage: React.FC<GardenPageProps> = ({ user, onNavigateTab, onR
                 </div>
                 <div className="text-right">
                   <span className="font-extrabold text-[#2E6B34] block">
-                    {c.treesPlanted} Pohon
+                    {c.treesPlanted + (c.verifiedTrees || 0)} Pohon
                   </span>
                   <span className="text-[10px] text-gray-500">
-                    {c.actionCount} aksi
+                    {c.actionCount + (c.verifiedActions || 0)} aksi
                   </span>
                 </div>
               </div>

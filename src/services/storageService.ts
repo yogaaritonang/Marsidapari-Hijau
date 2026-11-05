@@ -64,6 +64,8 @@ const STORAGE_KEYS = {
   THREADS: 'mh_threads',
   ECOTHEOLOGY: 'mh_ecotheology',
 };
+let applyingPersistentUserSnapshot = false;
+let cloudProfileSyncReady = false;
 
 function awardPoints(user: User, points: number): string[] {
   const previousPoints = user.points;
@@ -212,7 +214,13 @@ export class StorageService {
     return user;
   }
 
+  static getCachedUser(): User {
+    return this.getItem<User>(STORAGE_KEYS.USER, DEFAULT_USER);
+  }
+
   static saveUser(user: User): void {
+    const previousUser = this.getCachedUser();
+    if (previousUser.id !== user.id) cloudProfileSyncReady = false;
     this.setItem<User>(STORAGE_KEYS.USER, user);
     if (user && user.id && user.id !== 'guest-preview') {
       try {
@@ -220,7 +228,47 @@ export class StorageService {
       } catch {
         // ignore
       }
+      if (!applyingPersistentUserSnapshot && cloudProfileSyncReady) {
+        void import('./persistentDataService')
+          .then(({ PersistentDataService }) => PersistentDataService.saveUserProfile(user))
+          .catch((error: unknown) => {
+            const message = error instanceof Error ? error.message : 'Profil gagal disimpan ke Supabase.';
+            window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+              detail: { state: 'error', message },
+            }));
+            console.error('[StorageService] Gagal menyimpan profil cloud:', error);
+          });
+      }
     }
+  }
+
+  static applyPersistentUserSnapshot(user: User, garden: GardenState | null): void {
+    applyingPersistentUserSnapshot = true;
+    try {
+      cloudProfileSyncReady = true;
+      this.setItem<User>(STORAGE_KEYS.USER, user);
+      this.setItem<GardenState>(STORAGE_KEYS.GARDEN, garden || this.getPreviewGarden());
+      localStorage.setItem(`mh_user_profile_${user.id}`, JSON.stringify(user));
+      window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: user }));
+    } finally {
+      applyingPersistentUserSnapshot = false;
+    }
+  }
+
+  static applyAuthUserSnapshot(user: User): void {
+    this.setItem<User>(STORAGE_KEYS.USER, user);
+    if (user.id && user.id !== 'guest-preview') {
+      try {
+        localStorage.setItem(`mh_user_profile_${user.id}`, JSON.stringify(user));
+      } catch {
+        // The authenticated profile is still retained in the primary app cache.
+      }
+    }
+    window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: user }));
+  }
+
+  static resetPersistentSync(): void {
+    cloudProfileSyncReady = false;
   }
 
   static updateUser(updates: Partial<User>): User {
@@ -287,11 +335,10 @@ export class StorageService {
     const list = this.getItem<Community[]>(STORAGE_KEYS.COMMUNITIES, SEED_COMMUNITIES);
     if (!list || list.length === 0) {
       this.saveCommunities(SEED_COMMUNITIES);
-      return SEED_COMMUNITIES;
     }
     // Ensure all seed communities exist in the list
     let updated = false;
-    const merged = [...list];
+    const merged = [...(list && list.length > 0 ? list : SEED_COMMUNITIES)];
     for (const seed of SEED_COMMUNITIES) {
       if (!merged.some((c) => c.id === seed.id)) {
         merged.push(seed);
@@ -301,13 +348,78 @@ export class StorageService {
     if (updated) {
       this.saveCommunities(merged);
     }
-    return merged;
+    const activityByCommunity = new Map<string, { points: number; actions: number; trees: number }>();
+    for (const submission of this.getSubmissions()) {
+      if (submission.verdict !== 'valid') continue;
+      const community = merged.find((item) =>
+        (submission.userCommunityId && item.id === submission.userCommunityId) ||
+        (submission.userCommunity && (item.id === submission.userCommunity || item.name === submission.userCommunity))
+      );
+      if (!community) continue;
+      const activity = activityByCommunity.get(community.id) || { points: 0, actions: 0, trees: 0 };
+      activity.points += submission.awardedPoints;
+      activity.actions += 1;
+      activity.trees += submission.impact?.trees || 0;
+      activityByCommunity.set(community.id, activity);
+    }
+    return merged.map((community) => {
+      const activity = activityByCommunity.get(community.id) || { points: 0, actions: 0, trees: 0 };
+      return {
+        ...community,
+        verifiedPoints: activity.points,
+        verifiedActions: activity.actions,
+        verifiedTrees: activity.trees,
+      };
+    });
   }
 
   static saveCommunities(communities: Community[]): void {
-    this.setItem<Community[]>(STORAGE_KEYS.COMMUNITIES, communities);
-    notifySharedDataChange('communities', communities);
-    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities', values: communities } }));
+    const storedCommunities = communities.map(({ verifiedPoints: _points, verifiedActions: _actions, verifiedTrees: _trees, ...community }) => community);
+    this.setItem<Community[]>(STORAGE_KEYS.COMMUNITIES, storedCommunities);
+    notifySharedDataChange('communities', storedCommunities);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities', values: storedCommunities } }));
+  }
+
+  static getRegisteredMemberCount(communityId: string): number {
+    const counts = this.getItem<Record<string, number>>('mh_registered_community_member_counts', {});
+    return Math.max(0, counts[communityId] || 0);
+  }
+
+  static getCommunityMemberCount(community: Community): number {
+    return community.memberCount + this.getRegisteredMemberCount(community.id);
+  }
+
+  static applyRegisteredMemberCounts(counts: Record<string, number>): void {
+    const normalized = Object.fromEntries(
+      Object.entries(counts).filter(([, count]) => Number.isFinite(count) && count >= 0),
+    );
+    this.setItem<Record<string, number>>('mh_registered_community_member_counts', normalized);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
+  }
+
+  static applyEventRegistrationSnapshot(
+    counts: Map<string, number>,
+    registeredEventIds: Set<string>,
+  ): void {
+    const events = this.getEvents().map((event) => ({
+      ...event,
+      registeredCount: counts.get(event.id) || 0,
+      isRegistered: registeredEventIds.has(event.id),
+    }));
+    this.setItem<GreenEvent[]>(STORAGE_KEYS.EVENTS, events);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', {
+      detail: { collection: 'events', values: events },
+    }));
+  }
+
+  static reconcileUserPoints(user: User): User {
+    const verifiedPoints = this.getSubmissions()
+      .filter((submission) => submission.userId === user.id && submission.verdict === 'valid')
+      .reduce((total, submission) => total + submission.awardedPoints, 0);
+    if (verifiedPoints === user.points) return user;
+    const updated = { ...user, points: verifiedPoints };
+    this.saveUser(updated);
+    return updated;
   }
 
   static addCommunity(community: Community): void {
@@ -379,7 +491,13 @@ export class StorageService {
     const targetComm = comms.find((c) => c.id === communityId) || comms[0];
 
     // Hitung pohon tambahan dari submission aksi yang berstatus valid
-    const subs = this.getSubmissions().filter((s) => s.verdict === 'valid');
+    const subs = this.getSubmissions().filter((submission) =>
+      submission.verdict === 'valid' &&
+      (!communityId ||
+        submission.userCommunityId === communityId ||
+        submission.userCommunity === communityId ||
+        submission.userCommunity === targetComm?.name)
+    );
     let extraTrees = 0;
     for (const sub of subs) {
       if (sub.impact && sub.impact.trees > 0) {
@@ -450,8 +568,30 @@ export class StorageService {
     const item = list.find((d) => d.id === id);
     if (item) {
       item.isFavorite = !item.isFavorite;
-      this.saveDevotions(list);
+      this.setItem<Devotion[]>(STORAGE_KEYS.DEVOTIONS, list);
+      window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'devotions' } }));
+      void import('./persistentDataService')
+        .then(({ PersistentDataService }) => PersistentDataService.saveFavoriteDevotions(
+          list.filter((devotion) => devotion.isFavorite).map((devotion) => devotion.id),
+        ))
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Renungan favorit gagal disimpan.';
+          window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+            detail: { state: 'error', message },
+          }));
+          console.error('[StorageService] Gagal menyimpan renungan favorit:', error);
+        });
     }
+  }
+
+  static applyFavoriteDevotions(ids: string[]): void {
+    const favorites = new Set(ids);
+    const devotions = this.getDevotions().map((devotion) => ({
+      ...devotion,
+      isFavorite: favorites.has(devotion.id),
+    }));
+    this.setItem<Devotion[]>(STORAGE_KEYS.DEVOTIONS, devotions);
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'devotions' } }));
   }
 
   static getChallenges(): Challenge[] {
@@ -470,16 +610,27 @@ export class StorageService {
 
   static saveSubmissions(submissions: ChallengeSubmission[]): void {
     this.setItem<ChallengeSubmission[]>(STORAGE_KEYS.SUBMISSIONS, submissions);
+    window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: submissions }));
+    window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions', values: submissions } }));
   }
 
   static addSubmission(sub: ChallengeSubmission): void {
+    const activeUser = this.getUser();
+    const submission = sub.userId === activeUser.id && activeUser.id !== 'guest-preview'
+      ? {
+          ...sub,
+          userCommunity: sub.userCommunity || activeUser.communityName,
+          userCommunityId: sub.userCommunityId || activeUser.communityId,
+        }
+      : sub;
     const list = this.getSubmissions();
-    list.unshift(sub);
+    if (list.some((item) => item.id === submission.id)) return;
+    list.unshift(submission);
     this.saveSubmissions(list);
 
-    if (sub.verdict === 'valid') {
+    if (submission.verdict === 'valid') {
       const user = this.getUser();
-      const newlyUnlocked = awardPoints(user, sub.awardedPoints);
+      const newlyUnlocked = awardPoints(user, submission.awardedPoints);
 
       const today = this.getTodayDateString();
       const lastChallenge = user.lastChallengeDate;
@@ -516,29 +667,12 @@ export class StorageService {
             points: user.points,
             streakDays: user.streakDays,
             lastChallengeDate: user.lastChallengeDate,
-          }).catch(() => {});
-        }).catch(() => {});
+          }).catch((error: unknown) => console.warn('[StorageService] Gagal menyimpan poin akun:', error));
+        }).catch((error: unknown) => console.warn('[StorageService] Tidak dapat memperbarui poin akun:', error));
       }
 
-      this.addGardenExp(sub.awardedPoints);
+      this.addGardenExp(submission.awardedPoints);
 
-      const communities = this.getCommunities();
-      const targetCommId = user.communityId || (sub.userCommunity ? sub.userCommunity : '');
-      const userComm = communities.find((c) =>
-        c.id === targetCommId ||
-        c.name === targetCommId ||
-        c.name === user.communityName ||
-        (sub.userCommunity && (c.name === sub.userCommunity || c.id === sub.userCommunity))
-      ) || communities[0];
-
-      if (userComm) {
-        userComm.totalPoints = (userComm.totalPoints || 0) + sub.awardedPoints;
-        userComm.actionCount = (userComm.actionCount || 0) + 1;
-        if (sub.impact && sub.impact.trees > 0) {
-          userComm.treesPlanted = (userComm.treesPlanted || 0) + sub.impact.trees;
-        }
-        this.saveCommunities(communities);
-      }
       window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
     }
   }
@@ -563,29 +697,13 @@ export class StorageService {
               AuthService.updateProfileMetadata({
                 points: user.points,
                 streakDays: user.streakDays,
-              }).catch(() => {});
-            }).catch(() => {});
+              }).catch((error: unknown) => console.warn('[StorageService] Gagal menyimpan poin akun:', error));
+            }).catch((error: unknown) => console.warn('[StorageService] Tidak dapat memperbarui poin akun:', error));
           }
         }
         this.addGardenExp(sub.awardedPoints);
 
-        // Synchronize community points, actionCount, and treesPlanted using submitter's community
-        const communities = this.getCommunities();
-        const userComm = communities.find((c) =>
-          (sub.userCommunity && (c.id === sub.userCommunity || c.name === sub.userCommunity)) ||
-          c.id === user.communityId ||
-          c.name === user.communityName
-        ) || communities[0];
-
-        if (userComm) {
-          userComm.totalPoints = (userComm.totalPoints || 0) + sub.awardedPoints;
-          userComm.actionCount = (userComm.actionCount || 0) + 1;
-          if (sub.impact && sub.impact.trees > 0) {
-            userComm.treesPlanted = (userComm.treesPlanted || 0) + sub.impact.trees;
-          }
-          this.saveCommunities(communities);
-        }
-        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
+        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'communities' } }));
 
         // Trigger Service Worker Push Notification untuk bukti yang disetujui
         PushNotificationService.notifySubmissionApproved({
@@ -614,6 +732,15 @@ export class StorageService {
 
   static saveGardenState(garden: GardenState): void {
     this.setItem<GardenState>(STORAGE_KEYS.GARDEN, garden);
+    void import('./persistentDataService')
+      .then(({ PersistentDataService }) => PersistentDataService.saveGarden(garden))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Progres kebun gagal disimpan ke Supabase.';
+        window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+          detail: { state: 'error', message },
+        }));
+        console.error('[StorageService] Gagal menyimpan progres kebun:', error);
+      });
   }
 
   static addGardenExp(exp: number): GardenState {
@@ -697,13 +824,15 @@ export class StorageService {
   }
 
   static toggleEventRegistration(eventId: string): void {
-    const events = this.getEvents();
-    const evt = events.find((e) => e.id === eventId);
-    if (evt) {
-      evt.isRegistered = !evt.isRegistered;
-      evt.registeredCount += evt.isRegistered ? 1 : -1;
-      this.saveEvents(events);
-    }
+    void import('./persistentDataService')
+      .then(({ PersistentDataService }) => PersistentDataService.toggleEventRegistration(eventId))
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Pendaftaran kegiatan gagal disimpan.';
+        window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+          detail: { state: 'error', message },
+        }));
+        console.error('[StorageService] Gagal menyimpan pendaftaran kegiatan:', error);
+      });
   }
 
   static addEvent(newEvent: GreenEvent): void {
@@ -806,6 +935,7 @@ export class StorageService {
 
   static saveEcotheologyArticles(articles: EcotheologyArticle[]): void {
     this.setItem<EcotheologyArticle[]>(STORAGE_KEYS.ECOTHEOLOGY, articles);
+    notifySharedDataChange('ecotheology', articles);
     window.dispatchEvent(new CustomEvent('mh-ecotheology-updated', { detail: articles }));
     window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'ecotheology' } }));
   }

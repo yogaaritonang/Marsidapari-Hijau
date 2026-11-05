@@ -1,273 +1,180 @@
-import { ThreadPost, ThreadReply, ChallengeSubmission, AppNotification, User, BrandSettings, EcotheologyArticle } from '../types';
+import {
+  AppNotification,
+  BrandSettings,
+  ChallengeSubmission,
+  EcotheologyArticle,
+  ThreadPost,
+  ThreadReply,
+  User,
+} from '../types';
 import { StorageService } from './storageService';
+import { SharedDataService } from './sharedDataService';
+import { PersistentDataService } from './persistentDataService';
 
 const NOTIFICATIONS_STORAGE_KEY = 'mh_notifications';
 const CHEERS_STORAGE_KEY = 'mh_leaderboard_cheers';
 
+function reportSyncError(error: unknown): void {
+  const message = error instanceof Error ? error.message : 'Sinkronisasi Supabase gagal.';
+  window.dispatchEvent(new CustomEvent('mh-shared-sync-status', {
+    detail: { state: 'error', message },
+  }));
+  console.error('[SocialSyncService]', error);
+}
+
+function saveLocalNotifications(notifications: AppNotification[]): void {
+  localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
+}
+
+function saveLocalCheers(cheers: Record<string, { count: number; users: string[] }>): void {
+  localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(cheers));
+}
+
+function dispatchNotificationUpdate(notifications: AppNotification[]): void {
+  saveLocalNotifications(notifications);
+  window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: notifications }));
+}
+
+function dispatchCheersUpdate(cheers: Record<string, { count: number; users: string[] }>): void {
+  saveLocalCheers(cheers);
+  window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: cheers }));
+}
+
 export class SocialSyncService {
-  private static isSyncing = false;
+  private static activeSync: Promise<boolean> | null = null;
 
-  /**
-   * Pulls the latest social data and brand configuration from the shared server:
-   * - Brand identity & Logo (so admin changes reflect on all devices instantly)
-   * - Threads (with likes, saves, comments from all users)
-   * - Submissions (for unified leaderboard)
-   * - Cheers (leaderboard loves from all users)
-   * - Notifications for current active user
-   */
-  static async pullSocialData(user?: User | null): Promise<void> {
-    if (this.isSyncing) return;
-    this.isSyncing = true;
-
+  static async syncMember(user: User): Promise<void> {
+    if (!user.id || user.id === 'guest-preview' || !user.communityId) return;
     try {
-      const url = user?.id && user.id !== 'guest-preview'
-        ? `/api/social-sync?userId=${encodeURIComponent(user.id)}`
-        : '/api/social-sync';
-
-      const response = await fetch(url);
-      if (!response.ok) return;
-
-      const data = await response.json();
-      if (!data) return;
-
-      // 0. Sync Brand Settings & Logo (from Admin)
-      if (data.brand && typeof data.brand === 'object' && Object.keys(data.brand).length > 0) {
-        const localBrand = StorageService.getBrandSettings();
-        // Check if there are changes before updating
-        if (JSON.stringify(localBrand) !== JSON.stringify(data.brand)) {
-          const merged = { ...localBrand, ...data.brand };
-          StorageService.saveBrandSettings(merged);
-          window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: merged }));
-        }
-      }
-
-      // 1. Sync Threads (two-way merge & self-healing so user threads are never lost)
-      if (Array.isArray(data.threads)) {
-        const serverPosts = (data.threads as ThreadPost[]).filter(
-          (t) => t && t.id && !t.id.startsWith('th-seed-')
-        );
-        const local = StorageService.getThreads().filter(
-          (t) => t && t.id && !t.id.startsWith('th-seed-')
-        );
-        const threadMap = new Map<string, ThreadPost>();
-
-        // Register clean server threads
-        for (const t of serverPosts) {
-          if (t && t.id) threadMap.set(t.id, t);
-        }
-
-        // Preserve any user threads stored locally and merge social state (likes, saves, replies)
-        for (const t of local) {
-          if (t && t.id) {
-            if (!threadMap.has(t.id)) {
-              threadMap.set(t.id, t);
-              // Re-upload to server in background so all other users see it again
-              void this.syncThread(t);
-            } else {
-              const serverThread = threadMap.get(t.id)!;
-
-              // Synchronize likedBy list
-              const serverLikedBy = Array.isArray(serverThread.likedBy) ? serverThread.likedBy : [];
-              const localLikedBy = Array.isArray(t.likedBy) ? t.likedBy : [];
-              let finalLikedBy = serverLikedBy;
-              if (user?.id && localLikedBy.includes(user.id) && !serverLikedBy.includes(user.id)) {
-                finalLikedBy = [...serverLikedBy, user.id];
-              }
-              serverThread.likedBy = finalLikedBy;
-              serverThread.likes = finalLikedBy.length;
-
-              // Merge savedBy lists
-              const serverSavedBy = Array.isArray(serverThread.savedBy) ? serverThread.savedBy : [];
-              const localSavedBy = Array.isArray(t.savedBy) ? t.savedBy : [];
-              serverThread.savedBy = Array.from(new Set([...serverSavedBy, ...localSavedBy]));
-
-              // Merge local replies if any were added offline
-              const serverReplyIds = new Set((serverThread.replies || []).map((r) => r.id));
-              const localUnsyncedReplies = (t.replies || []).filter((r) => !serverReplyIds.has(r.id));
-              if (localUnsyncedReplies.length > 0) {
-                serverThread.replies = [...(serverThread.replies || []), ...localUnsyncedReplies];
-              }
-            }
-          }
-        }
-
-        const mergedThreads = [...threadMap.values()].sort((a, b) => {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
-
-        StorageService.saveThreads(mergedThreads);
-        window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: mergedThreads }));
-      }
-
-      // 2. Sync Submissions for Leaderboard
-      if (Array.isArray(data.submissions)) {
-        const local = StorageService.getSubmissions();
-        const map = new Map<string, ChallengeSubmission>();
-        for (const s of data.submissions) map.set(s.id, s);
-        // Also ensure any local valid submission is uploaded to server if not on server yet
-        for (const s of local) {
-          if (!map.has(s.id)) {
-            map.set(s.id, s);
-            if (s.verdict === 'valid') {
-              void this.syncSubmission(s);
-            }
-          }
-        }
-        const merged = [...map.values()];
-        StorageService.saveSubmissions(merged);
-        window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: merged }));
-        window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
-      }
-
-      // 3. Sync Cheers (two-way merge)
-      if (data.cheers && typeof data.cheers === 'object') {
-        const localCheers = this.getLocalCheers();
-        const mergedCheers = { ...localCheers };
-
-        for (const [memberId, serverCheer] of Object.entries(data.cheers as Record<string, { count: number; users: string[] }>)) {
-          const localItem = mergedCheers[memberId] || { count: 0, users: [] };
-          const mergedUsers = Array.from(new Set([...(localItem.users || []), ...(serverCheer.users || [])]));
-          const mergedCount = Math.max(serverCheer.count || 0, localItem.count || 0, mergedUsers.length);
-          mergedCheers[memberId] = {
-            count: mergedCount,
-            users: mergedUsers,
-          };
-        }
-
-        localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(mergedCheers));
-        window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: mergedCheers }));
-      }
-
-      // 4. Sync Notifications
-      if (Array.isArray(data.notifications)) {
-        this.saveLocalNotifications(data.notifications);
-        window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: data.notifications }));
-      }
-
-      // 5. Sync Ecotheology Articles
-      if (Array.isArray(data.ecotheology)) {
-        const local = StorageService.getEcotheologyArticles();
-        const map = new Map<string, EcotheologyArticle>();
-        for (const a of data.ecotheology) {
-          if (a && a.id) map.set(a.id, a);
-        }
-        for (const a of local) {
-          if (a && a.id && !map.has(a.id)) {
-            map.set(a.id, a);
-          }
-        }
-        const mergedEco = [...map.values()];
-        StorageService.saveEcotheologyArticles(mergedEco);
-      }
-    } catch (e) {
-      console.warn('[SocialSyncService] Server sync temporarily offline, using local data', e);
-    } finally {
-      this.isSyncing = false;
+      const hydratedUser = await PersistentDataService.syncUserProfile(user);
+      StorageService.saveUser(hydratedUser);
+      SharedDataService.updateActiveUser(hydratedUser);
+      await PersistentDataService.syncMembership(hydratedUser);
+      await PersistentDataService.syncEventRegistrations();
+    } catch (error) {
+      reportSyncError(error);
     }
   }
 
-  /**
-   * Sync brand settings (logo, name, colors, etc.) from admin to server for all users
-   */
+  static async refreshCommunityMemberCounts(): Promise<void> {
+    try {
+      await PersistentDataService.refreshCommunityMemberCounts();
+    } catch (error) {
+      reportSyncError(error);
+    }
+  }
+
+  static pullSocialData(user?: User | null): Promise<boolean> {
+    if (!user?.id || user.id === 'guest-preview') return Promise.resolve(false);
+    if (this.activeSync) return this.activeSync;
+    this.activeSync = this.performPullSocialData(user).finally(() => {
+      this.activeSync = null;
+    });
+    return this.activeSync;
+  }
+
+  private static async performPullSocialData(user: User): Promise<boolean> {
+    const operations: Array<Promise<unknown>> = [
+      SharedDataService.refreshCollection('brand'),
+      SharedDataService.refreshCollection('threads'),
+      PersistentDataService.syncSubmissions(),
+      PersistentDataService.syncEventRegistrations(),
+      PersistentDataService.loadCheers().then(dispatchCheersUpdate),
+      PersistentDataService.loadNotifications(user.id).then((notifications) => {
+        const otherUsers = this.getLocalNotifications().filter((item) => item.recipientUserId !== user.id);
+        dispatchNotificationUpdate([...notifications, ...otherUsers]);
+      }),
+      PersistentDataService.refreshCommunityMemberCounts(),
+    ];
+    const results = await Promise.allSettled(operations);
+    for (const result of results) {
+      if (result.status === 'rejected') reportSyncError(result.reason);
+    }
+    return results[2].status === 'fulfilled';
+  }
+
   static async syncBrand(brand: BrandSettings): Promise<void> {
-    StorageService.saveBrandSettings(brand);
-    window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: brand }));
-
     try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_brand', payload: brand }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] syncBrand error', e);
+      StorageService.saveBrandSettings(brand);
+      window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: brand }));
+      await SharedDataService.upsertRecord(
+        'brand',
+        'global',
+        { id: 'global', ...brand } as unknown as Record<string, unknown>,
+      );
+    } catch (error) {
+      reportSyncError(error);
     }
   }
 
-  /**
-   * Post a new thread and push to server
-   */
   static async createThread(post: ThreadPost): Promise<void> {
-    // 1. Optimistic local update
-    StorageService.addThread(post);
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
-
-    // 2. Remote sync
     await this.syncThread(post);
+    const savedPost = StorageService.getThreads().find((item) => item.id === post.id);
+    if (!savedPost) StorageService.addThread(post);
+    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
   }
 
-  /**
-   * Push a thread to the server (used for creation and background re-sync)
-   */
   static async syncThread(post: ThreadPost): Promise<void> {
     try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_thread', payload: post }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] syncThread remote error', e);
-    }
-  }
-
-  /**
-   * Toggle like on a thread
-   */
-  static async toggleLikeThread(threadId: string, user: User): Promise<void> {
-    // 1. Optimistic local update
-    StorageService.toggleLikeThread(threadId, user.id);
-    const updatedThreads = StorageService.getThreads();
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
-
-    const targetThread = updatedThreads.find((t) => t.id === threadId);
-
-    // 2. Remote sync
-    try {
-      const res = await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'like_thread',
-          payload: {
-            threadId,
-            user: { id: user.id, name: user.name },
-            thread: targetThread,
-          },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.threads)) {
-          const clean = data.threads.filter((t: ThreadPost) => t && t.id && !t.id.startsWith('th-seed-'));
-          StorageService.saveThreads(clean);
-          window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: clean }));
-        }
+      const user = StorageService.getUser();
+      const savedPost = post.imageUrl
+        ? { ...post, imageUrl: await PersistentDataService.uploadUserImage(post.imageUrl, user.id, `thread-${post.id}`) }
+        : post;
+      const existing = StorageService.getThreads().some((item) => item.id === savedPost.id);
+      if (existing) {
+        StorageService.saveThreads(StorageService.getThreads().map((item) => item.id === savedPost.id ? savedPost : item));
+      } else {
+        StorageService.addThread(savedPost);
       }
-    } catch (e) {
-      console.warn('[SocialSyncService] toggleLikeThread remote error', e);
+      await SharedDataService.upsertRecord(
+        'threads',
+        savedPost.id,
+        savedPost as unknown as Record<string, unknown>,
+        savedPost.userId,
+        user.communityId,
+      );
+      window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
+    } catch (error) {
+      reportSyncError(error);
+      throw error;
     }
   }
 
-  /**
-   * Sync ecotheology articles across devices
-   */
-  static async syncEcotheologyArticles(articles: EcotheologyArticle[]): Promise<void> {
-    StorageService.saveEcotheologyArticles(articles);
+  static async toggleLikeThread(threadId: string, user: User): Promise<void> {
+    StorageService.toggleLikeThread(threadId, user.id);
     try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'update_ecotheology', payload: articles }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] syncEcotheologyArticles error', e);
+      await SharedDataService.flushCollection('threads');
+      const thread = StorageService.getThreads().find((item) => item.id === threadId);
+      if (thread && thread.userId !== user.id) {
+        this.addNotification({
+          id: `like-${threadId}-${user.id}`,
+          recipientUserId: thread.userId,
+          senderUserId: user.id,
+          senderName: user.name,
+          type: 'thread_like',
+          targetId: threadId,
+          title: 'Postingan disukai',
+          message: `${user.name} menyukai postingan Anda.`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        });
+      }
+    } catch (error) {
+      reportSyncError(error);
+    }
+    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
+  }
+
+  static async syncEcotheologyArticles(articles: EcotheologyArticle[]): Promise<void> {
+    try {
+      StorageService.saveEcotheologyArticles(articles);
+      await SharedDataService.flushCollection('ecotheology');
+    } catch (error) {
+      reportSyncError(error);
+      throw error;
     }
   }
 
-  /**
-   * Toggle save/bookmark on a thread
-   */
   static async toggleSaveThread(threadId: string, userId: string): Promise<boolean> {
     const list = StorageService.getThreads();
     let isNowSaved = false;
@@ -276,222 +183,136 @@ export class SocialSyncService {
       const savedBy = thread.savedBy || [];
       const hasSaved = savedBy.includes(userId);
       isNowSaved = !hasSaved;
-      const newSavedBy = hasSaved ? savedBy.filter((id) => id !== userId) : [...savedBy, userId];
-      return { ...thread, savedBy: newSavedBy };
+      return {
+        ...thread,
+        savedBy: hasSaved ? savedBy.filter((id) => id !== userId) : [...savedBy, userId],
+      };
     });
 
     StorageService.saveThreads(updated);
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updated }));
-
     try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'save_thread',
-          payload: { threadId, userId },
-        }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] toggleSaveThread remote error', e);
+      await SharedDataService.flushCollection('threads');
+    } catch (error) {
+      reportSyncError(error);
     }
-
+    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updated }));
     return isNowSaved;
   }
 
-  /**
-   * Add reply/comment to a thread
-   */
   static async addThreadReply(threadId: string, reply: ThreadReply): Promise<void> {
     StorageService.addThreadReply(threadId, reply);
     const updatedThreads = StorageService.getThreads();
-    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
-
     try {
-      const res = await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'reply_thread',
-          payload: { threadId, reply },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.threads) {
-          StorageService.saveThreads(data.threads);
-          window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: data.threads }));
-        }
+      await SharedDataService.flushCollection('threads');
+      const thread = updatedThreads.find((item) => item.id === threadId);
+      if (thread && thread.userId !== reply.userId) {
+        this.addNotification({
+          id: `reply-${reply.id}`,
+          recipientUserId: thread.userId,
+          senderUserId: reply.userId,
+          senderName: reply.userName,
+          type: 'thread_reply',
+          targetId: threadId,
+          title: 'Balasan baru',
+          message: `${reply.userName} membalas postingan Anda.`,
+          createdAt: reply.createdAt,
+          read: false,
+        });
       }
-    } catch (e) {
-      console.warn('[SocialSyncService] addThreadReply remote error', e);
+    } catch (error) {
+      reportSyncError(error);
     }
+    window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: updatedThreads }));
   }
 
-  /**
-   * Delete thread
-   */
   static async deleteThread(threadId: string): Promise<void> {
     StorageService.deleteThread(threadId);
+    try {
+      await SharedDataService.flushCollection('threads');
+    } catch (error) {
+      reportSyncError(error);
+    }
     window.dispatchEvent(new CustomEvent('mh-threads-updated', { detail: StorageService.getThreads() }));
-
-    try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'delete_thread', payload: { threadId } }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] deleteThread remote error', e);
-    }
   }
 
-  /**
-   * Send love/cheer on Leaderboard to a member
-   */
   static async cheerLeaderboard(targetMemberId: string, targetMemberName: string, cheerer: User): Promise<number> {
-    // 1. Optimistic local update
-    const currentCheers = this.getLocalCheers();
-    const target = currentCheers[targetMemberId] || { count: 0, users: [] };
-    if (!target.users.includes(cheerer.id)) {
-      target.users.push(cheerer.id);
-    }
-    target.count += 1;
-    currentCheers[targetMemberId] = target;
-    localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(currentCheers));
-    window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: currentCheers }));
-
-    // 2. Remote sync
     try {
-      const res = await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'cheer_leaderboard',
-          payload: {
-            targetMemberId,
-            targetMemberName,
-            cheerer: { id: cheerer.id, name: cheerer.name },
-          },
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.cheers) {
-          localStorage.setItem(CHEERS_STORAGE_KEY, JSON.stringify(data.cheers));
-          window.dispatchEvent(new CustomEvent('mh-cheers-updated', { detail: data.cheers }));
-        }
+      const cheers = await PersistentDataService.toggleCheer(targetMemberId, cheerer.id);
+      dispatchCheersUpdate(cheers);
+      const target = cheers[targetMemberId];
+      if (target?.users.includes(cheerer.id)) {
+        this.addNotification({
+          id: `cheer-${targetMemberId}-${cheerer.id}`,
+          recipientUserId: targetMemberId,
+          senderUserId: cheerer.id,
+          senderName: cheerer.name,
+          type: 'leaderboard_cheer',
+          targetId: targetMemberId,
+          title: 'Apresiasi baru',
+          message: `${cheerer.name} mengirimkan apresiasi untuk Anda.`,
+          createdAt: new Date().toISOString(),
+          read: false,
+        });
       }
-    } catch (e) {
-      console.warn('[SocialSyncService] cheerLeaderboard remote error', e);
+      return target?.count || 0;
+    } catch (error) {
+      reportSyncError(error);
+      return this.getLocalCheers()[targetMemberId]?.count || 0;
     }
-
-    return target.count;
   }
 
-  /**
-   * Get all leaderboard cheers
-   */
   static getLocalCheers(): Record<string, { count: number; users: string[] }> {
     try {
       const raw = localStorage.getItem(CHEERS_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : {};
-    } catch {
+      return raw ? JSON.parse(raw) as Record<string, { count: number; users: string[] }> : {};
+    } catch (error) {
+      console.warn('[SocialSyncService] Cache apresiasi rusak:', error);
       return {};
     }
   }
 
-  /**
-   * Submit challenge and push to server
-   */
   static async syncSubmission(submission: ChallengeSubmission): Promise<void> {
     try {
-      const res = await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit_challenge', payload: submission }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.submissions)) {
-          StorageService.saveSubmissions(data.submissions);
-          window.dispatchEvent(new CustomEvent('mh-leaderboard-updated', { detail: data.submissions }));
-          window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'submissions' } }));
-        }
-      }
-    } catch (e) {
-      console.warn('[SocialSyncService] syncSubmission error', e);
+      const saved = await PersistentDataService.saveSubmission(submission);
+      if (!saved) return;
+      const submissions = new Map(StorageService.getSubmissions().map((item) => [item.id, item]));
+      submissions.set(saved.id, saved);
+      StorageService.saveSubmissions([...submissions.values()]);
+    } catch (error) {
+      reportSyncError(error);
     }
   }
 
-  /**
-   * Get local notifications
-   */
   static getLocalNotifications(): AppNotification[] {
     try {
       const raw = localStorage.getItem(NOTIFICATIONS_STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
+      return raw ? JSON.parse(raw) as AppNotification[] : [];
+    } catch (error) {
+      console.warn('[SocialSyncService] Cache notifikasi rusak:', error);
       return [];
     }
   }
 
-  private static saveLocalNotifications(notifications: AppNotification[]) {
-    try {
-      localStorage.setItem(NOTIFICATIONS_STORAGE_KEY, JSON.stringify(notifications));
-    } catch (e) {
-      console.warn('[SocialSyncService] failed to save notifications', e);
-    }
-  }
-
-  /**
-   * Add a notification locally and broadcast across the app
-   */
   static addNotification(notification: AppNotification): void {
     const list = this.getLocalNotifications();
-    const updated = [notification, ...list.filter((n) => n.id !== notification.id)].slice(0, 50);
-    this.saveLocalNotifications(updated);
-    window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: updated }));
-
-    try {
-      void fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'add_notification',
-          payload: notification,
-        }),
-      });
-    } catch {
-      // offline fallback is preserved
-    }
+    const updated = [notification, ...list.filter((item) => item.id !== notification.id)].slice(0, 100);
+    dispatchNotificationUpdate(updated);
+    void PersistentDataService.saveNotification(notification).catch(reportSyncError);
   }
 
-  /**
-   * Mark notification as read
-   */
   static async markNotificationRead(notificationId?: string, userId?: string): Promise<void> {
     const list = this.getLocalNotifications();
-    const updated = list.map((n) => {
-      if (notificationId && n.id === notificationId) return { ...n, read: true };
-      if (!notificationId && userId && n.recipientUserId === userId) return { ...n, read: true };
-      return n;
+    const currentUserId = userId || StorageService.getUser().id;
+    const updated = list.map((notification) => {
+      if (notification.recipientUserId !== currentUserId) return notification;
+      if (notificationId && notification.id !== notificationId) return notification;
+      return { ...notification, read: true };
     });
-    this.saveLocalNotifications(updated);
-    window.dispatchEvent(new CustomEvent('mh-notifications-updated', { detail: updated }));
-
+    dispatchNotificationUpdate(updated);
     try {
-      await fetch('/api/social-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'mark_notification_read',
-          payload: { notificationId },
-          userId,
-        }),
-      });
-    } catch (e) {
-      console.warn('[SocialSyncService] markNotificationRead error', e);
+      await PersistentDataService.markNotificationsRead(currentUserId, notificationId);
+    } catch (error) {
+      reportSyncError(error);
     }
   }
 }

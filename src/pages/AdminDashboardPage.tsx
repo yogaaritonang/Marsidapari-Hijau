@@ -218,6 +218,38 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
     window.setTimeout(() => setNotice(''), 2800);
   };
 
+  useEffect(() => {
+    const refreshData = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (!collection) {
+        setCommunities(StorageService.getCommunities());
+        setChallenges(StorageService.getChallenges());
+        setEvents(StorageService.getEvents());
+        setReports(StorageService.getReports());
+        setThreads(StorageService.getThreads());
+        setDevotions(StorageService.getDevotions());
+        setEcotheologyList(StorageService.getEcotheologyArticles());
+        return;
+      }
+      if (collection === 'communities' || collection === 'submissions') setCommunities(StorageService.getCommunities());
+      if (collection === 'challenges') setChallenges(StorageService.getChallenges());
+      if (collection === 'events') setEvents(StorageService.getEvents());
+      if (collection === 'reports') setReports(StorageService.getReports());
+      if (collection === 'threads') setThreads(StorageService.getThreads());
+      if (collection === 'devotions') setDevotions(StorageService.getDevotions());
+      if (collection === 'ecotheology') setEcotheologyList(StorageService.getEcotheologyArticles());
+    };
+    const refreshBrand = () => setBrand(StorageService.getBrandSettings());
+    window.addEventListener('mh-data-updated', refreshData);
+    window.addEventListener('storage', refreshData);
+    window.addEventListener('mh-brand-updated', refreshBrand);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshData);
+      window.removeEventListener('storage', refreshData);
+      window.removeEventListener('mh-brand-updated', refreshBrand);
+    };
+  }, []);
+
   const handleManualTestTrigger = async () => {
     setDirectTriggerRunning(true);
     setDirectTriggerResult(null);
@@ -1023,7 +1055,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 {[
                   {
                     label: 'Pohon Tertanam',
-                    value: communities.reduce((acc, c) => acc + (c.treesPlanted || 0), 0),
+                    value: communities.reduce((acc, c) => acc + (c.treesPlanted || 0) + (c.verifiedTrees || 0), 0),
                     unit: 'Batang',
                     icon: Trees,
                     color: 'text-emerald-700',
@@ -1032,7 +1064,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   },
                   {
                     label: 'Poin Hijau',
-                    value: communities.reduce((acc, c) => acc + (c.totalPoints || 0), 0),
+                    value: communities.reduce((acc, c) => acc + (c.totalPoints || 0) + (c.verifiedPoints || 0), 0),
                     unit: 'Poin',
                     icon: Award,
                     color: 'text-amber-700',
@@ -1041,7 +1073,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                   },
                   {
                     label: 'Aksi Gotong Royong',
-                    value: communities.reduce((acc, c) => acc + (c.actionCount || 0), 0),
+                    value: communities.reduce((acc, c) => acc + (c.actionCount || 0) + (c.verifiedActions || 0), 0),
                     unit: 'Aksi',
                     icon: Leaf,
                     color: 'text-green-700',
@@ -1266,9 +1298,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                 <div className="space-y-3">
                   {communities.map((comm, index) => {
                     const targetTrees = comm.treeTarget || comm.targetTrees || 100;
-                    const percentTrees = Math.min(100, Math.round(((comm.treesPlanted || 0) / targetTrees) * 100));
+                    const treesPlanted = (comm.treesPlanted || 0) + (comm.verifiedTrees || 0);
+                    const actionCount = (comm.actionCount || 0) + (comm.verifiedActions || 0);
+                    const percentTrees = Math.min(100, Math.round((treesPlanted / targetTrees) * 100));
                     const targetActions = comm.actionTarget || comm.targetActions || 50;
-                    const percentActions = Math.min(100, Math.round(((comm.actionCount || 0) / targetActions) * 100));
+                    const percentActions = Math.min(100, Math.round((actionCount / targetActions) * 100));
 
                     return (
                       <div
@@ -1283,13 +1317,13 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                             <div>
                               <h3 className="text-sm font-bold text-gray-900">{comm.name}</h3>
                               <span className="text-[10px] text-gray-500 font-medium">
-                                {comm.category} • {comm.location} • {comm.memberCount} Anggota
+                                {comm.category} • {comm.location} • {StorageService.getCommunityMemberCount(comm)} Anggota
                               </span>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                              {comm.totalPoints || 0} Poin Hijau
+                              {(comm.totalPoints || 0) + (comm.verifiedPoints || 0)} Poin Hijau
                             </span>
                           </div>
                         </div>
@@ -1301,7 +1335,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                             <div className="flex justify-between text-[11px] font-semibold text-gray-600">
                               <span className="flex items-center gap-1">
                                 <Trees className="w-3.5 h-3.5 text-emerald-600" />
-                                Pohon: {comm.treesPlanted || 0} / {targetTrees}
+                                Pohon: {treesPlanted} / {targetTrees}
                               </span>
                               <span className="text-emerald-700 font-bold">{percentTrees}%</span>
                             </div>
@@ -1318,7 +1352,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                             <div className="flex justify-between text-[11px] font-semibold text-gray-600">
                               <span className="flex items-center gap-1">
                                 <Leaf className="w-3.5 h-3.5 text-amber-600" />
-                                Aksi: {comm.actionCount || 0} / {targetActions}
+                                Aksi: {actionCount} / {targetActions}
                               </span>
                               <span className="text-amber-700 font-bold">{percentActions}%</span>
                             </div>
@@ -2646,7 +2680,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ user, on
                         <h3 className="break-words font-bold text-gray-900">{community.name}</h3>
                         <p className="text-xs text-gray-500">{community.category} · {community.location || 'Tapanuli Utara'}</p>
                         <p className="mt-1.5 flex items-center gap-2 text-xs text-gray-600">
-                          <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-[#2E6B34]" /> {community.memberCount} anggota</span>
+                          <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5 text-[#2E6B34]" /> {StorageService.getCommunityMemberCount(community)} anggota</span>
                           <span>·</span>
                           <span className="flex items-center gap-1"><Trees className="h-3.5 w-3.5 text-emerald-600" /> Target {community.treeTarget || 200} pohon</span>
                         </p>

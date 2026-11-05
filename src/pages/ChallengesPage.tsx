@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Flame,
   Search,
@@ -25,10 +25,29 @@ export const ChallengesPage: React.FC<ChallengesPageProps> = ({
   user,
   onOpenVerifyModal,
 }) => {
-  const challenges = StorageService.getChallenges();
+  const [challenges, setChallenges] = useState(() => StorageService.getChallenges());
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDetail, setActiveDetail] = useState<Challenge | null>(null);
+
+  useEffect(() => {
+    const refreshChallenges = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (!collection || collection === 'challenges') {
+        const latest = StorageService.getChallenges();
+        setChallenges(latest);
+        setActiveDetail((current) =>
+          current ? latest.find((challenge) => challenge.id === current.id) || null : null,
+        );
+      }
+    };
+    window.addEventListener('mh-data-updated', refreshChallenges);
+    window.addEventListener('storage', refreshChallenges);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshChallenges);
+      window.removeEventListener('storage', refreshChallenges);
+    };
+  }, []);
 
   const categories = [
     { id: 'all', label: 'Semua' },

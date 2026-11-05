@@ -103,6 +103,9 @@
       "awardedPoints": 70
     }
   ],
+  "members": {
+    "guest-panitia-mw3kxa2d": "iakn-tarutung"
+  },
   "cheers": {},
   "notifications": [
     {
@@ -174,6 +177,20 @@
       "publishedAt": "2026-10-28",
       "actionCall": "Gunakan air secukupnya saat mencuci dan pastikan saluran air di sekitar rumah bebas dari sumbatan sampah plastik.",
       "isFeatured": false
+    },
+    {
+      "id": "eco-ulos-1",
+      "title": "Filosofi Tenun Ulos & Ekoteologi: Menghangatkan dan Merawat Seluruh Ciptaan",
+      "category": "kearifan_lokal",
+      "summary": "Sebagaimana kain ulos menghangatkan raga (las ni roha) dan menyatukan persekutuan, iman Kristen memanggil kita untuk \"mangulosi\" bumi Danau Toba dengan kasih, bukan merusaknya.",
+      "content": "Dalam falsafah Batak tradisional, ulos bukan sekadar lembaran kain tenun bertuah, melainkan wujud cinta kasih (holong), kehangatan (las ni roha), dan ikatan janji (padan). Leluhur orang Batak menenun ulos dari serat kapas alami dan pewarna nabati—seperti tanaman salaon (indigo liar) dan getah kulit kayu—yang dipetik secara lestari tanpa mencemari tanah.\n\nKetika teologi Kristen berakar di tanah Tapanuli, metafora ulos ini menjadi jembatan pemahaman iman yang sangat kaya. Pemazmur dalam Mazmur 104:1-2 bersaksi: \"TUHAN, Allahku, Engkau sangat besar! Engkau berpakaian keagungan dan semarak, berselubungkan terang seperti kain.\" Allah membentangkan semesta ciptaan-Nya laksana selembar ulos agung yang menaungi seluruh makhluk hidup.\n\nTindakan \"mangulosi\" (memberikan ulos) bermakna melimpahkan berkat, perlindungan, dan rasa aman. Dalam terang ekoteologi Kristiani, manusia dipanggil oleh Sang Pencipta untuk \"mangulosi\" Danau Toba dan Bona Pasogit:\n1. Menyelimuti bumi dengan perlindungan: Tidak membuang sampah plastik ke danau atau sungai, melainkan menjaga kejernihan airnya.\n2. Memulihkan kehangatan persekutuan: Bergotong royong (marsiadapari) menanam pohon di perbukitan yang gundul untuk menahan longsor dan erosi.\n3. Menghargai kerajinan berkelanjutan: Menghormati kerja keras para penenun ulos tradisional dan menggalakkan bahan pewarna alami yang ramah lingkungan.\n\nMari kita hidupkan iman yang menenun kebaikan bagi bumi ciptaan Tuhan setiap hari.",
+      "scriptureRef": "Mazmur 104:1-2",
+      "scriptureText": "TUHAN, Allahku, Engkau sangat besar! Engkau berpakaian keagungan dan semarak, berselubungkan terang seperti kain...",
+      "batakWisdom": "Ijuk di para-para, hotang di parlabian; Na bisuk nampuna hata, na malo mangulosi parsaoran dohot portibi.",
+      "author": "Pusat Studi Ekoteologi & Budaya Batak IAKN Tarutung",
+      "publishedAt": "2026-11-01",
+      "actionCall": "Kunjungi dan dukung perajin tenun ulos lokal serta rawat lingkungan rumah Anda laksana menjaga sehelai kain tenun pusaka bernilai tinggi.",
+      "isFeatured": true
     }
   ]
 }

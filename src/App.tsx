@@ -338,15 +338,6 @@ export default function App() {
           setUser(syncedUser);
           setIsOnboarded(true);
 
-          // Force a fresh fetch from Supabase to ensure authoritative points, streaks, and ranks
-          void AuthService.fetchFreshUserProfile()
-            .then((fresh) => {
-              if (fresh && !cancelled) {
-                setUser(fresh);
-              }
-            })
-            .catch(() => null);
-
           void AuthService.getAccessToken()
             .then((token) => SharedDataService.connect(restoredUser, token))
             .catch((error: unknown) => {
@@ -381,6 +372,41 @@ export default function App() {
       cancelled = true;
     };
   }, [portal]);
+
+  useEffect(() => {
+    if (!isOnboarded || user.id === 'guest-preview') return;
+    let active = true;
+    const syncAccountData = async () => {
+      const currentUser = StorageService.getUser();
+      await SocialSyncService.syncMember(currentUser);
+      const submissionsSynced = await SocialSyncService.pullSocialData(currentUser);
+      if (active && submissionsSynced) {
+        const latestUser = StorageService.getUser();
+        const reconciledUser = StorageService.reconcileUserPoints(latestUser);
+        if (reconciledUser.points !== latestUser.points) {
+          setUser(reconciledUser);
+          void AuthService.updateProfileMetadata({ points: reconciledUser.points })
+            .catch((error: unknown) => console.warn('[App] Gagal menyimpan poin hasil rekonsiliasi:', error));
+        }
+      }
+    };
+    const handlePageVisible = () => {
+      if (document.visibilityState === 'visible') void syncAccountData();
+    };
+    void syncAccountData();
+    const memberCountRefresh = window.setInterval(() => {
+      void SocialSyncService.refreshCommunityMemberCounts()
+        .catch((error: unknown) => console.warn('[App] Gagal memperbarui jumlah anggota:', error));
+    }, 60_000);
+    window.addEventListener('focus', handlePageVisible);
+    document.addEventListener('visibilitychange', handlePageVisible);
+    return () => {
+      active = false;
+      window.clearInterval(memberCountRefresh);
+      window.removeEventListener('focus', handlePageVisible);
+      document.removeEventListener('visibilitychange', handlePageVisible);
+    };
+  }, [isOnboarded, user.id, user.communityId]);
 
   useEffect(() => {
     // Sync font size preference
@@ -835,4 +861,3 @@ export default function App() {
     </div>
   );
 }
-

@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { User, ChallengeSubmission, GreenEvent, Community } from '../types';
 import { StorageService } from '../services/storageService';
+import { SocialSyncService } from '../services/socialSyncService';
 import { MapLocationReviewPanel } from '../components/MapLocationReviewPanel';
 
 interface LeaderDashboardProps {
@@ -56,6 +57,9 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
     targetActions: 300,
     description: 'Komunitas gotong royong hijau merawat alam Danau Toba dan sekitarnya.',
   };
+  const communityPoints = currentComm.totalPoints + (currentComm.verifiedPoints || 0);
+  const communityActions = currentComm.actionCount + (currentComm.verifiedActions || 0);
+  const communityTrees = currentComm.treesPlanted + (currentComm.verifiedTrees || 0);
 
   const [commName, setCommName] = useState(currentComm.name);
   const [commCategory, setCommCategory] = useState<Community['category']>(currentComm.category || 'Gereja');
@@ -94,6 +98,8 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
 
   const handleReview = (id: string, verdict: 'valid' | 'tidak_valid') => {
     StorageService.updateSubmissionReview(id, verdict, `Pemimpin: ${user.name}`);
+    const updatedSubmission = StorageService.getSubmissions().find((submission) => submission.id === id);
+    if (updatedSubmission) void SocialSyncService.syncSubmission(updatedSubmission);
     refreshData();
   };
 
@@ -142,7 +148,7 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
 
   // Tree and action completion rate
   const treeTarget = currentComm.treeTarget || currentComm.targetTrees || 150;
-  const currentTrees = currentComm.treesPlanted || 0;
+  const currentTrees = communityTrees;
   const treeProgress = Math.min(100, Math.round((currentTrees / treeTarget) * 100));
 
   return (
@@ -220,7 +226,7 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
                 Total Anggota
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-[#1F2A1F] dark:text-white block mt-0.5">
-                {currentComm.memberCount} Jiwa
+                {StorageService.getCommunityMemberCount(currentComm)} Jiwa
               </span>
               <span className="text-[11px] text-[#2E6B34] dark:text-emerald-400 font-medium block mt-1">
                 Kategori: {currentComm.category || 'Gereja'}
@@ -232,10 +238,10 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
                 Poin Hijau Kolektif
               </span>
               <span className="text-xl sm:text-2xl font-extrabold text-[#2E6B34] dark:text-emerald-400 block mt-0.5">
-                {currentComm.totalPoints.toLocaleString()}
+                {communityPoints.toLocaleString()}
               </span>
               <span className="text-[11px] text-gray-500 dark:text-gray-400 font-medium block mt-1">
-                {currentComm.actionCount || 0} Aksi Disetujui
+                {communityActions} Aksi Disetujui
               </span>
             </div>
 
@@ -541,7 +547,7 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
                   className="w-full bg-white dark:bg-[#1A261C] border border-gray-300 dark:border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-[#1F2A1F] dark:text-white focus:border-[#2E6B34] focus:outline-hidden"
                 />
                 <span className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5 block">
-                  Aksi terverifikasi: {currentComm.actionCount || 0} aksi.
+                  Aksi terverifikasi: {communityActions} aksi.
                 </span>
               </div>
             </div>
@@ -758,7 +764,7 @@ export const LeaderDashboardPage: React.FC<LeaderDashboardProps> = ({ user }) =>
                 </div>
                 <div className="p-2.5 bg-gray-50 dark:bg-black/30 rounded-xl border border-gray-200 dark:border-white/10">
                   <span className="text-gray-500 dark:text-gray-400 block text-[10px]">Poin Kolektif:</span>
-                  <span className="text-sm font-bold text-cyan-700 dark:text-cyan-400">{currentComm.totalPoints.toLocaleString()}</span>
+                  <span className="text-sm font-bold text-cyan-700 dark:text-cyan-400">{communityPoints.toLocaleString()}</span>
                 </div>
               </div>
             </div>

@@ -75,6 +75,7 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
     const startOfWeek = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+    const communities = StorageService.getCommunities();
     const participants = new Map<string, {
       userId: string;
       name: string;
@@ -98,7 +99,10 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
         isAnonymous: submission.isAnonymous,
         community: submission.userId === user.id
           ? user.communityName.split('(')[0].trim()
-          : 'Komunitas Marsiadapari Hijau',
+          : communities.find((community) =>
+              (submission.userCommunityId && community.id === submission.userCommunityId) ||
+              (submission.userCommunity && community.name === submission.userCommunity)
+            )?.name.split('(')[0].trim() || submission.userCommunity || 'Komunitas Marsiadapari Hijau',
         points: 0,
         monthlyPoints: 0,
         weeklyPoints: 0,
@@ -124,8 +128,6 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
       if (existing) {
         if (user.points > existing.points) {
           existing.points = user.points;
-          existing.monthlyPoints = Math.max(existing.monthlyPoints, user.points);
-          existing.weeklyPoints = Math.max(existing.weeklyPoints, user.points);
         }
       } else {
         participants.set(user.id, {
@@ -134,12 +136,12 @@ export const CommunityLeaderboard: React.FC<CommunityLeaderboardProps> = ({
           isAnonymous: Boolean(user.preferences?.isAnonymous),
           community: user.communityName ? user.communityName.split('(')[0].trim() : 'Komunitas Marsiadapari Hijau',
           points: user.points,
-          monthlyPoints: user.points,
-          weeklyPoints: user.points,
-          completedCount: 1,
-          trees: Math.max(0, Math.floor(user.points / 25)),
-          wasteKg: parseFloat((user.points * 0.15).toFixed(1)),
-          waterSavedLiters: user.points * 10,
+          monthlyPoints: 0,
+          weeklyPoints: 0,
+          completedCount: 0,
+          trees: 0,
+          wasteKg: 0,
+          waterSavedLiters: 0,
         });
       }
     }

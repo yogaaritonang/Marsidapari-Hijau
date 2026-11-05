@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   AlertTriangle,
   Camera,
@@ -44,6 +44,21 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ user, isGuest, onRequi
   const [photo, setPhoto] = useState<string | null>(null);
   const [polishingWithAi, setPolishingWithAi] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const refreshReports = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (!collection || collection === 'reports') setReports(StorageService.getReports());
+    };
+    window.addEventListener('mh-data-updated', refreshReports);
+    window.addEventListener('mh-shared-data-change', refreshReports);
+    window.addEventListener('storage', refreshReports);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshReports);
+      window.removeEventListener('mh-shared-data-change', refreshReports);
+      window.removeEventListener('storage', refreshReports);
+    };
+  }, []);
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {

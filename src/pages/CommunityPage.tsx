@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { User, ChallengeSubmission, Community } from '../types';
 import { StorageService } from '../services/storageService';
+import { SocialSyncService } from '../services/socialSyncService';
 import { CommunityLeaderboard } from '../components/CommunityLeaderboard';
 import { CommunityGallery } from '../components/CommunityGallery';
 
@@ -63,6 +64,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
 
   // Submissions needing review
   const pendingReviews = submissions.filter((s) => s.verdict === 'perlu_tinjauan');
+  const communityActionCount = userCommunity.actionCount + (userCommunity.verifiedActions || 0);
 
   const handleReview = (id: string, verdict: 'valid' | 'tidak_valid') => {
     if (isGuest) {
@@ -70,6 +72,8 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
       return;
     }
     StorageService.updateSubmissionReview(id, verdict, user.name);
+    const updatedSubmission = StorageService.getSubmissions().find((submission) => submission.id === id);
+    if (updatedSubmission) void SocialSyncService.syncSubmission(updatedSubmission);
     setSubmissions(StorageService.getSubmissions());
     setReviewToast(
       verdict === 'valid'
@@ -107,14 +111,14 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
               </h3>
               <p className="text-[10px] text-gray-500">
                 {userCommunity.actionTarget > 0
-                  ? `Bulan Ini: ${userCommunity.actionCount} / ${userCommunity.actionTarget} Aksi Tercapai`
+                  ? `Bulan Ini: ${communityActionCount} / ${userCommunity.actionTarget} Aksi Tercapai`
                   : 'Data aksi komunitas belum tersedia'}
               </p>
             </div>
           </div>
           <span className="text-xs font-extrabold text-[#2E6B34]">
             {userCommunity.actionTarget > 0
-              ? `${Math.round((userCommunity.actionCount / userCommunity.actionTarget) * 100)}%`
+              ? `${Math.round((communityActionCount / userCommunity.actionTarget) * 100)}%`
               : '—'}
           </span>
         </div>
@@ -124,7 +128,7 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
             className="bg-gradient-to-r from-[#2E6B34] via-[#4CAF50] to-[#3B8EA5] h-full rounded-full transition-all duration-700"
             style={{
               width: userCommunity.actionTarget > 0
-                ? `${Math.min(100, Math.round((userCommunity.actionCount / userCommunity.actionTarget) * 100))}%`
+                ? `${Math.min(100, Math.round((communityActionCount / userCommunity.actionTarget) * 100))}%`
                 : '0%',
             }}
           />
@@ -329,17 +333,17 @@ export const CommunityPage: React.FC<CommunityPageProps> = ({ user, isGuest, onR
                       {comm.name}
                     </h4>
                     <span className="text-[10px] text-gray-500">
-                      {comm.category} &bull; {comm.memberCount} Anggota
+                      {comm.category} &bull; {StorageService.getCommunityMemberCount(comm)} Anggota
                     </span>
                   </div>
                 </div>
 
                 <div className="text-right shrink-0">
                   <span className="text-xs font-extrabold text-[#2E6B34] block">
-                    {comm.totalPoints.toLocaleString()} Poin
+                    {(comm.totalPoints + (comm.verifiedPoints || 0)).toLocaleString()} Poin
                   </span>
                   <span className="text-[10px] text-green-700 font-semibold">
-                    🌲 {comm.treesPlanted} Pohon
+                    🌲 {comm.treesPlanted + (comm.verifiedTrees || 0)} Pohon
                   </span>
                 </div>
               </div>

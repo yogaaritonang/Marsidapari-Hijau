@@ -90,6 +90,9 @@ export interface Community {
   actionTarget: number;
   targetActions?: number;
   description: string;
+  verifiedPoints?: number;
+  verifiedActions?: number;
+  verifiedTrees?: number;
 }
 
 export interface Devotion {
@@ -130,6 +133,7 @@ export interface ChallengeSubmission {
   userId: string;
   userName: string;
   userCommunity?: string;
+  userCommunityId?: string;
   isAnonymous: boolean;
   challengeId: string;
   challengeTitle: string;
@@ -259,4 +263,3 @@ export interface AppNotification {
   createdAt: string;
   read: boolean;
 }
-

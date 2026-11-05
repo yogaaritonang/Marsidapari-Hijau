@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   BookOpen,
   Leaf,
@@ -29,6 +29,27 @@ export const DevotionsPage: React.FC<DevotionsPageProps> = ({ user, onSelectChal
   const [topicOrMood, setTopicOrMood] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copyToast, setCopyToast] = useState(false);
+
+  useEffect(() => {
+    const refreshDevotions = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (collection && collection !== 'devotions') return;
+      const latest = StorageService.getDevotions();
+      setDevotions(latest);
+      setSelectedDevotion((selected) => {
+        if (!selected) return StorageService.getTodayDevotion() || latest[0] || null;
+        return latest.find((devotion) => devotion.id === selected.id) || StorageService.getTodayDevotion() || latest[0] || null;
+      });
+    };
+    window.addEventListener('mh-data-updated', refreshDevotions);
+    window.addEventListener('mh-shared-data-change', refreshDevotions);
+    window.addEventListener('storage', refreshDevotions);
+    return () => {
+      window.removeEventListener('mh-data-updated', refreshDevotions);
+      window.removeEventListener('mh-shared-data-change', refreshDevotions);
+      window.removeEventListener('storage', refreshDevotions);
+    };
+  }, []);
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();

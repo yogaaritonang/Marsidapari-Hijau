@@ -318,6 +318,7 @@ export class AuthService {
 
   static signOut(): void {
     this.clearSession();
+    StorageService.resetPersistentSync();
   }
 
   static async getAccessToken(): Promise<string | null> {
@@ -357,7 +358,7 @@ export class AuthService {
         name: user.communityName,
         category: 'Komunitas Warga',
         location: 'Tapanuli Utara',
-        memberCount: 1,
+        memberCount: 0,
         totalPoints: 0,
         treesPlanted: 0,
         treeTarget: 200,
@@ -382,7 +383,7 @@ export class AuthService {
     try {
       const freshAuthUser = await this.request<AuthUser>('/user', undefined, activeToken);
       const user = this.getUserProfile(freshAuthUser);
-      StorageService.saveUser(user);
+      StorageService.applyAuthUserSnapshot(user);
       window.dispatchEvent(new CustomEvent('mh-user-updated', { detail: user }));
       window.dispatchEvent(new CustomEvent('mh-data-updated', { detail: { collection: 'user', values: [user] } }));
       return user;
