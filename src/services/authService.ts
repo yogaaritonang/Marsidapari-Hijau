@@ -27,7 +27,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, '');
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export interface EmailConfirmationNotice {
-  status: 'confirmed' | 'already_verified' | 'error';
+  status: 'confirmed' | 'already_verified' | 'password_recovery' | 'error';
   message: string;
 }
 
@@ -104,6 +104,19 @@ export class AuthService {
     return authUser;
   }
 
+  static async sendPasswordResetEmail(email: string): Promise<void> {
+    const redirectTo = encodeURIComponent(`${this.getPublicOrigin()}/?password_recovery=true`);
+    await this.request(`/recover?redirect_to=${redirectTo}`, { email });
+  }
+
+  static async updatePassword(password: string): Promise<void> {
+    const accessToken = await this.getAccessToken();
+    if (!accessToken) {
+      throw new Error('Tautan pemulihan tidak aktif. Minta tautan lupa kata sandi yang baru.');
+    }
+    await this.request<AuthUser>('/user', { password }, accessToken, 'PUT');
+  }
+
   static async updateProfileMetadata(metadata: Record<string, unknown>): Promise<void> {
     const authUser = await this.getCurrentUser();
     const accessToken = await this.getAccessToken();
@@ -143,6 +156,10 @@ export class AuthService {
     const errorCode = hashParams.get('error_code') || searchParams.get('error_code');
     const errorDescription = hashParams.get('error_description') || searchParams.get('error_description') || hashParams.get('error') || searchParams.get('error');
     const emailConfirmedParam = searchParams.get('email_confirmed');
+    const isPasswordRecovery =
+      hashParams.get('type') === 'recovery' ||
+      searchParams.get('type') === 'recovery' ||
+      searchParams.get('password_recovery') === 'true';
 
     // 1. Handle error cases gracefully (e.g. 404 from expired or already clicked link)
     if (errorCode === '404' || (errorDescription && /invalid|expired|404|already/i.test(errorDescription))) {
@@ -188,10 +205,15 @@ export class AuthService {
       try {
         const user = await this.request<AuthUser>('/user', undefined, accessToken);
         this.cleanAuthUrlParams();
-        pendingNotice = {
-          status: 'confirmed',
-          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif dan siap digunakan.',
-        };
+        pendingNotice = isPasswordRecovery
+          ? {
+              status: 'password_recovery',
+              message: 'Tautan pemulihan berhasil diverifikasi. Silakan buat kata sandi baru.',
+            }
+          : {
+              status: 'confirmed',
+              message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif dan siap digunakan.',
+            };
         return user;
       } catch (error) {
         this.clearSession();
@@ -215,10 +237,15 @@ export class AuthService {
         );
         const user = this.saveSession(response);
         this.cleanAuthUrlParams();
-        pendingNotice = {
-          status: 'confirmed',
-          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
-        };
+        pendingNotice = isPasswordRecovery
+          ? {
+              status: 'password_recovery',
+              message: 'Tautan pemulihan berhasil diverifikasi. Silakan buat kata sandi baru.',
+            }
+          : {
+              status: 'confirmed',
+              message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
+            };
         return user;
       } catch (verifyError) {
         this.cleanAuthUrlParams();
@@ -241,10 +268,15 @@ export class AuthService {
         );
         const user = this.saveSession(response);
         this.cleanAuthUrlParams();
-        pendingNotice = {
-          status: 'confirmed',
-          message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
-        };
+        pendingNotice = isPasswordRecovery
+          ? {
+              status: 'password_recovery',
+              message: 'Tautan pemulihan berhasil diverifikasi. Silakan buat kata sandi baru.',
+            }
+          : {
+              status: 'confirmed',
+              message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif.',
+            };
         return user;
       } catch (codeError) {
         this.cleanAuthUrlParams();
@@ -282,6 +314,7 @@ export class AuthService {
       url.searchParams.delete('error_code');
       url.searchParams.delete('error_description');
       url.searchParams.delete('email_confirmed');
+      url.searchParams.delete('password_recovery');
       const nextSearch = url.searchParams.toString();
       const finalUrl = `${url.pathname}${nextSearch ? `?${nextSearch}` : ''}`;
       window.history.replaceState(null, '', finalUrl);

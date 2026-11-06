@@ -53,6 +53,7 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const [currentTab, setCurrentTab] = useState<string>(() => {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     const availableTabs = [
@@ -300,6 +301,12 @@ export default function App() {
       try {
         const confirmedUser = await AuthService.completeEmailConfirmation();
         const notice = AuthService.consumeConfirmationNotice();
+        if (notice?.status === 'password_recovery' && !cancelled) {
+          setIsPasswordRecovery(true);
+          setIsAuthModalOpen(true);
+          setAuthMode('login');
+          return;
+        }
         if (notice && !cancelled) {
           setEmailConfirmationNotice({
             type: notice.status === 'confirmed' ? 'success' : notice.status === 'already_verified' ? 'info' : 'error',
@@ -811,7 +818,20 @@ export default function App() {
             portal="user"
             initialMode={authMode}
             initialError={authError}
+            initialPasswordRecovery={isPasswordRecovery}
+            onPasswordResetComplete={() => {
+              setIsPasswordRecovery(false);
+              setIsAuthModalOpen(false);
+              setEmailConfirmationNotice({
+                type: 'success',
+                message: 'Kata sandi berhasil diperbarui. Silakan masuk dengan kata sandi baru.',
+              });
+            }}
             onClose={() => {
+              if (isPasswordRecovery) {
+                AuthService.signOut();
+                setIsPasswordRecovery(false);
+              }
               setIsAuthModalOpen(false);
               setAuthError(null);
             }}

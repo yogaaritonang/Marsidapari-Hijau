@@ -22,24 +22,29 @@ interface OnboardingModalProps {
   onClose?: () => void;
   initialError?: string | null;
   initialMode?: AuthMode;
+  initialPasswordRecovery?: boolean;
+  onPasswordResetComplete?: () => void;
   portal?: 'user' | 'leader' | 'admin';
 }
 
 type AuthMode = 'register' | 'login';
-type AuthStage = 'form' | 'confirmation';
+type AuthStage = 'form' | 'confirmation' | 'recovery';
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onComplete,
   onClose,
   initialError,
   initialMode,
+  initialPasswordRecovery = false,
+  onPasswordResetComplete,
   portal = 'user',
 }) => {
   const [mode, setMode] = useState<AuthMode>(portal === 'admin' ? 'login' : initialMode || 'register');
-  const [stage, setStage] = useState<AuthStage>('form');
+  const [stage, setStage] = useState<AuthStage>(initialPasswordRecovery ? 'recovery' : 'form');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [communityId, setCommunityId] = useState('umum');
   const [organizationName, setOrganizationName] = useState('');
   const [organizationCategory, setOrganizationCategory] = useState('Komunitas Warga');
@@ -150,6 +155,51 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
+  const handleRequestPasswordReset = async () => {
+    setError(null);
+    setMessage(null);
+    if (!cleanEmail) {
+      setError('Masukkan email akun terlebih dahulu.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await AuthService.sendPasswordResetEmail(cleanEmail);
+      setMessage(`Jika akun dengan email ${cleanEmail} terdaftar, tautan pemulihan kata sandi akan dikirim ke email tersebut.`);
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Tautan pemulihan gagal dikirim.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (password.length < 8) {
+      setError('Kata sandi harus terdiri dari minimal 8 karakter.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Konfirmasi kata sandi belum sama.');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await AuthService.updatePassword(password);
+      AuthService.signOut();
+      setMessage('Kata sandi berhasil diperbarui. Silakan masuk menggunakan kata sandi baru.');
+      onPasswordResetComplete?.();
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Kata sandi gagal diperbarui.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleBack = () => {
     setStage('form');
     setError(null);
@@ -221,6 +271,58 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     alt={brand.name || 'Logo'}
                     className="max-h-12 max-w-16 object-contain drop-shadow-md"
                   />
+                </div>
+              ) : stage === 'recovery' ? (
+                <div className="m-auto w-full max-w-md">
+                  <div className="mb-7">
+                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#7A5230]">
+                      Pemulihan akun
+                    </p>
+                    <h2 id="auth-heading" className="font-poppins text-2xl font-bold text-[#1F2A1F] sm:text-3xl">
+                      Buat kata sandi baru
+                    </h2>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Gunakan minimal 8 karakter, lalu konfirmasikan kata sandi yang sama.
+                    </p>
+                  </div>
+                  <form onSubmit={handlePasswordReset} className="space-y-4">
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-[#354235]">Kata sandi baru</span>
+                      <input
+                        required
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Minimal 8 karakter"
+                        className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-xs font-bold text-[#354235]">Konfirmasi kata sandi</span>
+                      <input
+                        required
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={8}
+                        value={confirmPassword}
+                        onChange={(event) => setConfirmPassword(event.target.value)}
+                        placeholder="Ulangi kata sandi baru"
+                        className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                      />
+                    </label>
+                    {message && <p role="status" className="rounded-xl border border-[#CEE2C6] bg-[#EDF6E9] p-3 text-sm text-[#2E6B34]">{message}</p>}
+                    {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B] disabled:cursor-not-allowed disabled:opacity-55"
+                    >
+                      {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                      Simpan kata sandi baru
+                    </button>
+                  </form>
                 </div>
               ) : (
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
@@ -567,6 +669,19 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                           </button>
                         </span>
                       </label>
+                    )}
+
+                    {mode === 'login' && (
+                      <div className="text-right">
+                        <button
+                          type="button"
+                          disabled={isLoading}
+                          onClick={() => void handleRequestPasswordReset()}
+                          className="min-h-9 text-xs font-semibold text-[#2E6B34] hover:underline disabled:opacity-50"
+                        >
+                          Lupa kata sandi?
+                        </button>
+                      </div>
                     )}
 
                     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm leading-5 text-red-700">{error}</p>}
