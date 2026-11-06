@@ -53,7 +53,7 @@ export const LaunchScreen: React.FC<LaunchScreenProps> = ({ forceShow = false, o
   const launchConfig = {
     enabled: brand.launchScreen?.enabled !== false,
     title: brand.launchScreen?.title || brand.name || 'Marsiadapari Hijau',
-    subtitle: brand.launchScreen?.subtitle || brand.tagline || 'Gerakan Ekoteologi & Keberlanjutan Alam Toba',
+    subtitle: brand.launchScreen?.subtitle || brand.tagline || 'Gerakan Ekoteologi & Keberlanjutan Alam',
     verseText: brand.launchScreen?.verseText || 'TUHAN Allah mengambil manusia itu dan menempatkannya dalam taman Eden untuk mengusahakan dan memelihara taman itu.',
     verseRef: brand.launchScreen?.verseRef || 'Kejadian 2:15',
     logoUrl: brand.launchScreen?.logoUrl || brand.logoUrl || '',
