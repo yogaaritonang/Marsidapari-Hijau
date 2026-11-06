@@ -28,7 +28,7 @@ interface OnboardingModalProps {
 }
 
 type AuthMode = 'register' | 'login';
-type AuthStage = 'form' | 'confirmation' | 'recovery';
+type AuthStage = 'form' | 'confirmation' | 'reset-request' | 'recovery';
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onComplete,
@@ -155,7 +155,8 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
-  const handleRequestPasswordReset = async () => {
+  const handleRequestPasswordReset = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
     setError(null);
     setMessage(null);
     if (!cleanEmail) {
@@ -202,6 +203,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   const handleBack = () => {
     setStage('form');
+    setError(null);
+    setMessage(null);
+  };
+
+  const handleOpenPasswordReset = () => {
+    setStage('reset-request');
     setError(null);
     setMessage(null);
   };
@@ -271,58 +278,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     alt={brand.name || 'Logo'}
                     className="max-h-12 max-w-16 object-contain drop-shadow-md"
                   />
-                </div>
-              ) : stage === 'recovery' ? (
-                <div className="m-auto w-full max-w-md">
-                  <div className="mb-7">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#7A5230]">
-                      Pemulihan akun
-                    </p>
-                    <h2 id="auth-heading" className="font-poppins text-2xl font-bold text-[#1F2A1F] sm:text-3xl">
-                      Buat kata sandi baru
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-gray-600">
-                      Gunakan minimal 8 karakter, lalu konfirmasikan kata sandi yang sama.
-                    </p>
-                  </div>
-                  <form onSubmit={handlePasswordReset} className="space-y-4">
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold text-[#354235]">Kata sandi baru</span>
-                      <input
-                        required
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        value={password}
-                        onChange={(event) => setPassword(event.target.value)}
-                        placeholder="Minimal 8 karakter"
-                        className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
-                      />
-                    </label>
-                    <label className="block">
-                      <span className="mb-1.5 block text-xs font-bold text-[#354235]">Konfirmasi kata sandi</span>
-                      <input
-                        required
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={8}
-                        value={confirmPassword}
-                        onChange={(event) => setConfirmPassword(event.target.value)}
-                        placeholder="Ulangi kata sandi baru"
-                        className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
-                      />
-                    </label>
-                    {message && <p role="status" className="rounded-xl border border-[#CEE2C6] bg-[#EDF6E9] p-3 text-sm text-[#2E6B34]">{message}</p>}
-                    {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B] disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                      Simpan kata sandi baru
-                    </button>
-                  </form>
                 </div>
               ) : (
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20">
@@ -414,6 +369,107 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     Ganti data atau kembali
                   </button>
                 </div>
+              </div>
+            ) : stage === 'reset-request' ? (
+              <div className="m-auto w-full max-w-md">
+                <div className="mb-7">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#7A5230]">
+                    Pemulihan akun
+                  </p>
+                  <h2 id="auth-heading" className="font-poppins text-2xl font-bold text-[#1F2A1F] sm:text-3xl">
+                    Lupa kata sandi?
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Masukkan email akun Anda. Kami akan mengirim tautan untuk membuat kata sandi baru.
+                  </p>
+                </div>
+                <form onSubmit={handleRequestPasswordReset} className="space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-[#354235]">Email akun</span>
+                    <span className="relative block">
+                      <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        required
+                        type="email"
+                        autoComplete="email"
+                        value={email}
+                        onChange={(event) => setEmail(event.target.value)}
+                        placeholder="nama@email.com"
+                        className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white pl-10 pr-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                      />
+                    </span>
+                  </label>
+                  {message && <p role="status" className="rounded-xl border border-[#CEE2C6] bg-[#EDF6E9] p-3 text-sm text-[#2E6B34]">{message}</p>}
+                  {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={isLoading || !cleanEmail}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B] disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                    Kirim tautan pemulihan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBack}
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold text-gray-500 hover:text-[#2E6B34]"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Kembali ke halaman masuk
+                  </button>
+                </form>
+              </div>
+            ) : stage === 'recovery' ? (
+              <div className="m-auto w-full max-w-md">
+                <div className="mb-7">
+                  <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-[#7A5230]">
+                    Pemulihan akun
+                  </p>
+                  <h2 id="auth-heading" className="font-poppins text-2xl font-bold text-[#1F2A1F] sm:text-3xl">
+                    Buat kata sandi baru
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Gunakan minimal 8 karakter, lalu konfirmasikan kata sandi yang sama.
+                  </p>
+                </div>
+                <form onSubmit={handlePasswordReset} className="space-y-4">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-[#354235]">Kata sandi baru</span>
+                    <input
+                      required
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Minimal 8 karakter"
+                      className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-bold text-[#354235]">Konfirmasi kata sandi</span>
+                    <input
+                      required
+                      type="password"
+                      autoComplete="new-password"
+                      minLength={8}
+                      value={confirmPassword}
+                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      placeholder="Ulangi kata sandi baru"
+                      className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white px-3 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                    />
+                  </label>
+                  {message && <p role="status" className="rounded-xl border border-[#CEE2C6] bg-[#EDF6E9] p-3 text-sm text-[#2E6B34]">{message}</p>}
+                  {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B] disabled:cursor-not-allowed disabled:opacity-55"
+                  >
+                    {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                    Simpan kata sandi baru
+                  </button>
+                </form>
               </div>
             ) : (
               <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
@@ -647,7 +703,19 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
                     {mode === 'login' && (
                       <label className="block">
-                        <span className="mb-1.5 block text-xs font-bold text-[#354235]">Kata sandi</span>
+                        <span className="mb-1.5 flex items-center justify-between gap-2">
+                          <span className="text-xs font-bold text-[#354235]">Kata sandi</span>
+                          {portal !== 'admin' && (
+                            <button
+                              type="button"
+                              disabled={isLoading}
+                              onClick={handleOpenPasswordReset}
+                              className="min-h-7 text-xs font-semibold text-[#2E6B34] hover:underline disabled:opacity-50"
+                            >
+                              Lupa kata sandi?
+                            </button>
+                          )}
+                        </span>
                         <span className="relative block">
                           <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <input
@@ -669,19 +737,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                           </button>
                         </span>
                       </label>
-                    )}
-
-                    {mode === 'login' && (
-                      <div className="text-right">
-                        <button
-                          type="button"
-                          disabled={isLoading}
-                          onClick={() => void handleRequestPasswordReset()}
-                          className="min-h-9 text-xs font-semibold text-[#2E6B34] hover:underline disabled:opacity-50"
-                        >
-                          Lupa kata sandi?
-                        </button>
-                      </div>
                     )}
 
                     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm leading-5 text-red-700">{error}</p>}

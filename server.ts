@@ -168,6 +168,7 @@ async function startServer() {
   app.get(authConfirmPaths, async (req, res) => {
     const tokenHash = (req.query.token_hash || req.query.token) as string | undefined;
     const type = (req.query.type as string) || 'signup';
+    const isPasswordRecovery = type === 'recovery';
     const code = req.query.code as string | undefined;
     const errorCode = (req.query.error_code || req.query.errorCode) as string | undefined;
     const errorDesc = (req.query.error_description || req.query.error) as string | undefined;
@@ -263,10 +264,13 @@ async function startServer() {
               access_token: payload.access_token,
               refresh_token: payload.refresh_token,
               expires_in: String(payload.expires_in || 3600),
+              type,
             });
             return res.redirect(302, `${baseRedirectPath}?email_confirmed=true#${hashParams.toString()}`);
           }
-          return res.redirect(302, `${baseRedirectPath}?email_confirmed=true`);
+          return res.redirect(302, isPasswordRecovery
+            ? `${baseRedirectPath}?password_recovery=true`
+            : `${baseRedirectPath}?email_confirmed=true`);
         }
         return res.redirect(302, `${baseRedirectPath}?email_confirmed=already_verified`);
       } catch (err) {

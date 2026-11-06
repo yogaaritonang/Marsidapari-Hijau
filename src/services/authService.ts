@@ -292,10 +292,15 @@ export class AuthService {
     // 6. Handle ?email_confirmed=true without tokens
     if (emailConfirmedParam === 'true') {
       this.cleanAuthUrlParams();
-      pendingNotice = {
-        status: 'confirmed',
-        message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif. Silakan masuk.',
-      };
+      pendingNotice = isPasswordRecovery
+        ? {
+            status: 'password_recovery',
+            message: 'Tautan pemulihan berhasil diverifikasi. Silakan buat kata sandi baru.',
+          }
+        : {
+            status: 'confirmed',
+            message: '✨ Email berhasil dikonfirmasi! Akun Anda telah aktif. Silakan masuk.',
+          };
       return null;
     }
 

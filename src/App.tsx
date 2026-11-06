@@ -301,7 +301,8 @@ export default function App() {
       try {
         const confirmedUser = await AuthService.completeEmailConfirmation();
         const notice = AuthService.consumeConfirmationNotice();
-        if (notice?.status === 'password_recovery' && !cancelled) {
+        const recoveryRedirect = new URLSearchParams(window.location.search).get('password_recovery') === 'true';
+        if ((notice?.status === 'password_recovery' || recoveryRedirect) && !cancelled) {
           setIsPasswordRecovery(true);
           setIsAuthModalOpen(true);
           setAuthMode('login');
