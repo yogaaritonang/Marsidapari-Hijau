@@ -26,7 +26,7 @@ interface OnboardingModalProps {
 }
 
 type AuthMode = 'register' | 'login';
-type AuthStage = 'form' | 'code' | 'confirmation';
+type AuthStage = 'form' | 'confirmation';
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onComplete,
@@ -40,7 +40,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [communityId, setCommunityId] = useState('umum');
   const [organizationName, setOrganizationName] = useState('');
   const [organizationCategory, setOrganizationCategory] = useState('Komunitas Warga');
@@ -122,28 +121,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
-  const handleRequestCode = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
     setMessage(null);
     setIsLoading(true);
     try {
-      await AuthService.sendLoginCode(cleanEmail);
-      setStage('code');
-      setMessage(`Email masuk telah dikirim ke ${cleanEmail}. Masukkan kode 6 digit atau buka tautan masuk di email.`);
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Kode verifikasi gagal dikirim.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyCode = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      const authUser = await AuthService.verifyLoginCode(cleanEmail, code.trim());
+      const authUser = await AuthService.signInWithPassword(cleanEmail, password);
       const user = AuthService.getUserProfile(authUser);
       const expectedRole = portal === 'admin' ? 'admin' : portal === 'leader' ? 'pemimpin' : 'anggota';
       if (user.role !== expectedRole) {
@@ -160,7 +144,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
       StorageService.setOnboarded(true);
       onComplete(user);
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : 'Kode verifikasi tidak valid.');
+      setError(requestError instanceof Error ? requestError.message : 'Email atau kata sandi tidak valid.');
     } finally {
       setIsLoading(false);
     }
@@ -168,7 +152,6 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
   const handleBack = () => {
     setStage('form');
-    setCode('');
     setError(null);
     setMessage(null);
   };
@@ -337,18 +320,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                     Selamat datang
                   </p>
                   <h2 id="auth-heading" className="font-poppins text-2xl font-bold text-[#1F2A1F] sm:text-3xl">
-                    {stage === 'code'
-                      ? 'Verifikasi email'
-                      : portal === 'admin'
+                    {portal === 'admin'
                       ? 'Masuk admin'
                       : portal === 'leader'
                       ? mode === 'register' ? 'Daftar sebagai pemimpin' : 'Masuk portal pemimpin'
                       : mode === 'register' ? 'Buat akun baru' : 'Masuk ke akun'}
                   </h2>
                   <p className="mt-2 text-sm leading-6 text-gray-600">
-                    {stage === 'code'
-                      ? `Masukkan kode 6 digit dari email ${cleanEmail}, atau buka tautan masuk yang kami kirim.`
-                      : portal === 'admin'
+                    {portal === 'admin'
                       ? 'Akses khusus administrator aplikasi.'
                       : portal === 'leader'
                       ? mode === 'register'
@@ -424,62 +403,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   </div>
                 )}
 
-                {stage === 'code' ? (
-                  <form onSubmit={handleVerifyCode} className="space-y-5">
-                    {message && (
-                      <p role="status" className="rounded-xl border border-[#CEE2C6] bg-[#EDF6E9] p-3 text-sm text-[#2E6B34]">
-                        {message}
-                      </p>
-                    )}
-                    <label className="block">
-                      <span className="mb-2 block text-sm font-semibold text-[#354235]">Kode verifikasi (jika email berisi kode)</span>
-                      <input
-                        autoFocus
-                        required
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        pattern="[0-9]{6}"
-                        maxLength={6}
-                        value={code}
-                        onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
-                        placeholder="000000"
-                        className="min-h-14 w-full rounded-xl border border-[#D8D7CA] bg-white px-4 text-center font-mono text-2xl tracking-[0.45em] text-[#1F2A1F] outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
-                      />
-                    </label>
-                    {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-                    <button
-                      type="submit"
-                      disabled={isLoading || code.length !== 6}
-                      className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#2E6B34] px-4 text-sm font-bold text-white shadow-lg shadow-[#2E6B34]/20 transition hover:bg-[#24582B] disabled:cursor-not-allowed disabled:opacity-55"
-                    >
-                      {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
-                      Verifikasi dan masuk
-                    </button>
-                    <div className="flex items-center justify-between">
-                      <button type="button" onClick={handleBack} className="min-h-11 text-sm font-semibold text-gray-500 hover:text-[#2E6B34]">
-                        Ganti email
-                      </button>
-                      <button
-                        type="button"
-                        disabled={isLoading}
-                        onClick={() => {
-                          setError(null);
-                          setIsLoading(true);
-                          AuthService.sendLoginCode(cleanEmail)
-                            .then(() => setMessage(`Email masuk baru telah dikirim ke ${cleanEmail}. Masukkan kodenya atau buka tautan masuk di email.`))
-                            .catch((requestError: unknown) => setError(
-                              requestError instanceof Error ? requestError.message : 'Kode verifikasi gagal dikirim.',
-                            ))
-                            .finally(() => setIsLoading(false));
-                        }}
-                        className="min-h-11 text-sm font-semibold text-[#2E6B34] hover:underline disabled:opacity-50"
-                      >
-                        Kirim ulang email
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <form onSubmit={mode === 'register' ? handleRegister : handleRequestCode} className="space-y-4">
+                  <form onSubmit={mode === 'register' ? handleRegister : handleLogin} className="space-y-4">
                     {mode === 'register' && (
                       <>
                         <label className="block">
@@ -619,6 +543,32 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       </>
                     )}
 
+                    {mode === 'login' && (
+                      <label className="block">
+                        <span className="mb-1.5 block text-xs font-bold text-[#354235]">Kata sandi</span>
+                        <span className="relative block">
+                          <LockKeyhole className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                          <input
+                            required
+                            type={showPassword ? 'text' : 'password'}
+                            autoComplete="current-password"
+                            value={password}
+                            onChange={(event) => setPassword(event.target.value)}
+                            placeholder="Masukkan kata sandi"
+                            className="min-h-12 w-full rounded-xl border border-[#D8D7CA] bg-white pl-10 pr-11 text-sm outline-none transition focus:border-[#2E6B34] focus:ring-4 focus:ring-[#2E6B34]/10"
+                          />
+                          <button
+                            type="button"
+                            aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
+                            onClick={() => setShowPassword((visible) => !visible)}
+                            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </span>
+                      </label>
+                    )}
+
                     {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm leading-5 text-red-700">{error}</p>}
                     {portal === 'leader' && mode === 'register' && !invitationCode && (
                       <p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
@@ -634,7 +584,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       {isLoading && <LoaderCircle className="h-4 w-4 animate-spin" />}
                       {mode === 'register'
                         ? portal === 'leader' ? 'Buat akun & organisasi' : 'Daftar'
-                        : portal === 'admin' ? 'Kirim kode masuk ke email' : 'Kirim kode verifikasi ke email'}
+                        : 'Masuk'}
                     </button>
 
                     {mode === 'login' && portal !== 'admin' && (
@@ -657,11 +607,10 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                       </p>
                     )}
                   </form>
-                )}
 
                 <div className="mt-auto flex items-center justify-center gap-2 pt-6 text-[11px] text-gray-400">
                   <ShieldCheck className="h-3.5 w-3.5" />
-                  Verifikasi email · Akun aman · Komunitas bertumbuh
+                  Email terverifikasi · Masuk dengan kata sandi · Komunitas bertumbuh
                 </div>
               </div>
             )}

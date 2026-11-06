@@ -92,18 +92,11 @@ export class AuthService {
     }
   }
 
-  static async sendLoginCode(email: string): Promise<void> {
-    const redirectTo = encodeURIComponent(`${this.getPublicOrigin()}/`);
-    await this.request(`/otp?redirect_to=${redirectTo}`, { email, create_user: false });
-  }
-
-  static async verifyLoginCode(email: string, code: string): Promise<AuthUser> {
-    const response = await this.request<AuthResponse>('/verify', {
+  static async signInWithPassword(email: string, password: string): Promise<AuthUser> {
+    const response = await this.request<AuthResponse>('/token?grant_type=password', {
       email,
-      token: code,
-      type: 'email',
+      password,
     });
-
     const authUser = this.saveSession(response);
     if (response.access_token) {
       await this.fetchFreshUserProfile(response.access_token).catch(() => null);
