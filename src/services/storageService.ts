@@ -353,6 +353,12 @@ export class StorageService {
     this.setItem<boolean>(STORAGE_KEYS.ONBOARDED, val);
   }
 
+  static clearActiveUserSession(): void {
+    localStorage.removeItem(STORAGE_KEYS.USER);
+    localStorage.removeItem(STORAGE_KEYS.ONBOARDED);
+    this.resetPersistentSync();
+  }
+
   static clearGuestSession(): void {
     const user = this.getCachedUser();
     if (!this.isGuestUserId(user.id)) return;

@@ -359,15 +359,10 @@ export default function App() {
             });
         }
         else if (!cancelled) {
-          const localUser = StorageService.getUser();
-          if (localUser && localUser.id && !StorageService.isGuestUserId(localUser.id)) {
-            setUser(localUser);
-            setIsOnboarded(true);
-          } else {
-            StorageService.clearGuestSession();
-            setUser(DEFAULT_USER);
-            setIsOnboarded(false);
-          }
+          StorageService.clearGuestSession();
+          StorageService.clearActiveUserSession();
+          setUser(DEFAULT_USER);
+          setIsOnboarded(false);
         }
       } catch (error) {
         if (!cancelled) {
@@ -628,6 +623,7 @@ export default function App() {
 
   const handleLogout = () => {
     StorageService.clearGuestSession();
+    StorageService.clearActiveUserSession();
     AuthService.signOut();
     SharedDataService.disconnect();
     StorageService.setOnboarded(false);
