@@ -29,7 +29,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
 
   const steps = [
     {
-      title: 'Horas! Selamat Datang Dongaan Marsiadapari Hijau',
+      title: 'Horas! Selamat Datang',
       subtitle: 'Gerakan Ekoteologi & Gotong Royong Danau Toba',
       badge: 'Selamat Datang',
       mascotExpression: 'wave',
