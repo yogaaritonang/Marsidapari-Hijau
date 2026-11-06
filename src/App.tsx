@@ -49,6 +49,7 @@ export default function App() {
   const [portal, setPortal] = useState<AppPortal>(getPortalFromPath);
   const [isOnboarded, setIsOnboarded] = useState(false);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isBrandLoading, setIsBrandLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register');
@@ -85,6 +86,30 @@ export default function App() {
     message: string;
   } | null>(null);
   const [isTourOpen, setIsTourOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    const refreshBrand = async () => {
+      try {
+        await SharedDataService.refreshPublicBrand();
+      } catch (error) {
+        console.warn('[App] Gagal memuat pengaturan tampilan publik:', error);
+      } finally {
+        if (active) setIsBrandLoading(false);
+      }
+    };
+
+    void refreshBrand();
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshBrand();
+    }, 60_000);
+    window.addEventListener('focus', refreshBrand);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      window.removeEventListener('focus', refreshBrand);
+    };
+  }, []);
 
   useEffect(() => {
     // Check if user is opening for first time
@@ -604,10 +629,10 @@ export default function App() {
     setIsAuthModalOpen(false);
   };
 
-  if (isAuthLoading && portal !== 'user') {
+  if (isAuthLoading || isBrandLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-[#FAF6EC] dark:bg-[#0F2A15] text-sm font-semibold text-[#2E6B34] dark:text-emerald-400">
-        Memeriksa sesi akun...
+        Memuat aplikasi...
       </div>
     );
   }

@@ -425,6 +425,29 @@ export class StorageService {
     window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: settings }));
   }
 
+  static applyPublicBrandSettings(settings: Partial<BrandSettings>): void {
+    const current = this.getBrandSettings();
+    const updated: BrandSettings = {
+      ...current,
+      ...settings,
+      ...(settings.launchScreen
+        ? { launchScreen: { ...current.launchScreen, ...settings.launchScreen } }
+        : {}),
+    };
+    this.setItem<BrandSettings>(STORAGE_KEYS.BRAND, updated);
+    if (typeof settings.logoUrl === 'string') {
+      if (settings.logoUrl) {
+        localStorage.setItem('mh_brand_backup', JSON.stringify(updated));
+      } else {
+        localStorage.removeItem('mh_brand_backup');
+      }
+    }
+    window.dispatchEvent(new CustomEvent('mh-brand-updated', { detail: updated }));
+    window.dispatchEvent(new CustomEvent('mh-data-updated', {
+      detail: { collection: 'brand', values: [{ id: 'global', ...updated }] },
+    }));
+  }
+
   static getCommunities(): Community[] {
     const list = this.getItem<Community[]>(STORAGE_KEYS.COMMUNITIES, SEED_COMMUNITIES);
     if (!list || list.length === 0) {

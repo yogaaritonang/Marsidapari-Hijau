@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import {
+  BrandSettings,
   Challenge,
   ChallengeSubmission,
   Community,
@@ -544,6 +545,23 @@ export class SharedDataService {
 
   static getClient(): SupabaseClient | null {
     return getSupabaseClient();
+  }
+
+  static async refreshPublicBrand(): Promise<void> {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      throw new Error('Konfigurasi Supabase belum tersedia untuk memuat identitas aplikasi.');
+    }
+
+    const publicClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await publicClient.rpc('mh_public_brand_settings');
+    if (error) throw new Error(`Pengaturan tampilan publik gagal dimuat: ${error.message}`);
+    if (!isRecord(data) || typeof data.name !== 'string' || typeof data.logoUrl !== 'string') {
+      throw new Error('Format pengaturan tampilan publik tidak valid.');
+    }
+
+    StorageService.applyPublicBrandSettings(data as Partial<BrandSettings>);
   }
 
   static updateActiveUser(user: User): void {
